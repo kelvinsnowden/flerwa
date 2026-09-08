@@ -8,6 +8,8 @@ A strategy, product and technical blueprint for a creator–brand collaboration 
 
 ## Start here
 
+**📄 [`Flerwa-Creator-Marketplace-Blueprint.pdf`](Flerwa-Creator-Marketplace-Blueprint.pdf)** — the complete document, 109 pages, with contents and PDF bookmarks. Regenerate with `python3 build/build_html.py && cd build && node render.js`.
+
 **→ [`docs/00-executive-summary.md`](docs/00-executive-summary.md)** — the verdict, the five decisions that matter, and the one finding that should reshape the plan.
 
 If you read nothing else, read that and the founder brief at the end of [`docs/16-blueprint-and-decisions.md`](docs/16-blueprint-and-decisions.md).
