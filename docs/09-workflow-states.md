@@ -126,7 +126,7 @@ DRAFT ──► PENDING_REVIEW ──► OPEN ──► FILLING ──► FULL �
 | `CHECKED_IN` | QR scan at venue. **Travel stipend releases here** if applicable. |
 | `VISIT_COMPLETE` | Content deadline starts. |
 | `IN_PRODUCTION` | Creator working. Reminders at 50% and 80% of the window. |
-| `DRAFT_SUBMITTED` | Files uploaded. **Brand review clock starts (5 days to auto-approve).** |
+| `DRAFT_SUBMITTED` | Files uploaded. **Brand review clock starts (5 days to auto-approve).** Brand sees a **watermarked streaming preview only — no download** (see `10-technical-architecture.md`). |
 | `IN_REVIEW` | Brand reviewing. |
 | `REVISION_REQUESTED` | Must cite a specific brief requirement. Counts against the limit. Deadline extends by the agreed revision window. |
 | `APPROVED` | Brand approves, **or** 5-day silence triggers auto-approval. |
@@ -139,7 +139,7 @@ DRAFT ──► PENDING_REVIEW ──► OPEN ──► FILLING ──► FULL �
 | `PUBLISHED` | Creator posts. |
 | `PROOF_SUBMITTED` | URL and/or API verification. |
 | `PROOF_VERIFIED` | Automated where API allows; manual fallback. **[REC]** Also schedules the **live-duration monitor** — re-check at day 7 and day 30 to catch early deletion. |
-| `PAYMENT_RELEASED` | B2C instruction issued. |
+| `PAYMENT_RELEASED` | B2C instruction issued. **Clean master unlocked** via signed, expiring URL. |
 | `SETTLED` | M-Pesa confirmed. **[REC] Target median under 60 minutes from APPROVED.** |
 | `REVIEW_PENDING` | Both parties prompted. **Double-blind:** reviews reveal on mutual submission or at 14 days. |
 | `COMPLETED` | Terminal. Reputation events written to the ledger. |

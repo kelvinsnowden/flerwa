@@ -33,9 +33,9 @@ The second argument: **you are moving other people's money.** A financial ledger
 | **Hosting** | Vercel | Stated preference; fine at this scale |
 | **Database** | **Postgres (Supabase)** | See above |
 | **Auth** | Supabase Auth — **phone OTP primary**, email secondary, Google optional | **[REC] Phone-first. Kenyan creators may not have an email they check; everyone has a phone.** |
-| **Storage** | Supabase Storage / Cloudflare R2 | R2 has no egress fees — material when serving video portfolios |
-| **Video** | **Cloudflare Stream or Mux** | **[REC] Do not roll your own transcoding.** Video is the product; adaptive bitrate matters on Kenyan mobile networks. |
-| **Payments** | Licensed aggregator (IntaSend / Paystack / Pesapal) behind your own `PaymentProvider` interface | See `05-payments-mpesa.md` |
+| **Storage** | **Cloudflare R2** for deliverable masters; Supabase Storage for avatars, ID docs, PDFs | Split by workload — see *Video and storage* below |
+| **Video** | **Cloudflare Stream** | Portfolio clips and watermarked review previews. See *Video and storage* below. |
+| **Payments** | Licensed aggregator (IntaSend / Paystack / Pesapal) behind your own `PaymentProvider` interface | See `05-payments-mpesa.md` **and the static-IP constraint below** |
 | **Background jobs** | Inngest / Trigger.dev | Timers, reconciliation, proof re-checks, payout retries |
 | **Notifications** | WhatsApp Business API (primary), Africa's Talking (SMS), Resend (email), FCM (push) | See Part 22 |
 | **Search** | Postgres `pg_trgm` + `pgvector` | Do not add Elasticsearch until Postgres actually fails you |
@@ -45,6 +45,87 @@ The second argument: **you are moving other people's money.** A financial ledger
 | **Admin** | Retool or a bespoke Next.js admin | **[REC] Build the ops console in week one — see below** |
 
 **[REC] The ops console is not a V2 item.** V0 and V1 are *manually operated marketplaces*. Your team needs to intervene in every collaboration: verify creators, moderate campaigns, resolve disputes, trigger payouts, fix stuck states. Founders who defer the admin tool end up running the marketplace from the database console, which does not scale past about fifty orders and produces errors that cost real money.
+
+### Video and storage — three workloads, not one
+
+**[REC] Treating "video" as a single problem is what makes these bills explode.** Flerwa has three video workloads with opposite characteristics, and they belong in different places.
+
+| Workload | Size | Reads | Private? | Transcoding? | **Goes to** |
+|---|---|---|---|---|---|
+| **A. Portfolio clips** (profile, storefront) | Small (~40s) | **Very high** | Public | Yes — adaptive bitrate | **Cloudflare Stream** |
+| **B. Deliverable masters** (what the brand buys) | **Large** (100MB–2GB) | Very low (~3) | Private | No | **Cloudflare R2** |
+| **C. Review previews** (draft under review) | Small | Low | Private | Yes — low-res | **Cloudflare Stream** |
+
+**[FACT] Pricing that drives the split (verified September 2026 — re-verify before committing):**
+- **Cloudflare Stream:** $5 per 1,000 minutes stored, $1 per 1,000 minutes delivered, **transcoding included with no encoding fees**.
+- **Mux:** priced separately for encoding (~$0.0075/min), storage (~$0.003/min) and delivery (~$0.0008–0.0048/min by resolution and tier). On a normalised workload Stream came out ~$150 vs Mux ~$170.
+- **Cloudflare R2:** ~$0.015/GB stored, **zero egress**, with a permanent free allowance (10GB stored, 1M Class A / 10M Class B ops).
+- **Supabase Storage (Pro):** $25/mo including 100GB storage and 250GB egress; overages ~$0.021/GB storage and **~$0.09/GB egress**.
+([BuildMVPFast — video](https://www.buildmvpfast.com/api-costs/video), [BuildMVPFast — storage](https://www.buildmvpfast.com/api-costs/cloud-storage), [PkgPulse](https://www.pkgpulse.com/guides/mux-vs-cloudflare-stream-vs-bunny-stream-video-cdn-2026), [Adam Arant](https://adamarant.com/en/blog/cloudflare-r2-vs-s3-vs-supabase-storage-in-2026-which-to-pick))
+
+**[REC] Stream over Mux:** cheaper, simpler, transcoding included. Mux wins on DRM and per-view analytics — you need neither, because creator performance data lives on TikTok and Instagram, not on your player.
+
+**[REC] R2 over Supabase Storage for masters:** brands downloading deliverables is a pure egress workload, which is precisely what R2's zero-egress model exists for. Keep Supabase Storage for avatars, KYC documents and contract PDFs, where RLS-governed access is worth more than egress pricing.
+
+**[ASSUMPTION] Rough cost at V2 scale** (5,000 creators, 1,500 collaborations/month): ~$300/mo portfolio + ~$150/mo masters (~10TB accumulated) + ~$50/mo previews ≈ **$500/month against KSh 27M GMV — immaterial.** The architecture matters not because it is cheap now, but because it prevents this becoming $5,000/month at V3.
+
+#### The watermark gate — this closes a fraud hole, not just a cost problem
+
+**[REC] This is a correction to the dispute design in `06-trust-reputation-fraud.md`.** As originally specified, a brand could receive a draft, **download the file**, refuse to approve, open a dispute, obtain a refund, and still hold the asset. That is free content.
+
+The storage split fixes it, using infrastructure you are building anyway:
+
+```
+DRAFT_SUBMITTED  → brand sees a WATERMARKED, low-res STREAMING preview only
+                   No download. Visible watermark. Stream-delivered, never a file.
+PAYMENT_RELEASED → clean master unlocked from R2 via a signed, expiring URL
+```
+
+Standard practice in stock-media and design marketplaces, and it makes download-then-dispute pointless. It also gives the rights system real teeth: **the master is gated on settlement, not on approval.**
+
+#### Upload is the hard problem in Kenya, not playback
+
+**[REC] Most designs optimise playback and ignore upload. Here it is the reverse.** A creator on Nairobi mobile data uploading a 200MB video *will* fail partway, and a failed upload after a completed shoot is a churn event — the creator did the work and cannot deliver it.
+
+Four requirements:
+1. **Resumable uploads (tus protocol)** — supported by both Cloudflare Stream and Supabase Storage. Non-negotiable on mobile.
+2. **Direct-to-storage via signed URL.** Never proxy video through Next.js API routes — Vercel serverless functions cap request bodies at roughly 4.5MB, and proxying is slow and expensive regardless.
+3. **Client-side compression before upload**, with a visible size and time estimate so the creator knows what they are committing to.
+4. **Cap required resolution at 1080p** unless the rights grant genuinely needs more. Demand a large master only when the brand purchased OOH or print rights — this ties file size to what was actually paid for.
+
+**[REC] On playback, adaptive bitrate matters more here than in a Western market.** Shipping a 1080p rendition to a phone on a variable network both fails to play and burns the viewer's data bundle. That is a cost borne by your users, not your invoice — and in a market where mobile data is expensive, it is a retention issue.
+
+---
+
+### The M-Pesa static-IP constraint (serverless gotcha)
+
+**[FACT]** Vercel deployments use **dynamic outbound IPs**, and any destination that allowlists by IP will reject that traffic ([Vercel — Static IPs](https://vercel.com/docs/networking/static-ips), [QuotaGuard](https://www.quotaguard.com/integrations/vercel-static-ip), [Fixie](https://usefixie.com/vercel-static-ip)).
+
+**[FACT — sources conflict]** Some Daraja documentation states the API works over the public internet with no VPN or IP whitelisting required (unlike the legacy SOAP API), while multiple go-live guides state that **Safaricom whitelists your production server IPs before enabling live endpoints**. **[REC] Assume whitelisting is required and design defensively** — discovering otherwise costs nothing; discovering it late blocks go-live.
+
+Note the asymmetry: **inbound callbacks are fine on serverless** (any public HTTPS endpoint works). It is the **outbound** calls to Daraja that need a fixed source address.
+
+**[REC] Three ways out, in order of preference:**
+
+| Option | Trade-off |
+|---|---|
+| **1. Use the licensed aggregator** (IntaSend / Paystack / Pesapal) | **Preferred.** They hold the Daraja relationship and the static IPs. This is already the recommendation for regulatory reasons in `13-legal-compliance.md` — that two independent constraints point to the same answer is a good sign. |
+| 2. Static-IP egress proxy (QuotaGuard, Fixie) | Route only outbound Daraja calls through it. Cheap, adds a dependency and a latency hop. |
+| 3. Small always-on VM as a payments service | Fixed IP, full control, direct Daraja relationship at scale. Vercel handles everything else. Most operational overhead. |
+
+**[REC] Whichever you choose, keep it behind the `PaymentProvider` interface.** Moving from aggregator (V1) to direct Daraja (at scale) should be a provider swap, not a refactor.
+
+---
+
+### Connection pooling (the other serverless gotcha)
+
+**[FACT]** Next.js on Vercel plus Postgres will exhaust connections unless you use **Supavisor's transaction-mode pooler on port 6543**, and reduce or disable your application-side pool. Transaction mode is optimised for short-lived, stateless serverless functions. Prepared-statement support in transaction mode has improved — Supavisor now parses and broadcasts named prepared statements across connections — but it historically caused problems with Prisma. ([Supabase — connecting to Postgres](https://supabase.com/docs/guides/database/connecting-to-postgres), [Supavisor 1.0](https://supabase.com/blog/supavisor-postgres-connection-pooler), [Supavisor FAQ](https://supabase.com/docs/guides/troubleshooting/supavisor-faq-YyP5tI))
+
+**[REC] Spike this before committing to an ORM.** It is a one-day test that prevents a painful migration later.
+
+**[REC] Two more Supabase-specific decisions:**
+- **Do not let the client write money.** RLS is defence-in-depth, not your authorisation model for financial logic. All escrow transitions, ledger writes, payout instructions and state-machine changes go through server-side routes using the service role. An RLS bug in a marketplace is a security incident; an RLS bug on the ledger is unrecoverable.
+- **Benchmark region latency from Nairobi before provisioning.** East African traffic routes both north to Europe and east via Indian Ocean cables, so do not assume Frankfurt beats Mumbai. This also interacts with the cross-border transfer question in `13-legal-compliance.md`, and a project's region cannot be changed later without a migration.
 
 ### Social platform APIs — what is realistically integrable
 
@@ -242,5 +323,7 @@ reputation_snapshot (
 | Ops | **Admin console (week one)** | Automated moderation, risk scoring | ML fraud detection |
 | Rights | Structured grant + PDF contract | Rights library, renewals | Automated enforcement monitoring |
 | Logistics | State tracking only | Courier API integration | Consolidated dispatch |
+
+**[REC] Two critical-path notes.** First, resolve the **static-IP question with your aggregator in week one** alongside the Daraja paperwork — it determines whether payments can live on Vercel at all.
 
 **[REC] One team-shaping note.** The MVP column is roughly **3–4 engineers for 10–14 weeks**, and the largest single risk in it is not code — it is **[FACT]** the 6–8 weeks typically required to go from Daraja sandbox to production, which includes shortcode registration, a signed go-live letter, and IP whitelisting. **Start the M-Pesa go-live paperwork in week one, before you write the first line of payment code.** It is the critical path, and it is the one part of the build that no amount of engineering effort can accelerate.

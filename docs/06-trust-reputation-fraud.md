@@ -237,6 +237,7 @@ L5  External        Only above KSh 200,000 — arbitration per T&Cs      —
 | 10 | Seeding fraud (keeps product, never posts) | Medium | Low | Delivery-linked obligations, reputation |
 | 11 | Payment fraud / stolen instruments | Low-Med | High | Aggregator controls, velocity limits |
 | 12 | Deepfaked or AI-generated "UGC" passed as real | **Rising** | Medium | Provenance requirements; see below |
+| 13 | **Brand downloads the draft, then refuses to approve** | **High** | **High** | **Watermark gate — see below** |
 
 ### Controls that matter most
 
@@ -254,14 +255,24 @@ Tier 4  Screenshot only                   ← treat as unverified, never auto-re
 
 **[REC]** Consequence: **creator-authorised OAuth is the only path to trustworthy audience data**, and you must design onboarding to make connecting accounts feel worthwhile — a "Verified Audience" badge that visibly improves ranking. Do not promise brands audience demographics you cannot obtain.
 
-**3. Account takeover and SIM swap.**
+**3. The watermark gate — brand-side content theft.**
+**[REC] This closes a hole in the dispute design above.** As originally specified, a brand could receive a draft, download the file, refuse to approve, open a dispute, obtain a refund, and still hold the asset.
+
+```
+DRAFT_SUBMITTED  → watermarked, low-res STREAMING preview only. No download.
+PAYMENT_RELEASED → clean master unlocked via a signed, expiring URL.
+```
+
+Standard practice in stock-media and design marketplaces. It makes download-then-dispute pointless and gives the rights system real teeth: **the master is gated on settlement, not on approval.** Implementation detail in `10-technical-architecture.md`.
+
+**4. Account takeover and SIM swap.**
 Kenya's dependence on phone-number identity makes SIM swap a live risk. **[REC]**
 - Changing the payout number triggers a **24-hour hold plus re-verification** — no exceptions
 - Any payout to a newly changed number is manually reviewed above a threshold
 - Alert to email and the old number on any change
 - Device fingerprint change + payout detail change + immediate withdrawal = automatic freeze
 
-**4. AI-generated content passed off as authentic UGC.**
+**5. AI-generated content passed off as authentic UGC.**
 **[ASSUMPTION]** This is a fast-growing problem that most platform designs still ignore. A brand paying for a real person's authentic testimonial is buying authenticity, and synthetic content defrauds them of exactly what they paid for. **[REC]** Require an explicit `content_provenance` declaration on every UGC submission (`filmed_by_creator` / `ai_assisted_editing` / `ai_generated`), make misdeclaration a permanent-ban offence, and let brands filter on it. Handled well, this becomes a selling point: *"real people, verifiably."*
 
 ### The circumvention problem — the honest analysis
