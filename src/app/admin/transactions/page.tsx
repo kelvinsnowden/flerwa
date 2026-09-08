@@ -2,10 +2,11 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { formatMoney } from "@/lib/money";
 import { TXN_STATE_LABELS, type ServiceTransaction } from "@/lib/types";
+import { ErrorNotice } from "@/components/error-notice";
 
 export default async function AdminTransactionsPage() {
   const supabase = await createClient();
-  const { data: transactions } = await supabase
+  const { data: transactions, error } = await supabase
     .from("service_transactions")
     .select("*, services(name), providers(display_name)")
     .order("requested_at", { ascending: false })
@@ -20,7 +21,8 @@ export default async function AdminTransactionsPage() {
   return (
     <div>
       <h1 className="text-xl font-bold mb-6">All transactions</h1>
-      <div className="overflow-x-auto">
+      {error && <ErrorNotice message="We couldn't load transactions. Please refresh." />}
+      {!error && <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="text-left text-[var(--muted)] border-b">
@@ -50,7 +52,7 @@ export default async function AdminTransactionsPage() {
           </tbody>
         </table>
         {!transactions?.length && <p className="text-sm text-[var(--muted)] mt-4">No transactions yet.</p>}
-      </div>
+      </div>}
     </div>
   );
 }

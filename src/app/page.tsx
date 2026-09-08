@@ -2,10 +2,11 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { formatMoney } from "@/lib/money";
 import type { Service } from "@/lib/types";
+import { ErrorNotice } from "@/components/error-notice";
 
 export default async function HomePage() {
   const supabase = await createClient();
-  const { data: services } = await supabase
+  const { data: services, error } = await supabase
     .from("services")
     .select("*")
     .eq("is_active", true)
@@ -48,8 +49,9 @@ export default async function HomePage() {
 
       <section className="mt-14">
         <h2 className="text-lg font-semibold mb-4">Book a service</h2>
+        {error && <ErrorNotice message="We couldn't load services right now. Please refresh." />}
         <div className="grid gap-3 sm:grid-cols-2">
-          {services?.map((service) => (
+          {!error && services?.map((service) => (
             <Link
               key={service.id}
               href={`/services/${service.slug}`}
@@ -67,7 +69,7 @@ export default async function HomePage() {
               </div>
             </Link>
           ))}
-          {!services?.length && (
+          {!error && !services?.length && (
             <p className="text-sm text-[var(--muted)] col-span-2">
               No services published yet.
             </p>

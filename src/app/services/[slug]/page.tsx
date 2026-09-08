@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { formatMoney } from "@/lib/money";
 import type { Service, ServiceScopeItem, Location, Provider, ReliabilityScore } from "@/lib/types";
 import { BookingForm } from "./booking-form";
+import { ErrorNotice } from "@/components/error-notice";
 
 export default async function ServiceDetailPage({
   params,
@@ -12,13 +13,20 @@ export default async function ServiceDetailPage({
   const { slug } = await params;
   const supabase = await createClient();
 
-  const { data: service } = await supabase
+  const { data: service, error: serviceError } = await supabase
     .from("services")
     .select("*")
     .eq("slug", slug)
     .eq("is_active", true)
     .single<Service>();
 
+  if (serviceError && serviceError.code !== "PGRST116") {
+    return (
+      <div className="mx-auto max-w-2xl px-4 py-10">
+        <ErrorNotice message="We couldn't load this service right now. Please refresh." />
+      </div>
+    );
+  }
   if (!service) notFound();
 
   const [{ data: scopeItems }, { data: locations }] = await Promise.all([

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { formatMoney } from "@/lib/money";
 import type { Provider, ReliabilityScore, Service } from "@/lib/types";
+import { ErrorNotice } from "@/components/error-notice";
 
 export default async function ProviderStorefrontPage({
   params,
@@ -12,12 +13,19 @@ export default async function ProviderStorefrontPage({
   const { slug } = await params;
   const supabase = await createClient();
 
-  const { data: provider } = await supabase
+  const { data: provider, error: providerError } = await supabase
     .from("providers")
     .select("*, reliability_scores(*), locations:base_location_id(ward, town)")
     .eq("slug", slug)
     .single<Provider & { reliability_scores: ReliabilityScore[]; locations: { ward: string | null; town: string } | null }>();
 
+  if (providerError && providerError.code !== "PGRST116") {
+    return (
+      <div className="mx-auto max-w-2xl px-4 py-10">
+        <ErrorNotice message="We couldn't load this provider's profile right now. Please refresh." />
+      </div>
+    );
+  }
   if (!provider) notFound();
 
   // A provider viewing their own unpublished/unverified profile can preview

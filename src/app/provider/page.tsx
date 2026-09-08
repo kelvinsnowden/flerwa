@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { formatMoney } from "@/lib/money";
 import { TXN_STATE_LABELS, type ServiceTransaction, type Provider, type ReliabilityScore } from "@/lib/types";
+import { ErrorNotice } from "@/components/error-notice";
 
 const VERIFICATION_COPY: Record<string, { label: string; tone: "warn" | "trust" }> = {
   pending: { label: "Complete your profile to submit for verification", tone: "warn" },
@@ -28,7 +29,7 @@ export default async function ProviderDashboardPage() {
 
   if (!provider) redirect("/provider/apply");
 
-  const { data: jobs } = await supabase
+  const { data: jobs, error: jobsError } = await supabase
     .from("service_transactions")
     .select("*, services(name)")
     .eq("provider_id", provider.id)
@@ -57,43 +58,53 @@ export default async function ProviderDashboardPage() {
         {verificationCopy.label}
       </span>
 
-      <div className="mt-6 grid grid-cols-3 gap-3">
-        <Stat label="Pending" value={formatMoney(pendingEarnings)} />
-        <Stat label="Earned" value={formatMoney(totalEarned)} />
-        <Stat label="Reliability" value={reliability?.score != null ? `${reliability.score}` : "New"} />
-      </div>
+      {jobsError && (
+        <div className="mt-6">
+          <ErrorNotice message="We couldn't load your jobs or earnings right now. The numbers below are not showing — this is not the same as having no active jobs. Please refresh." />
+        </div>
+      )}
 
-      <h2 className="mt-8 font-semibold">Active jobs</h2>
-      <div className="mt-3 flex flex-col gap-2">
-        {activeJobs.length === 0 && (
-          <p className="text-sm text-[var(--muted)]">No active jobs right now.</p>
-        )}
-        {activeJobs.map((job) => (
-          <Link
-            key={job.id}
-            href={`/provider/jobs/${job.id}`}
-            className="card p-4 flex items-center justify-between hover:border-[var(--trust)] transition-colors"
-          >
-            <div>
-              <p className="font-semibold">{job.services?.name}</p>
-              <p className="text-sm text-[var(--muted)]">{TXN_STATE_LABELS[job.state]}</p>
-            </div>
-            <p className="font-bold text-sm">{formatMoney(job.service_amount_minor, job.currency)}</p>
-          </Link>
-        ))}
-      </div>
-
-      {pastJobs.length > 0 && (
+      {!jobsError && (
         <>
-          <h2 className="mt-8 font-semibold">Completed</h2>
+          <div className="mt-6 grid grid-cols-3 gap-3">
+            <Stat label="Pending" value={formatMoney(pendingEarnings)} />
+            <Stat label="Earned" value={formatMoney(totalEarned)} />
+            <Stat label="Reliability" value={reliability?.score != null ? `${reliability.score}` : "New"} />
+          </div>
+
+          <h2 className="mt-8 font-semibold">Active jobs</h2>
           <div className="mt-3 flex flex-col gap-2">
-            {pastJobs.map((job) => (
-              <div key={job.id} className="card p-4 flex items-center justify-between opacity-80">
-                <p className="font-semibold text-sm">{job.services?.name}</p>
-                <p className="text-sm">{formatMoney(job.service_amount_minor, job.currency)}</p>
-              </div>
+            {activeJobs.length === 0 && (
+              <p className="text-sm text-[var(--muted)]">No active jobs right now.</p>
+            )}
+            {activeJobs.map((job) => (
+              <Link
+                key={job.id}
+                href={`/provider/jobs/${job.id}`}
+                className="card p-4 flex items-center justify-between hover:border-[var(--trust)] transition-colors"
+              >
+                <div>
+                  <p className="font-semibold">{job.services?.name}</p>
+                  <p className="text-sm text-[var(--muted)]">{TXN_STATE_LABELS[job.state]}</p>
+                </div>
+                <p className="font-bold text-sm">{formatMoney(job.service_amount_minor, job.currency)}</p>
+              </Link>
             ))}
           </div>
+
+          {pastJobs.length > 0 && (
+            <>
+              <h2 className="mt-8 font-semibold">Completed</h2>
+              <div className="mt-3 flex flex-col gap-2">
+                {pastJobs.map((job) => (
+                  <div key={job.id} className="card p-4 flex items-center justify-between opacity-80">
+                    <p className="font-semibold text-sm">{job.services?.name}</p>
+                    <p className="text-sm">{formatMoney(job.service_amount_minor, job.currency)}</p>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
         </>
       )}
     </div>

@@ -96,6 +96,15 @@ body {
   border-radius: 999px;
 }
 
+.notice-error {
+  border: 1px solid var(--danger);
+  background: color-mix(in srgb, var(--danger) 8%, var(--card));
+  color: var(--danger);
+  border-radius: 0.75rem;
+  padding: 1rem;
+  font-size: 0.875rem;
+}
+
 input, textarea, select {
   border: 1px solid var(--border);
   border-radius: 0.5rem;

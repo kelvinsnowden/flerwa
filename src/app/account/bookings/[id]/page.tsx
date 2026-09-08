@@ -4,6 +4,7 @@ import { formatMoney } from "@/lib/money";
 import { TXN_STATE_LABELS, type ServiceTransaction } from "@/lib/types";
 import { EvidenceGallery } from "./evidence-gallery";
 import { ApproveOrReviseControls, ReviewForm } from "./booking-actions";
+import { ErrorNotice } from "@/components/error-notice";
 
 export default async function BookingDetailPage({
   params,
@@ -17,7 +18,7 @@ export default async function BookingDetailPage({
   } = await supabase.auth.getUser();
   if (!user) redirect(`/login?next=/account/bookings/${id}`);
 
-  const { data: booking } = await supabase
+  const { data: booking, error: bookingError } = await supabase
     .from("service_transactions")
     .select("*, services(name), providers(id, display_name, user_id), locations(ward, town)")
     .eq("id", id)
@@ -29,9 +30,18 @@ export default async function BookingDetailPage({
       }
     >();
 
+  // PGRST116 = no matching row, a genuine "not found." Any other error is a
+  // real failure and must not be presented to the user as a 404.
+  if (bookingError && bookingError.code !== "PGRST116") {
+    return (
+      <div className="mx-auto max-w-2xl px-4 py-10">
+        <ErrorNotice message="We couldn't load this booking right now. Please refresh." />
+      </div>
+    );
+  }
   if (!booking) notFound();
 
-  const [{ count: revisionCount }, { data: existingReview }, { data: payment }] = await Promise.all([
+  const [{ count: revisionCount }, { data: existingReview }, { data: payment, error: paymentError }] = await Promise.all([
     supabase
       .from("transaction_events")
       .select("id", { count: "exact", head: true })
@@ -64,13 +74,15 @@ export default async function BookingDetailPage({
         <Row
           label="Payment"
           value={
-            !payment || payment.state === "unpaid"
-              ? "Pending — our team will contact you to arrange payment"
-              : payment.state === "funded"
-                ? "Confirmed & held"
-                : payment.state === "released"
-                  ? "Released to provider"
-                  : payment.state
+            paymentError
+              ? "Unable to load payment status — refresh to try again"
+              : !payment || payment.state === "unpaid"
+                ? "Pending — our team will contact you to arrange payment"
+                : payment.state === "funded"
+                  ? "Confirmed & held"
+                  : payment.state === "released"
+                    ? "Released to provider"
+                    : payment.state
           }
         />
         {booking.auto_approve_at && booking.state === "evidence_submitted" && (

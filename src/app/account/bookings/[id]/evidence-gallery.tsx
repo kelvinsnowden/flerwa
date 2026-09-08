@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { ErrorNotice } from "@/components/error-notice";
 
 interface EvidenceRow {
   id: string;
@@ -11,12 +12,16 @@ interface EvidenceRow {
 
 export async function EvidenceGallery({ transactionId }: { transactionId: string }) {
   const supabase = await createClient();
-  const { data: evidence } = await supabase
+  const { data: evidence, error } = await supabase
     .from("transaction_evidence")
     .select("*")
     .eq("transaction_id", transactionId)
     .order("created_at")
     .returns<EvidenceRow[]>();
+
+  if (error) {
+    return <ErrorNotice message="We couldn't load the evidence for this job. Please refresh — this does not mean no evidence was submitted." />;
+  }
 
   if (!evidence?.length) {
     return <p className="text-sm text-[var(--muted)]">No evidence submitted yet.</p>;

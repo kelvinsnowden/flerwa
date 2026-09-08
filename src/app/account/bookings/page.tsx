@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { formatMoney } from "@/lib/money";
 import { TXN_STATE_LABELS, type ServiceTransaction } from "@/lib/types";
+import { ErrorNotice } from "@/components/error-notice";
 
 export default async function BookingsPage() {
   const supabase = await createClient();
@@ -11,7 +12,7 @@ export default async function BookingsPage() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login?next=/account/bookings");
 
-  const { data: bookings } = await supabase
+  const { data: bookings, error } = await supabase
     .from("service_transactions")
     .select("*, services(name), providers(display_name)")
     .eq("customer_id", user.id)
@@ -22,7 +23,13 @@ export default async function BookingsPage() {
     <div className="mx-auto max-w-2xl px-4 py-10">
       <h1 className="text-2xl font-bold">My bookings</h1>
 
-      {!bookings?.length && (
+      {error && (
+        <div className="mt-8">
+          <ErrorNotice message="We couldn't load your bookings right now. Please refresh — this does not mean you have no bookings." />
+        </div>
+      )}
+
+      {!error && !bookings?.length && (
         <div className="mt-8 card p-6 text-center">
           <p className="text-[var(--muted)]">You haven&apos;t booked anything yet.</p>
           <Link href="/" className="btn-primary mt-4 inline-block">

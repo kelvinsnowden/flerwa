@@ -4,6 +4,7 @@ import { formatMoney } from "@/lib/money";
 import { TXN_STATE_LABELS, type ServiceTransaction } from "@/lib/types";
 import { ChecklistItemRow } from "./checklist-item";
 import { CheckInButton, SubmitCompletionButton } from "./job-controls";
+import { ErrorNotice } from "@/components/error-notice";
 
 export default async function ProviderJobDetailPage({
   params,
@@ -24,7 +25,7 @@ export default async function ProviderJobDetailPage({
     .maybeSingle();
   if (!provider) redirect("/provider/apply");
 
-  const { data: job } = await supabase
+  const { data: job, error: jobError } = await supabase
     .from("service_transactions")
     .select("*, services(id, name), locations(ward, town)")
     .eq("id", id)
@@ -36,9 +37,19 @@ export default async function ProviderJobDetailPage({
       }
     >();
 
+  if (jobError && jobError.code !== "PGRST116") {
+    return (
+      <div className="mx-auto max-w-2xl px-4 py-10">
+        <ErrorNotice message="We couldn't load this job right now. Please refresh." />
+      </div>
+    );
+  }
   if (!job) notFound();
 
-  const [{ data: checklistItems }, { data: results }] = await Promise.all([
+  const [
+    { data: checklistItems, error: checklistError },
+    { data: results, error: resultsError },
+  ] = await Promise.all([
     supabase
       .from("service_checklist_items")
       .select("*")
@@ -49,6 +60,7 @@ export default async function ProviderJobDetailPage({
       .select("checklist_item_id, is_complete")
       .eq("transaction_id", id),
   ]);
+  const checklistLoadFailed = Boolean(checklistError || resultsError);
 
   const completedIds = new Set(
     (results ?? []).filter((r) => r.is_complete).map((r) => r.checklist_item_id)
@@ -56,7 +68,11 @@ export default async function ProviderJobDetailPage({
 
   const canCheckIn = job.state === "funded" || job.state === "scheduled";
   const canWorkChecklist = ["checked_in", "in_progress", "revision_requested"].includes(job.state);
+  // Fail closed on a query error: never let "we couldn't load the checklist"
+  // present as "no required items remain," which would surface the submit
+  // button even though completion hasn't actually been verified.
   const requiredIncomplete =
+    checklistLoadFailed ||
     (checklistItems ?? []).filter((i) => i.is_required && !completedIds.has(i.id)).length > 0;
 
   return (
@@ -85,7 +101,13 @@ export default async function ProviderJobDetailPage({
 
       {canCheckIn && <CheckInButton transactionId={job.id} />}
 
-      {canWorkChecklist && checklistItems && checklistItems.length > 0 && (
+      {canWorkChecklist && checklistLoadFailed && (
+        <div className="mt-6">
+          <ErrorNotice message="We couldn't load the checklist for this job. Please refresh before submitting." />
+        </div>
+      )}
+
+      {canWorkChecklist && !checklistLoadFailed && checklistItems && checklistItems.length > 0 && (
         <div className="mt-6">
           <h2 className="font-semibold mb-2">Checklist</h2>
           <ul className="card divide-y px-4">
@@ -102,7 +124,7 @@ export default async function ProviderJobDetailPage({
         </div>
       )}
 
-      {canWorkChecklist && (!checklistItems || checklistItems.length === 0) && (
+      {canWorkChecklist && !checklistLoadFailed && (!checklistItems || checklistItems.length === 0) && (
         <div className="mt-6">
           <SubmitCompletionButton transactionId={job.id} />
         </div>
