@@ -8,7 +8,7 @@ const { chromium } = require('playwright-core');
   // A4 @96dpi = 794px; content column = 794 - (15mm*2) = ~681px.
   const page = await browser.newPage({ viewport: { width: 794, height: 1123 } });
   await page.emulateMedia({ media: 'print' });
-  await page.goto('file:///home/user/flerwa/build/flerwa.html', { waitUntil: 'load' });
+  await page.goto('file:///home/user/flerwa/build/blueprint.html', { waitUntil: 'load' });
 
   // Auto-fit: shrink any <pre> or <table> that overflows its column, rather than
   // shrinking every block to fit the single widest one.
@@ -40,7 +40,7 @@ const { chromium } = require('playwright-core');
   });
 
   await page.pdf({
-    path: '/home/user/flerwa/Flerwa-Creator-Marketplace-Blueprint.pdf',
+    path: '/home/user/flerwa/Trusted-Services-Marketplace-Blueprint.pdf',
     format: 'A4',
     tagged: true,
     outline: true,
@@ -51,7 +51,7 @@ const { chromium } = require('playwright-core');
     footerTemplate: `
       <div style="width:100%;font-family:'DejaVu Sans',Helvetica,sans-serif;font-size:7.5pt;
                   color:#7b858e;padding:0 15mm;display:flex;justify-content:space-between;">
-        <span>Flerwa · Creator Collaboration Marketplace · Blueprint</span>
+        <span>Trusted Services Marketplace · Kenya · Strategic Blueprint</span>
         <span>Page <span class="pageNumber"></span> of <span class="totalPages"></span></span>
       </div>`
   });

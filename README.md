@@ -1,85 +1,90 @@
-# Flerwa — Creator Collaboration Marketplace
+# Trusted Services Marketplace — Kenya
 
-A strategy, product and technical blueprint for a creator–brand collaboration marketplace launching in Kenya, built on M-Pesa, and designed to expand across East Africa.
+**Strategic blueprint following the pivot from a creator-collaboration marketplace to a trusted services marketplace.**
 
-**Research conducted 8 September 2026.** Every claim is tagged **[FACT]** (verified, cited), **[REC]** (recommendation), or **[ASSUMPTION]** (estimate, unverified). Sources in [`docs/sources.md`](docs/sources.md). Nothing here is legal, tax, or financial advice.
+Research conducted 8 September 2026. Claims are tagged **[FACT]** (verified, cited), **[REC]** (recommendation), **[ASSUMPTION]** (unverified), **[LEGAL — COUNSEL REQUIRED]**. Sources in [`docs/sources.md`](docs/sources.md). Nothing here is legal, tax or financial advice.
 
 ---
 
 ## Start here
 
-**📄 [`Flerwa-Creator-Marketplace-Blueprint.pdf`](Flerwa-Creator-Marketplace-Blueprint.pdf)** — the complete document, 109 pages, with contents and PDF bookmarks. Regenerate with `python3 build/build_html.py && cd build && node render.js`.
+**📄 [`Trusted-Services-Marketplace-Blueprint.pdf`](Trusted-Services-Marketplace-Blueprint.pdf)** — the complete document with contents and bookmarks.
 
-**→ [`docs/00-executive-summary.md`](docs/00-executive-summary.md)** — the verdict, the five decisions that matter, and the one finding that should reshape the plan.
-
-If you read nothing else, read that and the founder brief at the end of [`docs/16-blueprint-and-decisions.md`](docs/16-blueprint-and-decisions.md).
+**→ [`docs/00-executive-thesis.md`](docs/00-executive-thesis.md)** — the verdict, which is not the one the brief asked for.
 
 ---
 
-## The three things this research changed
+## The short version
 
-1. **[FACT]** Kenya's measured influencer advertising market is **~US$2.1M (2024), forecast ~US$3.0M (2028)**. Capturing *all of it* at a 15% take rate yields ~US$315k/year. **A Kenya-only, influencer-only take-rate business cannot become large.** The plan must target content-production, SME marketing, regional and export budgets instead.
+**You asked me to challenge the pivot. Here is the challenge.**
 
-2. **[FACT]** **Zaumu launched in Nairobi in April 2025 with escrow, milestone payments, creator-protective contracts, two-sided reviews and in-platform messaging** — the core of the product as originally described. Differentiation cannot be escrow or contracts. It has to be category (physical/local collaborations), average order value, and operational reliability.
+**The diagnosis is right. The prescription — launch a horizontal trusted-services marketplace — is the most attempted and most failed model in African consumer tech, and two funded companies already ran this exact experiment in Nairobi.**
 
-3. **[ASSUMPTION, load-bearing]** **Average order value matters more than take rate.** Doubling AOV from KSh 10,000 to KSh 20,000 more than triples gross profit, because ops and payout costs are per-*order*. Raising the take rate from 15% to 20% adds far less and costs competitive position.
+- **[FACT] Lynk** (2015–2022) connected households with verified domestic workers, fundis and artisans across dozens of Nairobi categories. It **pivoted operating models repeatedly**, abandoned its auction model for standardisation, had to build its own academy after training partnerships failed, and exited by acquisition.
+- **[FACT] SweepSouth** raised **$15M+**, entered Kenya in 2019 and **exited Kenya and Nigeria in November 2022**.
+- **[FACT]** The best-run African comparable, **Kandua**, raised $13M and was **acquired by an insurer** — value pooled in the verified-work relationship, not the take rate.
+- **[FACT]** The one unambiguous global success, **Urban Company**, is **managed and vertical**, not horizontal and light.
+
+**Three findings that reshape the plan:**
+
+1. **The KSh 5,000 line.** No category with a median transaction below ~KSh 5,000 can support a transaction-fee marketplace that also performs human trust operations. **This eliminates mama fua, cleaning and errands by arithmetic** — most of the launch list in the brief.
+2. **The frequency paradox.** High-frequency local services (cleaning) leak almost completely by job three. Low-frequency ones (plumbing) never build habit. Home services has no sweet spot.
+3. **Reputation does not transfer across categories.** Integrity and reliability are properties of a person; competence is not. A single blended trust score across a horizontal marketplace produces unsafe hires.
+
+**The recommended wedge — which the brief did not consider:**
+
+> ### Be someone's trusted eyes, hands and judgement in Kenya, when they cannot be there themselves.
+
+**[FACT]** Kenya received **US$5.04B in remittances in 2025**. Housing scams are surging in Nairobi's prime estates, and **diaspora buyers are targeted specifically because distance makes due diligence nearly impossible** — with press guidance concluding that a *"trusted, verifiable representative in Kenya"* is among the most effective protections available. That is a product specification written by a journalist.
+
+It clears the KSh 5,000 line, resists disintermediation structurally (the customer's problem *is* the absence of a trusted relationship), serves a hard-currency buyer already paying for unverifiable outcomes, and has fungible supply — the escape from "every category is a different company."
+
+**Sequence:** Remote-principal services → Business & creator services (the existing blueprint) → High-value fundi work. **Never** cleaning, mama fua or errands.
 
 ---
 
 ## Contents
 
-| Document | Covers |
+| Document | Brief sections |
 |---|---|
-| [00 — Executive Summary](docs/00-executive-summary.md) | The verdict, five key decisions, the core insight |
-| [01 — Global Market](docs/01-global-market-research.md) | Part 1: TikTok TCM, Collabstr, Insense, GRIN, CreatorIQ, Aspire, Upfluence, Modash, Billo/Trend/Cohley + feature matrix |
-| [02 — Africa & Kenya](docs/02-africa-kenya-landscape.md) | Part 2: Wowzi, AIfluence, Zaumu and others; the unmet need; what we must do differently |
-| [03 — Marketplace Definition](docs/03-marketplace-definition.md) | Parts 3, 16, 20: the ten collaboration types, seeding logistics, the rights system |
-| [04 — Economics](docs/04-economics-and-pricing.md) | Parts 4, 33, 34, 48: business model, fee psychology, GMV tables, three-scale simulation |
-| [05 — Payments](docs/05-payments-mpesa.md) | Part 5: M-Pesa, escrow architecture, refunds, KYC, tax, reconciliation |
-| [06 — Trust](docs/06-trust-reputation-fraud.md) | Parts 6, 13, 26, 35: reputation score, disputes, brand ratings, fraud |
-| [07 — Product Spec](docs/07-product-spec.md) | Parts 7–9, 14–15, 17–19, 21, 25, 32, 39–40: profiles, discovery, storefronts, UX, positioning |
-| [08 — AI Matching](docs/08-ai-matching.md) | Parts 10–11: matching algorithm, AI campaign builder |
-| [09 — Workflow](docs/09-workflow-states.md) | Part 12: the complete state machine and its timers |
-| [10 — Architecture](docs/10-technical-architecture.md) | Parts 22, 37, 38: stack, WhatsApp, database design |
-| [11 — Metrics](docs/11-analytics-metrics.md) | Parts 23–24, 44–45: dashboards, formulas, North Star |
-| [12 — Go-to-Market](docs/12-gtm-liquidity-growth.md) | Parts 27–31: liquidity, launch, growth loops, referrals |
-| [13 — Legal](docs/13-legal-compliance.md) | Part 36: CBK, tax, ODPC, disclosure, contracts |
-| [14 — MVP & Roadmap](docs/14-roadmap-mvp.md) | Parts 42–43, 49: MVP, V0–V5, ten launch campaign templates |
-| [15 — Investors & Risk](docs/15-investor-case-and-risks.md) | Parts 46–47: the investor case, twenty failure modes |
-| [16 — Blueprint](docs/16-blueprint-and-decisions.md) | Parts 41, 50: the wedge, full blueprint, build/don't-build lists, founder brief |
-| [Sources](docs/sources.md) | All citations, with caveats on source quality |
+| [00 — Executive Thesis](docs/00-executive-thesis.md) | 1–5, 53, 69 |
+| [01 — What Changed](docs/01-what-changed.md) | 2, 50 |
+| [02 — Competitive Landscape](docs/02-competitive-landscape.md) | 41, 42 |
+| [03 — Market and Personas](docs/03-market-and-personas.md) | 6, 7, 8 |
+| [04 — Transaction Primitive](docs/04-transaction-primitive.md) | 10–14, 23, 38, 51 |
+| [05 — Storefronts and UX](docs/05-storefronts-and-ux.md) | 15, 32, 45–47, 52 |
+| [06 — Trust Architecture](docs/06-trust-architecture.md) | 5, 16–20, 25, 26, 28, 54 |
+| [07 — Payments](docs/07-payments.md) | 21–24 |
+| [08 — Liquidity and Growth](docs/08-liquidity-and-growth.md) | 27–35 |
+| [09 — The Verticals](docs/09-verticals.md) | 36–40, 60 |
+| [10 — Business Model](docs/10-business-model.md) | 9, 30, 43, 44, 57 |
+| [11 — Roadmap](docs/11-roadmap.md) | 40, 41, 45–48, 61–63 |
+| [12 — Technical Architecture](docs/12-technical-architecture.md) | 36, 37, 48–51, 53 |
+| [13 — Metrics](docs/13-metrics.md) | 55, 56 |
+| [14 — Risks and Regulatory](docs/14-risks-and-regulatory.md) | 64–66 |
+| [15 — Brand and Investor Case](docs/15-brand-and-investor-case.md) | 44, 67–69 |
+| [archive-creator-marketplace/](docs/archive-creator-marketplace/) | The original 109-page blueprint — now the Vertical 2 playbook |
 
 ---
 
-## The core insight
+## Before anything else
 
-> In a market where the median transaction is KSh 5,000 and the median buyer is an SME, no marketplace survives on the transaction. It survives on the **record** of the transaction.
->
-> Whoever accumulates the verified, escrow-settled earnings history of African creators owns the only dataset capable of underwriting them — and underwriting is what makes leaving expensive.
+**A 30-day, ~KSh 150,000 validation with a written kill criterion** ([`docs/11-roadmap.md`](docs/11-roadmap.md)):
 
-Architect for it now. Do not build it yet.
+> Will a diaspora Kenyan pay ~KSh 6,000 for a verified stranger to inspect a property and produce an evidenced report before they send a deposit?
 
----
+**Kill criterion:** fewer than 10 unsolicited payers in week two → the wedge is unvalidated; fall back to Vertical 2, where a complete blueprint and a proven buyer already exist.
 
-## Build first
-
-1. Escrow with M-Pesa STK collection and B2C payout
-2. Creator storefronts with published prices
-3. Four campaign types: Location Visit, Paid UGC, Product Seeding, Influencer Post
-4. The workflow state machine with all timers — especially **5-day auto-approve**
-5. Append-only event log and double-entry ledger
-6. The ops/admin console
-7. WhatsApp notifications with a shareable M-Pesa payout receipt
-8. Two-sided reviews and the Brand Trust Score
-9. The Deal Desk (5%, creator-originated)
-10. Structured briefs with system-inserted disclosure
-
-## Do not build yet
-
-AI matching · AI campaign builder · affiliate tracking · native apps · milestones · standalone rights marketplace · event coverage · agency accounts · subscriptions · logistics · creator tiers · advanced analytics
+**[FACT]** Lynk spent seven years and SweepSouth spent $15M+ learning things a month of real customer money would have surfaced.
 
 ---
 
 ## The number that decides everything
 
-**Brand repeat rate at 60 days.** Below 25%, this is a services business, not a marketplace — and the right response is to stop building and find out why.
+**Repeat rate at 90 days.** Below 25% at month six, this is a services agency with an app — and the right response is to stop building and find out why.
+
+## Regenerating the PDF
+
+```bash
+python3 build/build_html.py && cd build && node render.js
+```

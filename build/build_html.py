@@ -1,31 +1,30 @@
 import markdown, re, html, pathlib, datetime
 
 DOCS = [
-    ("00-executive-summary.md",      "Executive Summary"),
-    ("01-global-market-research.md", "The Global Market"),
-    ("02-africa-kenya-landscape.md", "Africa and Kenya"),
-    ("03-marketplace-definition.md", "Defining the Marketplace"),
-    ("04-economics-and-pricing.md",  "Marketplace Economics"),
-    ("05-payments-mpesa.md",         "Payment Infrastructure"),
-    ("06-trust-reputation-fraud.md", "Trust, Reputation, Disputes, Fraud"),
-    ("07-product-spec.md",           "Product Specification"),
-    ("08-ai-matching.md",            "AI Matching and Campaign Builder"),
-    ("09-workflow-states.md",        "The Campaign Workflow"),
-    ("10-technical-architecture.md", "Technical Architecture"),
-    ("11-analytics-metrics.md",      "Analytics and Metrics"),
-    ("12-gtm-liquidity-growth.md",   "Liquidity, Launch and Growth"),
-    ("13-legal-compliance.md",       "Legal and Regulatory Surface"),
-    ("14-roadmap-mvp.md",            "MVP, Roadmap, Launch Campaigns"),
-    ("15-investor-case-and-risks.md","Investor Case and Failure Modes"),
-    ("16-blueprint-and-decisions.md","Blueprint, Wedge, Founder Brief"),
-    ("sources.md",                   "Sources"),
+    ("00-executive-thesis.md",          "Executive Thesis and the Honest Verdict"),
+    ("01-what-changed.md",              "What Changed, and What Survives"),
+    ("02-competitive-landscape.md",     "Competitive Landscape"),
+    ("03-market-and-personas.md",       "Market Opportunity and Personas"),
+    ("04-transaction-primitive.md",     "The Service Transaction Primitive"),
+    ("05-storefronts-and-ux.md",        "Storefronts and UX"),
+    ("06-trust-architecture.md",        "Trust, Safety and Fraud"),
+    ("07-payments.md",                  "Payment Architecture"),
+    ("08-liquidity-and-growth.md",      "Liquidity, Density and Growth"),
+    ("09-verticals.md",                 "The Verticals Assessed"),
+    ("10-business-model.md",            "Business Model and Unit Economics"),
+    ("11-roadmap.md",                   "MVP, Roadmap and Plan"),
+    ("12-technical-architecture.md",    "Technical and Data Architecture"),
+    ("13-metrics.md",                   "Metrics and Marketplace KPIs"),
+    ("14-risks-and-regulatory.md",      "Risks and Regulatory Surface"),
+    ("15-brand-and-investor-case.md",   "Brand, Defensibility, Investor Case"),
+    ("sources.md",                      "Sources"),
 ]
 
 md = markdown.Markdown(extensions=["tables", "fenced_code", "sane_lists", "attr_list"])
 
 def badge(m):
     kind = m.group(1); rest = m.group(2) or ""
-    cls = {"FACT":"b-fact","REC":"b-rec","ASSUMPTION":"b-assume"}[kind]
+    cls = {"FACT":"b-fact","REC":"b-rec","ASSUMPTION":"b-assume","LEGAL":"b-legal"}[kind]
     return f'<span class="badge {cls}">{kind}{html.escape(rest)}</span>'
 
 sections = []
@@ -36,7 +35,7 @@ for i, (fn, title) in enumerate(DOCS):
     md.reset()
     body = md.convert(raw)
     # Style the FACT / REC / ASSUMPTION taxonomy as badges
-    body = re.sub(r"\[(FACT|REC|ASSUMPTION)(\s*[—-][^\]]*)?\]", badge, body)
+    body = re.sub(r"\[(FACT|REC|ASSUMPTION|LEGAL)(\s*[—-][^\]]*)?\]", badge, body)
     num = "00" if i == 0 else (f"{i:02d}" if fn != "sources.md" else "—")
     sections.append({"id": f"sec{i}", "num": num, "title": title, "body": body})
 
@@ -67,7 +66,7 @@ h1,h2,h3,h4,.sans { font-family: "DejaVu Sans", Helvetica, Arial, sans-serif; }
 .cover { height: 251mm; display: flex; flex-direction: column; justify-content: space-between;
          page-break-after: always; }
 .cover .rule { height: 5px; background: #0A6E5C; width: 64mm; }
-.cover h1 { font-size: 36pt; line-height: 1.04; margin: 10mm 0 0; letter-spacing: -0.5px; color:#0d1117; }
+.cover h1 { font-size: 33pt; line-height: 1.04; margin: 10mm 0 0; letter-spacing: -0.5px; color:#0d1117; }
 .cover .sub { font-size: 14.5pt; color: #3c4650; margin-top: 6mm; line-height: 1.4; max-width: 128mm;
               font-family: "DejaVu Serif", Georgia, serif; }
 .cover .kicker { font-size: 9.5pt; letter-spacing: 2.4px; text-transform: uppercase;
@@ -141,44 +140,49 @@ pre code { background: none; padding: 0; font-size: inherit; }
 .b-fact   { background: #d8efe2; color: #0d5d38; }
 .b-rec    { background: #dbe8f7; color: #16456f; }
 .b-assume { background: #fbeed5; color: #7a5310; }
+.b-legal  { background: #f6dcdc; color: #7d2020; }
 """
 
 OUT = f"""<!doctype html><html><head><meta charset="utf-8">
-<title>Flerwa — Creator Collaboration Marketplace</title><style>{CSS}</style></head><body>
+<title>Trusted Services Marketplace — Kenya</title><style>{CSS}</style></head><body>
 
 <div class="cover">
   <div>
     <div class="rule"></div>
-    <h1>Flerwa</h1>
-    <div class="kicker" style="margin-top:5mm">Creator Collaboration Marketplace</div>
-    <div class="sub">A strategy, product and technical blueprint for a creator–brand
-    marketplace launching in Kenya, built on M-Pesa, designed to expand across East Africa.</div>
+    <h1>Trusted Services<br>Marketplace</h1>
+    <div class="kicker" style="margin-top:5mm">Kenya &nbsp;·&nbsp; Strategic Blueprint After the Pivot</div>
+    <div class="sub">Whatever you need done, find someone you can trust. A blueprint for
+    a services marketplace built on verified people, protected payment, and an evidenced record of completed work.</div>
   </div>
   <div class="findings">
-    <div class="fh">The three findings that shape this plan</div>
-    <div class="fitem"><b>1 &nbsp;The market as framed is too small.</b> Kenya's measured influencer
-      advertising market is <b>US$2.1M (2024) → US$3.0M (2028)</b>. Capturing <i>all</i> of it at a 15%
-      take rate yields ~US$315k a year. The plan must target content-production, SME marketing,
-      regional and export budgets instead.</div>
-    <div class="fitem"><b>2 &nbsp;The core product already exists.</b> Zaumu launched in Nairobi in
-      April 2025 with escrow, milestone payments, creator-protective contracts and two-sided reviews.
-      Differentiation must be category, average order value and operational reliability — not escrow.</div>
-    <div class="fitem"><b>3 &nbsp;Order value matters more than take rate.</b> Doubling average order
-      value from KSh 10,000 to KSh 20,000 more than <b>triples</b> gross profit, because operations
-      and payout costs are charged per order, not per shilling.</div>
+    <div class="fh">The three findings that reshape this plan</div>
+    <div class="fitem"><b>1 &nbsp;Two funded companies already tried this in Nairobi.</b>
+      <b>Lynk</b> (2015–2022) connected households with verified fundis, artisans and domestic
+      workers across dozens of categories; it pivoted operating models repeatedly, abandoned its
+      auction model, and exited by acquisition. <b>SweepSouth</b> raised over $15M and left Kenya
+      in November 2022. Horizontal is how they failed, not how they grew.</div>
+    <div class="fitem"><b>2 &nbsp;The KSh 5,000 line.</b> No service with a median transaction
+      below roughly KSh 5,000 can support a transaction fee that also pays for human trust
+      operations. This eliminates <i>mama fua</i>, cleaning and errands by arithmetic — most of
+      the launch list in the brief.</div>
+    <div class="fitem"><b>3 &nbsp;There is a stronger wedge.</b> Kenya received <b>US$5.04bn</b>
+      in remittances in 2025, and diaspora buyers are defrauded precisely because distance makes
+      due diligence impossible. Be someone's trusted eyes and hands in Kenya when they cannot be
+      there themselves — high value, structurally leakage-resistant, and unserved.</div>
   </div>
   <div>
     <div class="legend">
       <span class="badge b-fact">FACT</span>
       <span class="badge b-rec">RECOMMENDATION</span>
       <span class="badge b-assume">ASSUMPTION</span>
+      <span class="badge b-legal">LEGAL — COUNSEL REQUIRED</span>
     </div>
     <div class="meta">
       Every claim in this document is tagged <b>FACT</b> (verified and cited),
-      <b>RECOMMENDATION</b>, or <b>ASSUMPTION</b> (estimate, unverified).
+      <b>RECOMMENDATION</b>, <b>ASSUMPTION</b> (unverified), or <b>LEGAL — COUNSEL REQUIRED</b>.
       All sources are listed in the final section.<br><br>
-      Research conducted <b>{today}</b> &nbsp;·&nbsp; 18 sections &nbsp;·&nbsp;
-      Covering all 50 parts of the brief<br>
+      Research conducted <b>{today}</b> &nbsp;·&nbsp; 17 sections &nbsp;·&nbsp;
+      Covering all 69 sections of the brief<br>
       <b>This document is not legal, tax, or financial advice.</b>
       Regulatory sections identify areas requiring professional Kenyan counsel.
     </div>
@@ -193,5 +197,5 @@ OUT = f"""<!doctype html><html><head><meta charset="utf-8">
 {body_html}
 </body></html>"""
 
-pathlib.Path("build/flerwa.html").write_text(OUT)
+pathlib.Path("build/blueprint.html").write_text(OUT)
 print("html written:", len(OUT), "bytes;", len(sections), "sections")
