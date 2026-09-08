@@ -99,12 +99,17 @@ export function BookingForm({
         />
       </label>
 
-      {error && (
-        <p className="text-sm rounded-lg bg-red-50 text-[var(--danger)] px-3 py-2">{error}</p>
-      )}
+      {error && <p className="notice-error">{error}</p>}
+
+      <div className="rounded-lg bg-[var(--surface)] p-3 text-xs text-[var(--muted)] flex flex-col gap-1">
+        <p className="font-semibold text-[var(--foreground)]">What happens next</p>
+        <p>1. We confirm your booking and reach out to arrange M-Pesa payment.</p>
+        <p>2. Your payment is held until the job is done and you approve it.</p>
+        <p>3. Your provider is assigned or confirmed and the job gets scheduled.</p>
+      </div>
 
       <button type="submit" disabled={isPending} className="btn-primary">
-        {isPending ? "Booking…" : "Book & continue to payment"}
+        {isPending ? "Booking…" : "Book this service"}
       </button>
     </form>
   );

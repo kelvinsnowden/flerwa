@@ -1,9 +1,11 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { formatMoney } from "@/lib/money";
-import { TXN_STATE_LABELS, type ServiceTransaction } from "@/lib/types";
+import type { ServiceTransaction } from "@/lib/types";
 import { ErrorNotice } from "@/components/error-notice";
+import { EmptyState } from "@/components/ui/empty-state";
+import { BookingCard } from "@/components/ui/booking-card";
+import { Icon } from "@/components/ui/icon";
 
 export default async function BookingsPage() {
   const supabase = await createClient();
@@ -20,43 +22,39 @@ export default async function BookingsPage() {
     .returns<(ServiceTransaction & { services: { name: string } | null; providers: { display_name: string } | null })[]>();
 
   return (
-    <div className="mx-auto max-w-2xl px-4 py-10">
-      <h1 className="text-2xl font-bold">My bookings</h1>
+    <div className="mx-auto max-w-2xl px-4 py-8 pb-4">
+      <h1 className="text-2xl font-bold mb-6">My bookings</h1>
 
       {error && (
-        <div className="mt-8">
-          <ErrorNotice message="We couldn't load your bookings right now. Please refresh — this does not mean you have no bookings." />
-        </div>
+        <ErrorNotice message="We couldn't load your bookings right now. Please refresh — this does not mean you have no bookings." />
       )}
 
       {!error && !bookings?.length && (
-        <div className="mt-8 card p-6 text-center">
-          <p className="text-[var(--muted)]">You haven&apos;t booked anything yet.</p>
-          <Link href="/" className="btn-primary mt-4 inline-block">
-            Browse services
-          </Link>
-        </div>
+        <EmptyState
+          icon={<Icon name="calendar" size={20} />}
+          title="Your bookings will appear here"
+          body="Once you book a service, you can track its progress and evidence from this page."
+          action={
+            <Link href="/" className="btn-primary">
+              Browse services
+            </Link>
+          }
+        />
       )}
 
-      <div className="mt-6 flex flex-col gap-3">
-        {bookings?.map((b) => (
-          <Link
-            key={b.id}
-            href={`/account/bookings/${b.id}`}
-            className="card p-4 flex items-center justify-between hover:border-[var(--trust)] transition-colors"
-          >
-            <div>
-              <p className="font-semibold">{b.services?.name ?? "Service"}</p>
-              <p className="text-sm text-[var(--muted)]">
-                {b.providers?.display_name ?? "Awaiting assignment"}
-              </p>
-            </div>
-            <div className="text-right">
-              <p className="font-bold text-sm">{formatMoney(b.total_amount_minor, b.currency)}</p>
-              <p className="text-xs text-[var(--muted)]">{TXN_STATE_LABELS[b.state]}</p>
-            </div>
-          </Link>
-        ))}
+      <div className="flex flex-col gap-3">
+        {!error &&
+          bookings?.map((b) => (
+            <BookingCard
+              key={b.id}
+              href={`/account/bookings/${b.id}`}
+              title={b.services?.name ?? "Service"}
+              subtitle={b.providers?.display_name ?? "Awaiting assignment"}
+              state={b.state}
+              amountMinor={b.total_amount_minor}
+              currency={b.currency}
+            />
+          ))}
       </div>
     </div>
   );

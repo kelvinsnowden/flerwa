@@ -3,6 +3,7 @@
 import { useRef, useState, useTransition } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { recordEvidence } from "./actions";
+import { Icon } from "@/components/ui/icon";
 
 interface Item {
   id: string;
@@ -72,9 +73,9 @@ export function ChecklistItemRow({
     <li className="flex items-start gap-3 py-3 border-b last:border-0">
       <div className="flex-1">
         <p className="text-sm font-medium flex items-center gap-2">
-          {done && <span style={{ color: "var(--trust)" }}>✓</span>}
+          {done && <Icon name="check-circle" size={16} className="text-[var(--trust)]" />}
           {item.label}
-          {item.is_required && !done && <span className="text-xs text-[var(--danger)]">required</span>}
+          {item.is_required && !done && <span className="badge-warn">required</span>}
         </p>
         {item.help_text && <p className="text-xs text-[var(--muted)] mt-0.5">{item.help_text}</p>}
         {error && <p className="text-xs text-[var(--danger)] mt-1">{error}</p>}

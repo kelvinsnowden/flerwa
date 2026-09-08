@@ -4,7 +4,21 @@ import { formatMoney } from "@/lib/money";
 import { TXN_STATE_LABELS, type ServiceTransaction } from "@/lib/types";
 import { EvidenceGallery } from "./evidence-gallery";
 import { ApproveOrReviseControls, ReviewForm } from "./booking-actions";
+import { DisputeLink } from "./dispute-link";
 import { ErrorNotice } from "@/components/error-notice";
+import { StatusTimeline } from "@/components/ui/status-timeline";
+import { StateBadge } from "@/components/ui/state-badge";
+import { Icon } from "@/components/ui/icon";
+
+const DISPUTABLE_ELSEWHERE_STATES: ServiceTransaction["state"][] = [
+  "funded",
+  "scheduled",
+  "en_route",
+  "checked_in",
+  "in_progress",
+  "customer_review",
+  "revision_requested",
+];
 
 export default async function BookingDetailPage({
   params,
@@ -57,12 +71,20 @@ export default async function BookingDetailPage({
   ]);
 
   const canApproveOrRevise = booking.state === "evidence_submitted";
+  const canDisputeElsewhere = DISPUTABLE_ELSEWHERE_STATES.includes(booking.state);
   const canReview = ["settled", "reviewed", "closed"].includes(booking.state) && !existingReview;
 
   return (
-    <div className="mx-auto max-w-2xl px-4 py-10">
+    <div className="mx-auto max-w-2xl px-4 py-8 pb-4">
       <p className="text-sm text-[var(--muted)]">{booking.services?.name}</p>
-      <h1 className="text-2xl font-bold mt-1">{TXN_STATE_LABELS[booking.state]}</h1>
+      <div className="flex items-center gap-2 mt-1">
+        <h1 className="text-2xl font-bold">{TXN_STATE_LABELS[booking.state]}</h1>
+        <StateBadge state={booking.state} />
+      </div>
+
+      <div className="mt-6 card p-4">
+        <StatusTimeline state={booking.state} />
+      </div>
 
       <div className="mt-4 card p-4 flex flex-col gap-2 text-sm">
         <Row label="Provider" value={booking.providers?.display_name ?? "Awaiting assignment"} />
@@ -103,7 +125,10 @@ export default async function BookingDetailPage({
         booking.state
       ) && (
         <div className="mt-6">
-          <h2 className="font-semibold mb-3">Evidence & report</h2>
+          <h2 className="font-semibold mb-3 flex items-center gap-1.5">
+            <Icon name="camera" size={16} className="text-[var(--trust)]" />
+            Evidence & report
+          </h2>
           <EvidenceGallery transactionId={booking.id} />
         </div>
       )}
@@ -111,6 +136,8 @@ export default async function BookingDetailPage({
       {canApproveOrRevise && (
         <ApproveOrReviseControls transactionId={booking.id} revisionsUsed={revisionCount ?? 0} />
       )}
+
+      {!canApproveOrRevise && canDisputeElsewhere && <DisputeLink transactionId={booking.id} />}
 
       {canReview && booking.providers && (
         <div className="mt-6 card p-4">

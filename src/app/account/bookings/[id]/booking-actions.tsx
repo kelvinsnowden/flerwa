@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { approveBooking, requestRevision, submitReview } from "./actions";
+import { approveBooking, openDispute, requestRevision, submitReview } from "./actions";
 
 export function ApproveOrReviseControls({
   transactionId,
@@ -10,10 +10,54 @@ export function ApproveOrReviseControls({
   transactionId: string;
   revisionsUsed: number;
 }) {
-  const [mode, setMode] = useState<"idle" | "revise">("idle");
+  const [mode, setMode] = useState<"idle" | "revise" | "dispute">("idle");
   const [reason, setReason] = useState("");
+  const [disputeReason, setDisputeReason] = useState("");
+  const [disputeDetail, setDisputeDetail] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+
+  if (mode === "dispute") {
+    return (
+      <div className="mt-4 flex flex-col gap-2">
+        <p className="text-sm font-medium">Open a dispute</p>
+        <p className="text-xs text-[var(--muted)]">
+          Our team will review the job and evidence and reach a resolution.
+          Payment stays held while a dispute is open.
+        </p>
+        <input
+          value={disputeReason}
+          onChange={(e) => setDisputeReason(e.target.value)}
+          placeholder="Reason (e.g. work not as described)"
+        />
+        <textarea
+          rows={3}
+          value={disputeDetail}
+          onChange={(e) => setDisputeDetail(e.target.value)}
+          placeholder="What went wrong? Be specific."
+        />
+        {error && <p className="notice-error">{error}</p>}
+        <div className="flex gap-2">
+          <button
+            className="btn-danger"
+            disabled={isPending || !disputeReason.trim()}
+            onClick={() =>
+              startTransition(async () => {
+                const res = await openDispute(transactionId, disputeReason, disputeDetail);
+                if (res?.error) setError(res.error);
+                else setMode("idle");
+              })
+            }
+          >
+            {isPending ? "Opening…" : "Open dispute"}
+          </button>
+          <button className="btn-secondary" onClick={() => setMode("idle")}>
+            Cancel
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   if (mode === "revise") {
     return (
@@ -69,6 +113,13 @@ export function ApproveOrReviseControls({
           </button>
         )}
       </div>
+      <button
+        className="text-sm font-medium self-start"
+        style={{ color: "var(--danger)" }}
+        onClick={() => setMode("dispute")}
+      >
+        Something's wrong — open a dispute
+      </button>
     </div>
   );
 }

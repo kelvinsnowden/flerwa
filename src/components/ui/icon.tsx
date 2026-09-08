@@ -23,6 +23,7 @@ export type IconName =
   | "file-text"
   | "wallet"
   | "star"
+  | "briefcase"
   | "grid";
 
 const PATHS: Record<IconName, React.ReactNode> = {
@@ -103,6 +104,12 @@ const PATHS: Record<IconName, React.ReactNode> = {
     </>
   ),
   star: <path d="M12 2.5l2.9 6 6.6.8-4.8 4.6 1.2 6.6L12 17.3 6.1 20.5l1.2-6.6-4.8-4.6 6.6-.8Z" />,
+  briefcase: (
+    <>
+      <rect x="2.5" y="7" width="19" height="13" rx="2" />
+      <path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M2.5 12h19" />
+    </>
+  ),
   grid: (
     <>
       <rect x="3" y="3" width="7" height="7" rx="1.5" />

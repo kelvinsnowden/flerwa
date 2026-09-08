@@ -1,5 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { ErrorNotice } from "@/components/error-notice";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Icon } from "@/components/ui/icon";
 
 interface EvidenceRow {
   id: string;
@@ -24,7 +26,13 @@ export async function EvidenceGallery({ transactionId }: { transactionId: string
   }
 
   if (!evidence?.length) {
-    return <p className="text-sm text-[var(--muted)]">No evidence submitted yet.</p>;
+    return (
+      <EmptyState
+        icon={<Icon name="camera" size={20} />}
+        title="No evidence yet"
+        body="Evidence will appear here once the provider starts the job."
+      />
+    );
   }
 
   // Signed URLs generated server-side, short-lived. RLS on storage.objects
@@ -43,7 +51,7 @@ export async function EvidenceGallery({ transactionId }: { transactionId: string
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
       {withUrls.map((item) => (
-        <div key={item.id} className="card overflow-hidden">
+        <div key={item.id} className="card card-shadow overflow-hidden">
           {item.url && item.type === "photo" && (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={item.url} alt={item.description ?? "Evidence"} className="w-full h-28 object-cover" />

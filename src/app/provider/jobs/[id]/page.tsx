@@ -1,10 +1,13 @@
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { formatMoney } from "@/lib/money";
-import { TXN_STATE_LABELS, type ServiceTransaction } from "@/lib/types";
+import { type ServiceTransaction } from "@/lib/types";
 import { ChecklistItemRow } from "./checklist-item";
 import { CheckInButton, SubmitCompletionButton } from "./job-controls";
 import { ErrorNotice } from "@/components/error-notice";
+import { StatusTimeline } from "@/components/ui/status-timeline";
+import { StateBadge } from "@/components/ui/state-badge";
+import { Icon } from "@/components/ui/icon";
 
 export default async function ProviderJobDetailPage({
   params,
@@ -74,15 +77,23 @@ export default async function ProviderJobDetailPage({
   const requiredIncomplete =
     checklistLoadFailed ||
     (checklistItems ?? []).filter((i) => i.is_required && !completedIds.has(i.id)).length > 0;
+  const completeCount = (checklistItems ?? []).filter((i) => completedIds.has(i.id)).length;
 
   return (
-    <div className="mx-auto max-w-2xl px-4 py-10">
+    <div className="mx-auto max-w-2xl px-4 py-8 pb-4">
       <p className="text-sm text-[var(--muted)]">{job.services?.name}</p>
-      <h1 className="text-2xl font-bold mt-1">{TXN_STATE_LABELS[job.state]}</h1>
+      <div className="flex items-center gap-2 mt-1">
+        <h1 className="text-2xl font-bold">{TxnLabel(job.state)}</h1>
+        <StateBadge state={job.state} />
+      </div>
+
+      <div className="mt-6 card p-4">
+        <StatusTimeline state={job.state} />
+      </div>
 
       <div className="mt-4 card p-4 flex flex-col gap-2 text-sm">
         <div className="flex justify-between">
-          <span className="text-[var(--muted)]">Location</span>
+          <span className="text-[var(--muted)] flex items-center gap-1"><Icon name="map-pin" size={14} />Location</span>
           <span className="font-medium">
             {job.locations ? `${job.locations.ward ?? ""} ${job.locations.town}`.trim() : "—"}
           </span>
@@ -109,7 +120,10 @@ export default async function ProviderJobDetailPage({
 
       {canWorkChecklist && !checklistLoadFailed && checklistItems && checklistItems.length > 0 && (
         <div className="mt-6">
-          <h2 className="font-semibold mb-2">Checklist</h2>
+          <div className="flex items-center justify-between mb-2">
+            <h2 className="font-semibold">Checklist</h2>
+            <span className="text-xs text-[var(--muted)]">{completeCount}/{checklistItems.length} done</span>
+          </div>
           <ul className="card divide-y px-4">
             {checklistItems.map((item) => (
               <ChecklistItemRow
@@ -131,4 +145,16 @@ export default async function ProviderJobDetailPage({
       )}
     </div>
   );
+}
+
+function TxnLabel(state: ServiceTransaction["state"]) {
+  const labels: Partial<Record<ServiceTransaction["state"], string>> = {
+    funded: "Ready to check in",
+    scheduled: "Scheduled",
+    checked_in: "On site",
+    in_progress: "In progress",
+    revision_requested: "Revision requested",
+    evidence_submitted: "Awaiting customer review",
+  };
+  return labels[state] ?? state.replace(/_/g, " ");
 }

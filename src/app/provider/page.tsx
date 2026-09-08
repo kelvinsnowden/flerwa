@@ -2,8 +2,12 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { formatMoney } from "@/lib/money";
-import { TXN_STATE_LABELS, type ServiceTransaction, type Provider, type ReliabilityScore } from "@/lib/types";
+import { type ServiceTransaction, type Provider, type ReliabilityScore } from "@/lib/types";
 import { ErrorNotice } from "@/components/error-notice";
+import { Avatar } from "@/components/ui/avatar";
+import { BookingCard } from "@/components/ui/booking-card";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Icon } from "@/components/ui/icon";
 
 const VERIFICATION_COPY: Record<string, { label: string; tone: "warn" | "trust" }> = {
   pending: { label: "Complete your profile to submit for verification", tone: "warn" },
@@ -47,16 +51,21 @@ export default async function ProviderDashboardPage() {
   const totalEarned = pastJobs.reduce((sum, j) => sum + j.service_amount_minor, 0);
 
   return (
-    <div className="mx-auto max-w-2xl px-4 py-10">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">{provider.display_name}</h1>
-        <Link href={`/provider/${provider.slug}`} className="text-sm font-semibold" style={{ color: "var(--trust)" }}>
-          View storefront →
-        </Link>
+    <div className="mx-auto max-w-2xl px-4 py-8 pb-4">
+      <div className="flex items-center gap-3">
+        <Avatar name={provider.display_name} size="lg" />
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center justify-between">
+            <h1 className="text-xl font-bold truncate">{provider.display_name}</h1>
+            <Link href={`/provider/${provider.slug}`} className="text-sm font-semibold whitespace-nowrap" style={{ color: "var(--trust)" }}>
+              View storefront →
+            </Link>
+          </div>
+          <span className={verificationCopy.tone === "trust" ? "badge-trust mt-1 inline-flex" : "badge-warn mt-1 inline-flex"}>
+            {verificationCopy.label}
+          </span>
+        </div>
       </div>
-      <span className={verificationCopy.tone === "trust" ? "badge-trust mt-2 inline-flex" : "badge-warn mt-2 inline-flex"}>
-        {verificationCopy.label}
-      </span>
 
       {jobsError && (
         <div className="mt-6">
@@ -75,20 +84,22 @@ export default async function ProviderDashboardPage() {
           <h2 className="mt-8 font-semibold">Active jobs</h2>
           <div className="mt-3 flex flex-col gap-2">
             {activeJobs.length === 0 && (
-              <p className="text-sm text-[var(--muted)]">No active jobs right now.</p>
+              <EmptyState
+                icon={<Icon name="briefcase" size={20} />}
+                title="No active jobs right now"
+                body="New jobs assigned to you will show up here."
+              />
             )}
             {activeJobs.map((job) => (
-              <Link
+              <BookingCard
                 key={job.id}
                 href={`/provider/jobs/${job.id}`}
-                className="card p-4 flex items-center justify-between hover:border-[var(--trust)] transition-colors"
-              >
-                <div>
-                  <p className="font-semibold">{job.services?.name}</p>
-                  <p className="text-sm text-[var(--muted)]">{TXN_STATE_LABELS[job.state]}</p>
-                </div>
-                <p className="font-bold text-sm">{formatMoney(job.service_amount_minor, job.currency)}</p>
-              </Link>
+                title={job.services?.name ?? "Service"}
+                subtitle="Tap to view details"
+                state={job.state}
+                amountMinor={job.service_amount_minor}
+                currency={job.currency}
+              />
             ))}
           </div>
 
@@ -113,7 +124,7 @@ export default async function ProviderDashboardPage() {
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="card p-3 text-center">
+    <div className="stat-tile">
       <p className="text-lg font-bold">{value}</p>
       <p className="text-xs text-[var(--muted)]">{label}</p>
     </div>

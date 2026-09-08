@@ -4,6 +4,10 @@ import { createClient } from "@/lib/supabase/server";
 import { formatMoney } from "@/lib/money";
 import type { Provider, ReliabilityScore, Service } from "@/lib/types";
 import { ErrorNotice } from "@/components/error-notice";
+import { Avatar } from "@/components/ui/avatar";
+import { VerificationBadge } from "@/components/ui/verification-badge";
+import { Rating } from "@/components/ui/rating";
+import { Icon } from "@/components/ui/icon";
 
 export default async function ProviderStorefrontPage({
   params,
@@ -35,7 +39,8 @@ export default async function ProviderStorefrontPage({
     data: { user },
   } = await supabase.auth.getUser();
   const isOwner = user?.id === provider.user_id;
-  if (!isOwner && !(provider.is_published && provider.verification_status === "verified")) {
+  const isLive = provider.is_published && provider.verification_status === "verified";
+  if (!isOwner && !isLive) {
     notFound();
   }
 
@@ -49,42 +54,48 @@ export default async function ProviderStorefrontPage({
   const reliability = provider.reliability_scores?.[0];
 
   return (
-    <div className="mx-auto max-w-2xl px-4 py-10">
-      {isOwner && !(provider.is_published && provider.verification_status === "verified") && (
+    <div className="mx-auto max-w-2xl px-4 py-8 sm:py-10">
+      {isOwner && !isLive && (
         <div className="mb-4 badge-warn inline-flex">Preview only — not yet public</div>
       )}
-      <div className="flex items-center gap-2">
-        <h1 className="text-2xl font-bold">{provider.display_name}</h1>
-        {provider.verification_status === "verified" && (
-          <span className="badge-trust">✓ Verified</span>
-        )}
-      </div>
-      {provider.headline && <p className="text-[var(--muted)] mt-1">{provider.headline}</p>}
-      {provider.locations && (
-        <p className="text-sm text-[var(--muted)] mt-1">
-          {provider.locations.ward ?? provider.locations.town}
-        </p>
-      )}
 
-      <div className="mt-4 flex gap-4 text-sm">
-        <span>
-          <strong>{reliability?.jobs_completed ?? 0}</strong>{" "}
-          <span className="text-[var(--muted)]">jobs completed</span>
-        </span>
-        {reliability?.avg_rating != null && (
-          <span>
-            <strong>★ {reliability.avg_rating.toFixed(1)}</strong>
-          </span>
-        )}
-        {reliability?.completion_rate != null && (
-          <span>
-            <strong>{reliability.completion_rate}%</strong>{" "}
-            <span className="text-[var(--muted)]">on-time</span>
-          </span>
-        )}
+      <div className="flex items-center gap-3">
+        <Avatar name={provider.display_name} size="lg" />
+        <div>
+          <div className="flex items-center gap-1.5">
+            <h1 className="text-xl font-bold">{provider.display_name}</h1>
+            <VerificationBadge status={provider.verification_status} />
+          </div>
+          {provider.headline && <p className="text-[var(--muted)] text-sm mt-0.5">{provider.headline}</p>}
+          {provider.locations && (
+            <p className="text-sm text-[var(--muted)] mt-0.5 flex items-center gap-1">
+              <Icon name="map-pin" size={13} />
+              {provider.locations.ward ?? provider.locations.town}
+            </p>
+          )}
+        </div>
       </div>
 
-      {provider.bio && <p className="mt-4 text-sm leading-relaxed">{provider.bio}</p>}
+      <div className="mt-5 grid grid-cols-3 gap-3">
+        <div className="stat-tile">
+          <p className="text-lg font-bold">{reliability?.jobs_completed ?? 0}</p>
+          <p className="text-xs text-[var(--muted)]">jobs done</p>
+        </div>
+        <div className="stat-tile">
+          <p className="text-lg font-bold">
+            {reliability?.avg_rating != null ? <Rating value={reliability.avg_rating} size="md" /> : "New"}
+          </p>
+          <p className="text-xs text-[var(--muted)]">rating</p>
+        </div>
+        <div className="stat-tile">
+          <p className="text-lg font-bold">
+            {reliability?.completion_rate != null ? `${reliability.completion_rate}%` : "—"}
+          </p>
+          <p className="text-xs text-[var(--muted)]">on-time</p>
+        </div>
+      </div>
+
+      {provider.bio && <p className="mt-6 text-sm leading-relaxed">{provider.bio}</p>}
 
       {services && services.length > 0 && (
         <div className="mt-8">
@@ -94,7 +105,7 @@ export default async function ProviderStorefrontPage({
               <Link
                 key={s.services.id}
                 href={`/services/${s.services.slug}`}
-                className="card p-4 flex items-center justify-between hover:border-[var(--trust)] transition-colors"
+                className="card card-shadow p-4 flex items-center justify-between hover:border-[var(--trust)] transition-colors"
               >
                 <span className="font-medium">{s.services.name}</span>
                 <span className="font-bold text-sm" style={{ color: "var(--trust)" }}>
