@@ -187,3 +187,38 @@ Typecheck, lint, build, Supabase advisors, seed a demo dataset **flagged as demo
 ## Deliberately NOT built (per brief §39 and `docs/11-roadmap.md`)
 
 Native apps · AI matching or intake · lending, insurance or financial products · subscriptions · 100+ categories · nationwide rollout · complex bidding or lead-selling · automated background checks · automated dispute resolution · loyalty programmes · enterprise accounts · advanced analytics. The schema admits each later; none is scaffolded as a fake button.
+
+
+---
+
+## Build status (this session)
+
+**Phases 0–9 and 12 implemented and applied to a live Supabase project.
+Phases 10–11 partially implemented. Phases 13–15 partially done — see
+gaps below.**
+
+| Phase | Status |
+|---|---|
+| 0 — Audit | ✅ Done |
+| 1 — Architecture | ✅ Done — see `ARCHITECTURE.md` |
+| 2 — Database | ✅ Done, applied, verified — see `DATABASE.md` |
+| 3 — Auth | ✅ Email/password only. Phone OTP not wired — needs an SMS provider. |
+| 4 — Provider onboarding & verification | ✅ Application, admin review queue, category clearance all real and working against RLS |
+| 5 — Service catalogue | ✅ Admin-editable schema; 4 services seeded, 1 with a full checklist |
+| 6 — Customer booking | ✅ Real end-to-end: browse → book → server-resolved price → RPC |
+| 7 — Transaction engine | ✅ Full state machine, all timers, applied |
+| 8 — Evidence | ✅ In-app capture (photo/video), geotag attempt, checklist-gated submission |
+| 9 — Payments | ✅ Honest manual adapter only. No real payment rail connected — see `SECURITY.md` |
+| 10 — Reputation | ⚠️ Reliability score computed and displayed; Competence score schema exists but no UI surfaces it yet |
+| 11 — Messaging/notifications | ⚠️ Schema and RLS complete; no UI built (not blocking the core booking flow) |
+| 12 — Admin/Ops | ✅ Verification queue, payment confirmation, transaction list, overview stats — all real |
+| 13 — Creator vertical migration | ⚠️ Category seeded (`business-content`), no services populated, no dedicated UI — correctly deferred per `docs/09-verticals.md`'s launch sequencing |
+| 14 — QA & security | ⚠️ Database-layer security independently verified (see `SECURITY.md`). Live browser click-through NOT performed — blocked by this sandbox's network policy, not an application defect. Do this before declaring launch-ready. |
+| 15 — Launch readiness | ⚠️ Build and typecheck clean. No automated tests. No demo data seeded (correctly — brief §49 prohibits fake data in production flows, and there are legitimately zero real bookings/providers yet). |
+
+**The most important thing to do next, before anything else in this table:**
+run the full customer → provider → admin journey in a real browser against
+this live Supabase project, from an environment without this sandbox's
+egress restriction. Nothing in this codebase is fake or stubbed, but
+nothing has been click-tested end-to-end either, and those are different
+claims — see `SECURITY.md` for the precise distinction.

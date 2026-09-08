@@ -2,6 +2,35 @@
 
 **Strategic blueprint following the pivot from a creator-collaboration marketplace to a trusted services marketplace.**
 
+---
+
+## The application
+
+This repository now contains a working Next.js + Supabase application built
+against the strategy below — not a prototype with fake data, a real
+booking-to-payment-to-review flow with database-enforced authorization.
+Start here:
+
+- **[`BUILD_PLAN.md`](BUILD_PLAN.md)** — the phased build plan and its
+  current status (most phases done; see the status table at the bottom for
+  exactly what is and isn't finished)
+- **[`ARCHITECTURE.md`](ARCHITECTURE.md)** — how the pieces fit together
+- **[`DATABASE.md`](DATABASE.md)** — the schema, the migration history, the ledger
+- **[`SECURITY.md`](SECURITY.md)** — what was verified, how, and the one
+  real bug this build found and fixed along the way
+
+```bash
+npm install
+cp .env.example .env.local   # fill in SUPABASE_SERVICE_ROLE_KEY if you need admin-side scripts
+npm run dev
+```
+
+The Supabase project (`famdxoardiibonghxepl`) is already migrated and
+seeded with the four-service Remote-Principal launch catalogue from
+`docs/09-verticals.md`. No providers exist yet — that is real state, not a
+bug: apply as a provider, get verified by an admin account, then book.
+
+
 Research conducted 8 September 2026. Claims are tagged **[FACT]** (verified, cited), **[REC]** (recommendation), **[ASSUMPTION]** (unverified), **[LEGAL — COUNSEL REQUIRED]**. Sources in [`docs/sources.md`](docs/sources.md). Nothing here is legal, tax or financial advice.
 
 ---

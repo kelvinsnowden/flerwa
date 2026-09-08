@@ -1,8 +1,23 @@
 @import "tailwindcss";
 
+/*
+ * Design direction per docs/05-storefronts-and-ux.md and the blueprint's
+ * §35: trustworthy, modern, human — not a corporate bank, not a generic
+ * gig-app template. Deep teal is the trust colour used throughout the
+ * strategy docs' own badge system; kept consistent here deliberately.
+ */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #fafaf9;
+  --foreground: #14181c;
+  --card: #ffffff;
+  --border: #e4e9ed;
+  --muted: #6b7580;
+  --trust: #0a6e5c;
+  --trust-dark: #085a4a;
+  --trust-tint: #e8f3f0;
+  --danger: #b3261e;
+  --warn: #92650a;
+  --warn-tint: #fbeed5;
 }
 
 @theme inline {
@@ -12,15 +27,84 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+* {
+  border-color: var(--border);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+}
+
+.btn-primary {
+  background: var(--trust);
+  color: white;
+  border-radius: 0.5rem;
+  padding: 0.65rem 1.25rem;
+  font-weight: 600;
+  transition: background-color 0.15s ease;
+}
+.btn-primary:hover {
+  background: var(--trust-dark);
+}
+.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-secondary {
+  background: transparent;
+  color: var(--foreground);
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  padding: 0.6rem 1.2rem;
+  font-weight: 600;
+}
+.btn-secondary:hover {
+  background: var(--card);
+  border-color: var(--muted);
+}
+
+.badge-trust {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  background: var(--trust-tint);
+  color: var(--trust-dark);
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+}
+
+.badge-warn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  background: var(--warn-tint);
+  color: var(--warn);
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+}
+
+input, textarea, select {
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  padding: 0.6rem 0.75rem;
+  font-size: 0.95rem;
+  width: 100%;
+  background: var(--card);
+}
+input:focus, textarea:focus, select:focus {
+  outline: 2px solid var(--trust);
+  outline-offset: 1px;
 }
