@@ -1,3 +1,27 @@
+# dependencies
+node_modules/
+/.pnp
+.pnp.*
+
+# next.js
+/.next/
+/out/
+next-env.d.ts
+*.tsbuildinfo
+
+# env
+.env*
+!.env.example
+
+# misc
+.DS_Store
+*.pem
+npm-debug.log*
+/coverage
+.vercel
+
+# PDF build pipeline artefacts (build/ itself is source, not output)
 build/node_modules/
 build/package-lock.json
 build/blueprint.html
+build/flerwa.html
