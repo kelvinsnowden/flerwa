@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { Icon } from "@/components/ui/icon";
 
 type ActionResult = { error?: string } | undefined;
 
@@ -8,11 +9,13 @@ export function AuthForm({
   action,
   submitLabel,
   showName = false,
+  next,
   className = "",
 }: {
   action: (formData: FormData) => Promise<ActionResult>;
   submitLabel: string;
   showName?: boolean;
+  next?: string;
   className?: string;
 }) {
   const [error, setError] = useState<string | null>(null);
@@ -20,7 +23,7 @@ export function AuthForm({
 
   return (
     <form
-      className={`flex flex-col gap-3 ${className}`}
+      className={`flex flex-col gap-4 ${className}`}
       action={(formData) => {
         setError(null);
         startTransition(async () => {
@@ -29,15 +32,16 @@ export function AuthForm({
         });
       }}
     >
+      {next && <input type="hidden" name="next" value={next} />}
       {showName && (
         <label className="text-sm font-medium">
           Full name
-          <input name="full_name" required className="mt-1" autoComplete="name" />
+          <input name="full_name" required className="mt-1" autoComplete="name" placeholder="e.g. James Mwangi" />
         </label>
       )}
       <label className="text-sm font-medium">
         Email
-        <input name="email" type="email" required className="mt-1" autoComplete="email" />
+        <input name="email" type="email" required className="mt-1" autoComplete="email" placeholder="you@email.com" />
       </label>
       <label className="text-sm font-medium">
         Password
@@ -51,11 +55,15 @@ export function AuthForm({
         />
       </label>
       {error && (
-        <p className="text-sm rounded-lg bg-red-50 text-[var(--danger)] px-3 py-2">{error}</p>
+        <p className="notice-error">{error}</p>
       )}
       <button type="submit" disabled={isPending} className="btn-primary mt-1">
         {isPending ? "Please wait…" : submitLabel}
       </button>
+      <p className="flex items-start gap-2 text-xs text-[var(--muted)] bg-[var(--trust-tint)] rounded-lg p-3">
+        <Icon name="shield-check" size={16} className="text-[var(--trust)] flex-shrink-0 mt-0.5" />
+        Your information is protected. We never share it without your consent.
+      </p>
     </form>
   );
 }

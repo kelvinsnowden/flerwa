@@ -1,23 +1,46 @@
 @import "tailwindcss";
 
 /*
- * Design direction per docs/05-storefronts-and-ux.md and the blueprint's
- * §35: trustworthy, modern, human — not a corporate bank, not a generic
- * gig-app template. Deep teal is the trust colour used throughout the
- * strategy docs' own badge system; kept consistent here deliberately.
+ * Design direction per the "Trusted Services Kenya" mobile reference designs:
+ * trustworthy, modern, human — not a corporate bank, not a generic gig-app
+ * template, not a classifieds directory. One committed green channel used
+ * for trust + action + completion throughout; a dark navy-charcoal text
+ * colour (never pure black); a warm off-white ground. Kept as CSS variables
+ * so every screen (existing + new) draws from one token set rather than
+ * one-off hex values.
  */
 :root {
   --background: #fafaf9;
   --foreground: #14181c;
   --card: #ffffff;
+  --surface: #f4f6f5;
   --border: #e4e9ed;
   --muted: #6b7580;
-  --trust: #0a6e5c;
-  --trust-dark: #085a4a;
-  --trust-tint: #e8f3f0;
+  --muted-2: #97a0a8;
+
+  /* Trust green — the single accent channel. Brighter/more saturated than
+     the original deep-teal pick, matching the reference designs' primary
+     green, while keeping enough contrast for AA text-on-tint use. */
+  --trust: #12915a;
+  --trust-dark: #0d7548;
+  --trust-tint: #e6f5ec;
+  --trust-tint-strong: #cdeadb;
+
   --danger: #b3261e;
+  --danger-tint: #fbe9e7;
   --warn: #92650a;
   --warn-tint: #fbeed5;
+  --info: #1d5fa3;
+  --info-tint: #e8f1fb;
+
+  --radius-sm: 0.5rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
+  --radius-full: 999px;
+  --shadow-card: 0 1px 2px rgba(20, 24, 28, 0.04), 0 1px 8px rgba(20, 24, 28, 0.04);
+  --shadow-nav: 0 -1px 0 var(--border), 0 -8px 16px rgba(20, 24, 28, 0.04);
+  --nav-height: 4rem;
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 @theme inline {
@@ -40,15 +63,25 @@ body {
 .card {
   background: var(--card);
   border: 1px solid var(--border);
-  border-radius: 0.75rem;
+  border-radius: var(--radius-md);
+}
+
+.card-shadow {
+  box-shadow: var(--shadow-card);
 }
 
 .btn-primary {
   background: var(--trust);
   color: white;
-  border-radius: 0.5rem;
-  padding: 0.65rem 1.25rem;
+  border-radius: var(--radius-sm);
+  padding: 0.8rem 1.25rem;
   font-weight: 600;
+  font-size: 0.9375rem;
+  min-height: 2.75rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
   transition: background-color 0.15s ease;
 }
 .btn-primary:hover {
@@ -63,13 +96,37 @@ body {
   background: transparent;
   color: var(--foreground);
   border: 1px solid var(--border);
-  border-radius: 0.5rem;
-  padding: 0.6rem 1.2rem;
+  border-radius: var(--radius-sm);
+  padding: 0.75rem 1.2rem;
   font-weight: 600;
+  font-size: 0.9375rem;
+  min-height: 2.75rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
 }
 .btn-secondary:hover {
-  background: var(--card);
+  background: var(--surface);
   border-color: var(--muted);
+}
+.btn-secondary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-danger {
+  background: transparent;
+  color: var(--danger);
+  border: 1px solid var(--danger);
+  border-radius: var(--radius-sm);
+  padding: 0.75rem 1.2rem;
+  font-weight: 600;
+  font-size: 0.9375rem;
+  min-height: 2.75rem;
+}
+.btn-danger:hover {
+  background: var(--danger-tint);
 }
 
 .badge-trust {
@@ -80,8 +137,8 @@ body {
   color: var(--trust-dark);
   font-size: 0.75rem;
   font-weight: 600;
-  padding: 0.2rem 0.55rem;
-  border-radius: 999px;
+  padding: 0.25rem 0.6rem;
+  border-radius: var(--radius-full);
 }
 
 .badge-warn {
@@ -92,28 +149,139 @@ body {
   color: var(--warn);
   font-size: 0.75rem;
   font-weight: 600;
-  padding: 0.2rem 0.55rem;
-  border-radius: 999px;
+  padding: 0.25rem 0.6rem;
+  border-radius: var(--radius-full);
+}
+
+.badge-info {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  background: var(--info-tint);
+  color: var(--info);
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.25rem 0.6rem;
+  border-radius: var(--radius-full);
+}
+
+.badge-danger {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  background: var(--danger-tint);
+  color: var(--danger);
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.25rem 0.6rem;
+  border-radius: var(--radius-full);
+}
+
+.badge-muted {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.25rem 0.6rem;
+  border-radius: var(--radius-full);
 }
 
 .notice-error {
   border: 1px solid var(--danger);
   background: color-mix(in srgb, var(--danger) 8%, var(--card));
   color: var(--danger);
-  border-radius: 0.75rem;
+  border-radius: var(--radius-md);
   padding: 1rem;
   font-size: 0.875rem;
 }
 
 input, textarea, select {
   border: 1px solid var(--border);
-  border-radius: 0.5rem;
-  padding: 0.6rem 0.75rem;
-  font-size: 0.95rem;
+  border-radius: var(--radius-sm);
+  padding: 0.7rem 0.85rem;
+  font-size: 1rem;
+  min-height: 2.75rem;
   width: 100%;
   background: var(--card);
+  color: var(--foreground);
+}
+textarea {
+  min-height: 5rem;
 }
 input:focus, textarea:focus, select:focus {
   outline: 2px solid var(--trust);
   outline-offset: 1px;
+}
+input::placeholder, textarea::placeholder {
+  color: var(--muted-2);
+}
+
+/* Bottom tab navigation shell for the authenticated mobile experience. */
+.bottom-nav {
+  position: sticky;
+  bottom: 0;
+  z-index: 40;
+  background: var(--card);
+  box-shadow: var(--shadow-nav);
+  padding-bottom: var(--safe-bottom);
+}
+.bottom-nav-row {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  height: var(--nav-height);
+  max-width: 640px;
+  margin: 0 auto;
+}
+.bottom-nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.2rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--muted);
+  min-width: 44px;
+  min-height: 44px;
+}
+.bottom-nav-item[data-active="true"] {
+  color: var(--trust);
+}
+
+.avatar {
+  border-radius: var(--radius-full);
+  background: var(--trust-tint);
+  color: var(--trust-dark);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.stat-tile {
+  background: var(--surface);
+  border-radius: var(--radius-md);
+  padding: 0.75rem;
+  text-align: center;
+}
+
+.pill-tab {
+  border-radius: var(--radius-full);
+  padding: 0.4rem 0.85rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  background: var(--card);
+}
+.pill-tab[data-active="true"] {
+  background: var(--foreground);
+  color: var(--card);
+  border-color: var(--foreground);
 }

@@ -3,11 +3,11 @@
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 
-export function SignOutButton() {
+export function SignOutButton({ className = "text-[var(--muted)] hover:text-[var(--foreground)]" }: { className?: string }) {
   const router = useRouter();
   return (
     <button
-      className="text-[var(--muted)] hover:text-[var(--foreground)]"
+      className={className}
       onClick={async () => {
         const supabase = createClient();
         await supabase.auth.signOut();
