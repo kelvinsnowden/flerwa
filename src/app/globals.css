@@ -50,14 +50,24 @@
   --font-mono: var(--font-geist-mono);
 }
 
-* {
-  border-color: var(--border);
-}
+/*
+ * Base element defaults live in Tailwind's own `base` layer so utility
+ * classes applied alongside them (e.g. `pl-10` on a search input) always
+ * win on the cascade — an unlayered rule here would otherwise beat any
+ * layered utility regardless of specificity, which is exactly the bug
+ * that made the search icon overlap its placeholder text before this
+ * was layered (found via a live screenshot QA pass, not a lint).
+ */
+@layer base {
+  * {
+    border-color: var(--border);
+  }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+  body {
+    background: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+  }
 }
 
 .card {
@@ -198,25 +208,27 @@ body {
   font-size: 0.875rem;
 }
 
-input, textarea, select {
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  padding: 0.7rem 0.85rem;
-  font-size: 1rem;
-  min-height: 2.75rem;
-  width: 100%;
-  background: var(--card);
-  color: var(--foreground);
-}
-textarea {
-  min-height: 5rem;
-}
-input:focus, textarea:focus, select:focus {
-  outline: 2px solid var(--trust);
-  outline-offset: 1px;
-}
-input::placeholder, textarea::placeholder {
-  color: var(--muted-2);
+@layer base {
+  input, textarea, select {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 0.7rem 0.85rem;
+    font-size: 1rem;
+    min-height: 2.75rem;
+    width: 100%;
+    background: var(--card);
+    color: var(--foreground);
+  }
+  textarea {
+    min-height: 5rem;
+  }
+  input:focus, textarea:focus, select:focus {
+    outline: 2px solid var(--trust);
+    outline-offset: 1px;
+  }
+  input::placeholder, textarea::placeholder {
+    color: var(--muted-2);
+  }
 }
 
 /* Bottom tab navigation shell for the authenticated mobile experience. */
