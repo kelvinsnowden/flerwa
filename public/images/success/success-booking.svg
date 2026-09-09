@@ -1,9 +1,1 @@
-<svg width="200" height="200" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Booking confirmed">
-  <circle cx="100" cy="100" r="80" fill="#E6F5EC"/>
-  <circle cx="100" cy="100" r="52" fill="#12915A"/>
-  <path d="M80 100l14 14 28-28" stroke="white" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
-  <circle cx="40" cy="60" r="5" fill="#CDEADB"/>
-  <circle cx="164" cy="70" r="4" fill="#0D7548"/>
-  <circle cx="150" cy="150" r="6" fill="#CDEADB"/>
-  <circle cx="46" cy="146" r="4" fill="#0D7548"/>
-</svg>
+<svg width="200" height="200" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Booking confirmed"><circle r="80" transform="translate(100 100)" fill="#e6f5ec"/><circle r="52" transform="translate(100 100)" fill="#12915a"/><path d="M80,100l14,14l28-28" fill="none" stroke="#fff" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/><circle r="5" transform="translate(40 60)" fill="#cdeadb"/><circle r="4" transform="translate(164 70)" fill="#0d7548"/><circle r="6" transform="translate(150 150)" fill="#cdeadb"/><circle r="4" transform="translate(46 146)" fill="#0d7548"/></svg>

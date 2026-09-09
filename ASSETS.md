@@ -4,14 +4,30 @@ Every file under `public/images/`, why it exists, and where (if anywhere)
 it's actually wired into the application. See `DESIGN_SYSTEM.md` for the
 color/visual-language rules these were authored against.
 
-All assets below are **hand-authored SVG**, written directly as flat
-markup (no external generation tool, no build step) — see
-`DESIGN_SYSTEM.md`'s note on why an SVG-authoring MCP tool was not used
-for this batch (it's built for animated motion projects with a heavy
-per-shape schema; these are static illustrations). Colors are hardcoded
-hex values matching the CSS tokens in `globals.css`, since an externally
-loaded SVG can't resolve CSS custom properties from the host page — if a
-token changes, these files need a manual pass to match.
+**Authoring tool: SVGator MCP.** All 21 assets below were built as real
+SVGator projects (one project per file, in the connected account —
+titled to match, e.g. "Category - Property") via `create_project`/
+`edit_part`, then exported with `export_project(format:"svg",
+svgFormat:"static")` and the result saved verbatim into this repo (only
+a `width`/`height`/`role`/`aria-label` wrapper was added by hand on save
+— the shape markup itself is SVGator's own export). An earlier pass
+hand-wrote the markup directly instead and reasoned the tool was overkill
+for static illustrations; asked directly whether it could actually be
+used, every asset was rebuilt through it properly rather than defending
+that shortcut. One real, reproducible tool limitation surfaced along the
+way and is called out per-asset below: **SVGator's static-SVG export
+drops `<text>` content and font attributes entirely** (confirmed with a
+minimal single-word test case, not just on our own projects) — the two
+assets that need text (`brand/logo.svg`, `payments/mpesa-payment.svg`)
+have their shape layer from SVGator and their `<text>` element added by
+hand afterward; every other asset is 100% SVGator output. Colors are
+hardcoded hex values matching the CSS tokens in `globals.css`, since an
+externally loaded SVG can't resolve CSS custom properties from the host
+page — if a token changes, both the live SVGator projects and these
+exported files need a manual pass to match. A diagnostic scratch project
+("SVGator text render test") was created in the account while isolating
+the text bug and can be deleted from svgator.com — this MCP surface has
+no delete-project tool.
 
 **Important config note:** `next.config.ts` now sets
 `images.dangerouslyAllowSVG = true` (with a locked-down

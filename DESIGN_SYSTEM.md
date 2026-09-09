@@ -54,7 +54,8 @@ pixel-perfect match to files that were never actually inspected on disk.
 | `--warn` / `--warn-tint` | `#92650a` / `#fbeed5` | Pending/attention states |
 | `--info` / `--info-tint` | `#1d5fa3` / `#e8f1fb` | Neutral informational states (requested/quoted) |
 
-Every hand-authored SVG under `public/images/` hardcodes these same hex
+Every SVG under `public/images/` (authored via the SVGator MCP — see
+`ASSETS.md`) hardcodes these same hex
 values, since an externally-loaded SVG (via `<img>`/`next/image`) cannot
 resolve CSS custom properties from the host page. If a token value above
 changes, the SVGs must be updated to match by hand — see `ASSETS.md`.
@@ -148,7 +149,7 @@ state.
   this session has no stock-photography or image-generation tool, and
   fetching arbitrary photos from the internet for production use would be
   both a licensing risk and outside what a coding session should do
-  unattended. Every illustrative surface uses the hand-authored SVG system
+  unattended. Every illustrative surface uses the SVGator-authored SVG system
   instead. If real photography is wanted, it needs to be supplied by the
   team (e.g. under `/public/images/photos/`) and wired in with
   `next/image` — no code changes are blocked on this, it's a pure asset gap.

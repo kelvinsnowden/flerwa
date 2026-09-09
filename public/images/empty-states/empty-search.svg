@@ -1,8 +1,1 @@
-<svg width="200" height="160" viewBox="0 0 200 160" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="No results found">
-  <circle cx="100" cy="80" r="64" fill="#F4F6F5"/>
-  <circle cx="92" cy="74" r="28" fill="#FFFFFF" stroke="#C4CBD1" stroke-width="5"/>
-  <line x1="112" y1="94" x2="132" y2="114" stroke="#C4CBD1" stroke-width="6" stroke-linecap="round"/>
-  <path d="M82 74h20" stroke="#E4E9ED" stroke-width="4" stroke-linecap="round"/>
-  <circle cx="132" cy="114" r="15" fill="#12915A"/>
-  <path d="M126 114h12" stroke="white" stroke-width="3" stroke-linecap="round"/>
-</svg>
+<svg width="200" height="160" viewBox="0 0 200 160" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="No results found"><circle r="64" transform="translate(100 80)" fill="#f4f6f5"/><circle r="28" transform="translate(92 74)" fill="#fff" stroke="#c4cbd1" stroke-width="5"/><line x1="112" y1="94" x2="132" y2="114" fill="none" stroke="#c4cbd1" stroke-width="6" stroke-linecap="round"/><line x1="82" y1="74" x2="102" y2="74" fill="none" stroke="#e4e9ed" stroke-width="4" stroke-linecap="round"/><circle r="15" transform="translate(132 114)" fill="#12915a"/><line x1="126" y1="114" x2="138" y2="114" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round"/></svg>

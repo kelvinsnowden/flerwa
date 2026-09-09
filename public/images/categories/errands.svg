@@ -1,9 +1,1 @@
-<svg width="144" height="144" viewBox="0 0 144 144" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Errands and tasks">
-  <rect width="144" height="144" rx="28" fill="#E6F5EC"/>
-  <rect x="42" y="46" width="52" height="62" rx="8" fill="#FFFFFF" stroke="#0D7548" stroke-width="6"/>
-  <rect x="56" y="40" width="24" height="12" rx="5" fill="#0D7548"/>
-  <path d="M53 68l7 7 12-13" stroke="#12915A" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M53 88l7 7 12-13" stroke="#E4E9ED" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
-  <circle cx="100" cy="100" r="19" fill="#12915A"/>
-  <path d="M100 90v20M92 96l8-8 8 8M92 104l8 8 8-8" stroke="white" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>
-</svg>
+<svg width="144" height="144" viewBox="0 0 144 144" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Errands and tasks"><rect width="144" height="144" rx="28" ry="28" fill="#e6f5ec"/><rect width="52" height="62" rx="8" ry="8" transform="translate(34 44)" fill="none" stroke="#0d7548" stroke-width="6"/><rect width="22" height="10" rx="5" ry="5" transform="translate(49 38)" fill="#0d7548"/><path d="M44,66l6,6L62,60" fill="none" stroke="#12915a" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/><rect width="22" height="6" rx="3" ry="3" transform="translate(44 86)" fill="#cdeadb"/><circle r="18" transform="translate(104 104)" fill="#12915a" stroke="#e6f5ec" stroke-width="4"/><path d="M97,104l5,5l9-11" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
