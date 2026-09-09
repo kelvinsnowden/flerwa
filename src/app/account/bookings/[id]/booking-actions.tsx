@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Image from "next/image";
 import { approveBooking, openDispute, requestRevision, submitReview } from "./actions";
 
 export function ApproveOrReviseControls({
@@ -15,7 +16,20 @@ export function ApproveOrReviseControls({
   const [disputeReason, setDisputeReason] = useState("");
   const [disputeDetail, setDisputeDetail] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [approved, setApproved] = useState(false);
   const [isPending, startTransition] = useTransition();
+
+  if (approved) {
+    return (
+      <div className="mt-4 card p-5 flex items-center gap-4" style={{ borderColor: "var(--trust)" }}>
+        <Image src="/images/success/success-completion.svg" alt="" width={64} height={64} className="flex-shrink-0" />
+        <div>
+          <p className="font-semibold">Payment released</p>
+          <p className="text-sm text-[var(--muted)]">Thanks for confirming — your provider has been paid.</p>
+        </div>
+      </div>
+    );
+  }
 
   if (mode === "dispute") {
     return (
@@ -102,6 +116,7 @@ export function ApproveOrReviseControls({
             startTransition(async () => {
               const res = await approveBooking(transactionId);
               if (res?.error) setError(res.error);
+              else setApproved(true);
             })
           }
         >

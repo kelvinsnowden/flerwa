@@ -5,7 +5,6 @@ import type { ServiceTransaction } from "@/lib/types";
 import { ErrorNotice } from "@/components/error-notice";
 import { EmptyState } from "@/components/ui/empty-state";
 import { BookingCard } from "@/components/ui/booking-card";
-import { Icon } from "@/components/ui/icon";
 
 export default async function BookingsPage() {
   const supabase = await createClient();
@@ -31,7 +30,7 @@ export default async function BookingsPage() {
 
       {!error && !bookings?.length && (
         <EmptyState
-          icon={<Icon name="calendar" size={20} />}
+          illustration="/images/empty-states/empty-bookings.svg"
           title="Your bookings will appear here"
           body="Once you book a service, you can track its progress and evidence from this page."
           action={

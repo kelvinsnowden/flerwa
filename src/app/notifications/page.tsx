@@ -3,7 +3,6 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { ErrorNotice } from "@/components/error-notice";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Icon } from "@/components/ui/icon";
 import { MarkReadButton } from "./mark-read-button";
 
 interface NotificationRow {
@@ -40,7 +39,7 @@ export default async function NotificationsPage() {
 
       {!error && !notifications?.length && (
         <EmptyState
-          icon={<Icon name="bell" size={20} />}
+          illustration="/images/empty-states/empty-notifications.svg"
           title="No updates yet"
           body="You'll see updates here as your bookings and jobs move forward."
         />

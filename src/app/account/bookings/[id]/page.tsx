@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation";
+import Image from "next/image";
 import { createClient } from "@/lib/supabase/server";
 import { formatMoney } from "@/lib/money";
 import { TXN_STATE_LABELS, type ServiceTransaction } from "@/lib/types";
@@ -22,10 +23,13 @@ const DISPUTABLE_ELSEWHERE_STATES: ServiceTransaction["state"][] = [
 
 export default async function BookingDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ created?: string }>;
 }) {
   const { id } = await params;
+  const { created } = await searchParams;
   const supabase = await createClient();
   const {
     data: { user },
@@ -81,6 +85,18 @@ export default async function BookingDetailPage({
         <h1 className="text-2xl font-bold">{TXN_STATE_LABELS[booking.state]}</h1>
         <StateBadge state={booking.state} />
       </div>
+
+      {created === "1" && booking.state === "requested" && (
+        <div className="mt-4 card p-5 flex items-center gap-4" style={{ borderColor: "var(--trust)" }}>
+          <Image src="/images/success/success-booking.svg" alt="" width={72} height={72} className="flex-shrink-0" />
+          <div>
+            <p className="font-semibold">Booking confirmed</p>
+            <p className="text-sm text-[var(--muted)]">
+              We&apos;ll be in touch on {booking.contact_phone} to arrange payment.
+            </p>
+          </div>
+        </div>
+      )}
 
       <div className="mt-6 card p-4">
         <StatusTimeline state={booking.state} />

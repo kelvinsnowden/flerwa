@@ -1,0 +1,7 @@
+<svg width="200" height="160" viewBox="0 0 200 160" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Secure payment, held until you approve">
+  <rect width="200" height="160" rx="20" fill="#F4F6F5"/>
+  <path d="M100 30l38 16v26c0 27-16 44-38 54-22-10-38-27-38-54V46l38-16Z" fill="#E6F5EC" stroke="#12915A" stroke-width="3"/>
+  <rect x="82" y="74" width="36" height="28" rx="6" fill="#12915A"/>
+  <path d="M90 74v-8a10 10 0 0 1 20 0v8" stroke="#0D7548" stroke-width="5" fill="none" stroke-linecap="round"/>
+  <circle cx="100" cy="87" r="4" fill="white"/>
+</svg>

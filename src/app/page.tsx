@@ -6,7 +6,7 @@ import { SearchBar } from "@/components/ui/search-bar";
 import { CategoryCard } from "@/components/ui/category-card";
 import { ServiceCard } from "@/components/ui/service-card";
 import { TrustSignal } from "@/components/ui/trust-signal";
-import { Icon } from "@/components/ui/icon";
+import { EmptyState } from "@/components/ui/empty-state";
 
 export default async function HomePage({
   searchParams,
@@ -119,23 +119,21 @@ export default async function HomePage({
 
 function EmptyStateBlock({ query, category }: { query?: string; category?: string }) {
   return (
-    <div className="card p-8 text-center flex flex-col items-center gap-2">
-      <div className="w-12 h-12 rounded-full flex items-center justify-center bg-[var(--surface)] text-[var(--muted)] mb-1">
-        <Icon name="search" size={20} />
-      </div>
-      <p className="font-semibold">
-        {query ? `No services match "${query}"` : category ? `Nothing in ${category} yet` : "No services published yet"}
-      </p>
-      <p className="text-sm text-[var(--muted)] max-w-xs">
-        {query || category
+    <EmptyState
+      illustration="/images/empty-states/empty-search.svg"
+      title={query ? `No services match "${query}"` : category ? `Nothing in ${category} yet` : "No services published yet"}
+      body={
+        query || category
           ? "Try a different search, or browse all services."
-          : "Check back soon — new services are added regularly."}
-      </p>
-      {(query || category) && (
-        <Link href="/" className="btn-secondary mt-3">
-          Browse all services
-        </Link>
-      )}
-    </div>
+          : "Check back soon — new services are added regularly."
+      }
+      action={
+        (query || category) && (
+          <Link href="/" className="btn-secondary">
+            Browse all services
+          </Link>
+        )
+      }
+    />
   );
 }

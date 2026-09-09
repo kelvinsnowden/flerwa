@@ -7,7 +7,6 @@ import { ErrorNotice } from "@/components/error-notice";
 import { Avatar } from "@/components/ui/avatar";
 import { BookingCard } from "@/components/ui/booking-card";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Icon } from "@/components/ui/icon";
 
 const VERIFICATION_COPY: Record<string, { label: string; tone: "warn" | "trust" }> = {
   pending: { label: "Complete your profile to submit for verification", tone: "warn" },
@@ -85,7 +84,7 @@ export default async function ProviderDashboardPage() {
           <div className="mt-3 flex flex-col gap-2">
             {activeJobs.length === 0 && (
               <EmptyState
-                icon={<Icon name="briefcase" size={20} />}
+                illustration="/images/empty-states/empty-bookings.svg"
                 title="No active jobs right now"
                 body="New jobs assigned to you will show up here."
               />

@@ -1,6 +1,6 @@
 import Link from "next/link";
+import Image from "next/image";
 import { AuthForm } from "@/components/auth-form";
-import { Icon } from "@/components/ui/icon";
 import { login } from "./actions";
 
 export default async function LoginPage({
@@ -12,12 +12,14 @@ export default async function LoginPage({
 
   return (
     <div className="mx-auto max-w-sm px-4 py-12">
-      <div
-        className="w-14 h-14 rounded-2xl flex items-center justify-center mb-6"
-        style={{ background: "var(--trust)" }}
-      >
-        <Icon name="shield-check" size={26} className="text-white" />
-      </div>
+      <Image
+        src="/images/illustrations/kenya-gets-things-done.svg"
+        alt=""
+        width={280}
+        height={210}
+        className="w-full max-w-[280px] mx-auto sm:mx-0 mb-6"
+        priority
+      />
       <h1 className="text-2xl font-bold">Welcome back</h1>
       <p className="text-sm text-[var(--muted)] mt-1">
         New here?{" "}

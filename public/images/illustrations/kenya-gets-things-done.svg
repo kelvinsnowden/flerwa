@@ -1,0 +1,28 @@
+<svg width="400" height="300" viewBox="0 0 400 300" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Kenya gets things done">
+  <rect width="400" height="300" rx="24" fill="#E6F5EC"/>
+
+  <!-- abstract skyline motif, kept simple and generic rather than a literal landmark reproduction -->
+  <g opacity="0.9">
+    <rect x="40" y="190" width="34" height="70" rx="4" fill="#CDEADB"/>
+    <rect x="84" y="160" width="30" height="100" rx="4" fill="#CDEADB"/>
+    <rect x="124" y="205" width="26" height="55" rx="4" fill="#CDEADB"/>
+    <g>
+      <rect x="164" y="150" width="40" height="110" rx="4" fill="#0D7548"/>
+      <circle cx="184" cy="140" r="16" fill="#0D7548"/>
+    </g>
+    <rect x="214" y="200" width="28" height="60" rx="4" fill="#CDEADB"/>
+    <rect x="252" y="175" width="32" height="85" rx="4" fill="#CDEADB"/>
+    <rect x="294" y="212" width="24" height="48" rx="4" fill="#CDEADB"/>
+    <rect x="30" y="258" width="340" height="6" rx="3" fill="#0D7548"/>
+  </g>
+
+  <!-- trust badge -->
+  <circle cx="200" cy="98" r="46" fill="#FFFFFF"/>
+  <circle cx="200" cy="98" r="46" stroke="#12915A" stroke-width="3"/>
+  <path d="M182 99L194 111L220 83" stroke="#12915A" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- Kenyan flag-accent mark, abstracted as a small geometric flourish, not a literal flag -->
+  <rect x="176" y="30" width="16" height="5" rx="2.5" fill="#14181C"/>
+  <rect x="196" y="30" width="16" height="5" rx="2.5" fill="#B3261E"/>
+  <rect x="216" y="30" width="16" height="5" rx="2.5" fill="#12915A"/>
+</svg>

@@ -32,5 +32,5 @@ export async function bookService(formData: FormData) {
 
   if (error) return { error: error.message };
 
-  redirect(`/account/bookings/${data}`);
+  redirect(`/account/bookings/${data}?created=1`);
 }
