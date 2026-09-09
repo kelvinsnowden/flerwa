@@ -2,15 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
-
-// Only ever redirect to a same-origin relative path from the "next" field —
-// it round-trips through a form field that a browser (or a crafted link to
-// /login?next=...) controls, so treating it as a safe absolute/external
-// target would be an open-redirect hole.
-function safeNext(next: FormDataEntryValue | null, fallback = "/"): string {
-  const value = String(next ?? "");
-  return value.startsWith("/") && !value.startsWith("//") ? value : fallback;
-}
+import { safeNext } from "@/lib/safe-redirect";
 
 export async function login(formData: FormData) {
   const email = String(formData.get("email") ?? "");

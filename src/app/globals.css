@@ -51,12 +51,15 @@
 }
 
 /*
- * Base element defaults live in Tailwind's own `base` layer so utility
- * classes applied alongside them (e.g. `pl-10` on a search input) always
- * win on the cascade — an unlayered rule here would otherwise beat any
- * layered utility regardless of specificity, which is exactly the bug
- * that made the search icon overlap its placeholder text before this
- * was layered (found via a live screenshot QA pass, not a lint).
+ * Base element defaults AND the custom component classes below both live
+ * inside Tailwind's own cascade layers (`base` / `components`) so a
+ * utility class applied alongside them on the same element (e.g.
+ * `justify-between` on a `.btn-primary`, or `pl-10` on an input) always
+ * wins — an unlayered rule here would otherwise beat ANY layered utility
+ * regardless of specificity. This is a real bug class, not a style
+ * preference: it's what made a search icon overlap its placeholder text
+ * and, before this pass, would have made every `.btn-primary` ignore a
+ * `justify-between` override. Found via live screenshot QA, not a lint.
  */
 @layer base {
   * {
@@ -68,147 +71,7 @@
     color: var(--foreground);
     font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
   }
-}
 
-.card {
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-}
-
-.card-shadow {
-  box-shadow: var(--shadow-card);
-}
-
-.btn-primary {
-  background: var(--trust);
-  color: white;
-  border-radius: var(--radius-sm);
-  padding: 0.8rem 1.25rem;
-  font-weight: 600;
-  font-size: 0.9375rem;
-  min-height: 2.75rem;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.4rem;
-  transition: background-color 0.15s ease;
-}
-.btn-primary:hover {
-  background: var(--trust-dark);
-}
-.btn-primary:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.btn-secondary {
-  background: transparent;
-  color: var(--foreground);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  padding: 0.75rem 1.2rem;
-  font-weight: 600;
-  font-size: 0.9375rem;
-  min-height: 2.75rem;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.4rem;
-}
-.btn-secondary:hover {
-  background: var(--surface);
-  border-color: var(--muted);
-}
-.btn-secondary:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.btn-danger {
-  background: transparent;
-  color: var(--danger);
-  border: 1px solid var(--danger);
-  border-radius: var(--radius-sm);
-  padding: 0.75rem 1.2rem;
-  font-weight: 600;
-  font-size: 0.9375rem;
-  min-height: 2.75rem;
-}
-.btn-danger:hover {
-  background: var(--danger-tint);
-}
-
-.badge-trust {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
-  background: var(--trust-tint);
-  color: var(--trust-dark);
-  font-size: 0.75rem;
-  font-weight: 600;
-  padding: 0.25rem 0.6rem;
-  border-radius: var(--radius-full);
-}
-
-.badge-warn {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
-  background: var(--warn-tint);
-  color: var(--warn);
-  font-size: 0.75rem;
-  font-weight: 600;
-  padding: 0.25rem 0.6rem;
-  border-radius: var(--radius-full);
-}
-
-.badge-info {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
-  background: var(--info-tint);
-  color: var(--info);
-  font-size: 0.75rem;
-  font-weight: 600;
-  padding: 0.25rem 0.6rem;
-  border-radius: var(--radius-full);
-}
-
-.badge-danger {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
-  background: var(--danger-tint);
-  color: var(--danger);
-  font-size: 0.75rem;
-  font-weight: 600;
-  padding: 0.25rem 0.6rem;
-  border-radius: var(--radius-full);
-}
-
-.badge-muted {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
-  background: var(--surface);
-  color: var(--muted);
-  font-size: 0.75rem;
-  font-weight: 600;
-  padding: 0.25rem 0.6rem;
-  border-radius: var(--radius-full);
-}
-
-.notice-error {
-  border: 1px solid var(--danger);
-  background: color-mix(in srgb, var(--danger) 8%, var(--card));
-  color: var(--danger);
-  border-radius: var(--radius-md);
-  padding: 1rem;
-  font-size: 0.875rem;
-}
-
-@layer base {
   input, textarea, select {
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
@@ -231,69 +94,209 @@
   }
 }
 
-/* Bottom tab navigation shell for the authenticated mobile experience. */
-.bottom-nav {
-  position: sticky;
-  bottom: 0;
-  z-index: 40;
-  background: var(--card);
-  box-shadow: var(--shadow-nav);
-  padding-bottom: var(--safe-bottom);
-}
-.bottom-nav-row {
-  display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: 1fr;
-  height: var(--nav-height);
-  max-width: 640px;
-  margin: 0 auto;
-}
-.bottom-nav-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 0.2rem;
-  font-size: 0.6875rem;
-  font-weight: 600;
-  color: var(--muted);
-  min-width: 44px;
-  min-height: 44px;
-}
-.bottom-nav-item[data-active="true"] {
-  color: var(--trust);
-}
+@layer components {
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+  }
 
-.avatar {
-  border-radius: var(--radius-full);
-  background: var(--trust-tint);
-  color: var(--trust-dark);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 700;
-  flex-shrink: 0;
-  overflow: hidden;
-}
+  .card-shadow {
+    box-shadow: var(--shadow-card);
+  }
 
-.stat-tile {
-  background: var(--surface);
-  border-radius: var(--radius-md);
-  padding: 0.75rem;
-  text-align: center;
-}
+  .btn-primary {
+    background: var(--trust);
+    color: white;
+    border-radius: var(--radius-sm);
+    padding: 0.8rem 1.25rem;
+    font-weight: 600;
+    font-size: 0.9375rem;
+    min-height: 2.75rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    transition: background-color 0.15s ease;
+  }
+  .btn-primary:hover {
+    background: var(--trust-dark);
+  }
+  .btn-primary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
 
-.pill-tab {
-  border-radius: var(--radius-full);
-  padding: 0.4rem 0.85rem;
-  font-size: 0.8125rem;
-  font-weight: 600;
-  border: 1px solid var(--border);
-  color: var(--muted);
-  background: var(--card);
-}
-.pill-tab[data-active="true"] {
-  background: var(--foreground);
-  color: var(--card);
-  border-color: var(--foreground);
+  .btn-secondary {
+    background: transparent;
+    color: var(--foreground);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 0.75rem 1.2rem;
+    font-weight: 600;
+    font-size: 0.9375rem;
+    min-height: 2.75rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+  }
+  .btn-secondary:hover {
+    background: var(--surface);
+    border-color: var(--muted);
+  }
+  .btn-secondary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .btn-danger {
+    background: transparent;
+    color: var(--danger);
+    border: 1px solid var(--danger);
+    border-radius: var(--radius-sm);
+    padding: 0.75rem 1.2rem;
+    font-weight: 600;
+    font-size: 0.9375rem;
+    min-height: 2.75rem;
+  }
+  .btn-danger:hover {
+    background: var(--danger-tint);
+  }
+
+  .badge-trust {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    background: var(--trust-tint);
+    color: var(--trust-dark);
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 0.25rem 0.6rem;
+    border-radius: var(--radius-full);
+  }
+
+  .badge-warn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    background: var(--warn-tint);
+    color: var(--warn);
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 0.25rem 0.6rem;
+    border-radius: var(--radius-full);
+  }
+
+  .badge-info {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    background: var(--info-tint);
+    color: var(--info);
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 0.25rem 0.6rem;
+    border-radius: var(--radius-full);
+  }
+
+  .badge-danger {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    background: var(--danger-tint);
+    color: var(--danger);
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 0.25rem 0.6rem;
+    border-radius: var(--radius-full);
+  }
+
+  .badge-muted {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    background: var(--surface);
+    color: var(--muted);
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 0.25rem 0.6rem;
+    border-radius: var(--radius-full);
+  }
+
+  .notice-error {
+    border: 1px solid var(--danger);
+    background: color-mix(in srgb, var(--danger) 8%, var(--card));
+    color: var(--danger);
+    border-radius: var(--radius-md);
+    padding: 1rem;
+    font-size: 0.875rem;
+  }
+
+  /* Bottom tab navigation shell for the authenticated mobile experience. */
+  .bottom-nav {
+    position: sticky;
+    bottom: 0;
+    z-index: 40;
+    background: var(--card);
+    box-shadow: var(--shadow-nav);
+    padding-bottom: var(--safe-bottom);
+  }
+  .bottom-nav-row {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: 1fr;
+    height: var(--nav-height);
+    max-width: 640px;
+    margin: 0 auto;
+  }
+  .bottom-nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.2rem;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    color: var(--muted);
+    min-width: 44px;
+    min-height: 44px;
+  }
+  .bottom-nav-item[data-active="true"] {
+    color: var(--trust);
+  }
+
+  .avatar {
+    border-radius: var(--radius-full);
+    background: var(--trust-tint);
+    color: var(--trust-dark);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    flex-shrink: 0;
+    overflow: hidden;
+  }
+
+  .stat-tile {
+    background: var(--surface);
+    border-radius: var(--radius-md);
+    padding: 0.75rem;
+    text-align: center;
+  }
+
+  .pill-tab {
+    border-radius: var(--radius-full);
+    padding: 0.4rem 0.85rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    background: var(--card);
+  }
+  .pill-tab[data-active="true"] {
+    background: var(--foreground);
+    color: var(--card);
+    border-color: var(--foreground);
+  }
 }

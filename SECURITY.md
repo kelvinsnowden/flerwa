@@ -136,11 +136,66 @@ applies to anyone processing retail payments, operating wallets, or
 aggregating — **[LEGAL — COUNSEL REQUIRED]** before connecting a real
 payment rail.
 
+## Phone + OTP authentication
+
+Phone + OTP (`design-references/mobile/01-login.png`, `02-otp.png`) is the
+primary authentication experience: enter a Kenyan phone number → receive a
+6-digit SMS code → verify → authenticated session. Email/password remains
+available as a secondary path (`/login/email`, `/signup`) — nothing about
+the existing email flow was removed.
+
+**How it's implemented — and what it does NOT do:**
+
+- The app calls Supabase Auth's own phone provider directly:
+  `supabase.auth.signInWithOtp({ phone })` to send a code and
+  `supabase.auth.verifyOtp({ phone, token, type: "sms" })` to verify it.
+  Both live in one file, `src/app/login/phone-actions.ts` — the only place
+  in the codebase that talks to phone auth at all.
+- **This app never sends an SMS itself and never sees the code.** Supabase
+  Auth generates the code, hands it to whichever SMS vendor is configured,
+  and verifies it against what the user submits — entirely server-side, on
+  Supabase's infrastructure. There is no code here that could hardcode,
+  log, or fake a code even by accident.
+- **The SMS vendor is configured in the Supabase dashboard, not in this
+  codebase**: Authentication → Providers → Phone, with a real account
+  (Twilio, MessageBird, Vonage, or Textlocal — Supabase's supported list)
+  and its actual credentials (Account SID, Auth Token, sender number/ID).
+  This is the "provider abstraction" — the app code has zero knowledge of
+  which vendor is behind it, so switching vendors is a dashboard change,
+  not a code change.
+- **As of this session, no SMS provider has been configured** on the
+  connected Supabase project (`famdxoardiibonghxepl`) — configuring one
+  requires a real account with that vendor, which is outside what this
+  session can set up. Until it is, `signInWithOtp` fails with a real error
+  from Supabase's Auth API, and the UI surfaces that error as-is (a plain
+  error banner on the phone-entry screen) — it does **not** pretend the
+  code was sent. Verified live: the phone form was submitted against the
+  actual Supabase project and the failure rendered honestly rather than
+  silently succeeding. (The specific error text seen in this sandbox —
+  "Unexpected token 'H', 'Host not i'... is not valid JSON" — is this
+  environment's own egress proxy blocking `*.supabase.co`, the same
+  network restriction documented elsewhere in this file, not a Supabase
+  API response; the real "no provider configured" error can only be
+  observed from a network path that can actually reach Supabase.)
+- **Development/QA without burning real SMS credits**: use Supabase's own
+  built-in mechanism — Authentication → Settings → **Test Phone Numbers**
+  (or the Phone provider's test-OTP option) lets an admin register a
+  specific phone number with a fixed OTP that Supabase accepts without
+  sending a real SMS. That configuration lives entirely in the Supabase
+  dashboard/project settings, never in this repository, and Supabase's own
+  UI labels it as a test/sandbox mechanism — it cannot be mistaken for a
+  production credential. This app has no separate, homegrown "dev bypass";
+  using Supabase's test-number mechanism is the only sanctioned way to
+  exercise this flow without a live SMS provider.
+- `trg_handle_new_user` (the trigger that creates a `profiles` row on
+  signup) previously only copied `email` and `full_name` from
+  `auth.users`, silently dropping `phone` — a real bug for phone-only
+  signups, fixed in
+  `supabase/migrations/20260909090000_capture_phone_on_new_user.sql` and
+  applied to the live project.
+
 ## Known gaps, stated rather than hidden
 
-- Phone OTP auth is not wired (email/password only). `docs/12-technical-architecture.md`
-  calls for phone-first auth; this requires an SMS provider that was not
-  configured in this session.
 - Only the flagship service (`know-before-you-pay`) has a full checklist.
   The other three seeded services have zero checklist items, which means
   `rpc_submit_completion` has nothing to block on for them — not a bug

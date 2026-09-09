@@ -1,7 +1,5 @@
-import Link from "next/link";
 import Image from "next/image";
-import { AuthForm } from "@/components/auth-form";
-import { login } from "./actions";
+import { PhoneForm } from "./phone-form";
 
 export default async function LoginPage({
   searchParams,
@@ -20,14 +18,13 @@ export default async function LoginPage({
         className="w-full max-w-[280px] mx-auto sm:mx-0 mb-6"
         priority
       />
-      <h1 className="text-2xl font-bold">Welcome back</h1>
+      <h1 className="text-2xl font-bold">Enter your phone number</h1>
       <p className="text-sm text-[var(--muted)] mt-1">
-        New here?{" "}
-        <Link href={`/signup${next ? `?next=${encodeURIComponent(next)}` : ""}`} className="font-semibold" style={{ color: "var(--trust)" }}>
-          Create an account
-        </Link>
+        We&apos;ll send you a one-time passcode (OTP) to verify your number.
       </p>
-      <AuthForm action={login} submitLabel="Log in" next={next} className="mt-6" />
+      <div className="mt-6">
+        <PhoneForm next={next} />
+      </div>
     </div>
   );
 }
