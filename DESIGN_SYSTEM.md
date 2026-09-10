@@ -288,3 +288,63 @@ the mockup's payment screen exactly would mean shipping something fake.
   supplied, it needs to land under `/public/images/photos/` and be wired in
   with `next/image` — no code changes are blocked on this, it's a pure
   asset gap.
+
+## Design-fidelity pass against the full mockup set (post-launch-readiness)
+
+A later session was given the complete mockup set (~20 screens: splash,
+home, category, search, service detail, choose-provider, provider profile,
+booking, payment, confirmation, bookings list, tracking, messages,
+check-in, evidence, report, approval, review, completed-job, phone/OTP/
+account-type auth) and asked to match the built app to it screen-for-screen.
+Findings:
+
+- **Auth screens** (phone entry, OTP, account-type) already matched closely
+  from an earlier pass — no changes needed.
+- **Home page**: category row changed from a horizontal-scroll circle list
+  to a tinted rounded-square icon grid (`CategoryCard`), matching the
+  mockup's layout. Also fixed a real bug found in the process: 3 of the 5
+  category illustration SVGs already existed in `/public/images/categories/`
+  but were never mapped in `CategoryCard`'s lookup table, so `home-property`,
+  `personal`, and `errands-tasks` were silently falling back to a generic
+  icon glyph. Added a mobile location label + real (unread-count-backed)
+  notifications bell, matching the mockup's top utility row.
+- **Search/category results**: added a real, working price sort control
+  (Recommended / Price: low to high) as a pill row, matching the mockup's
+  filter-pill affordance. Deliberately did **not** add "Near me" or
+  "Rating" filter pills the mockup shows — there's no per-user geolocation
+  and services aren't individually rated (only providers are) — adding
+  pills that don't actually filter anything would be exactly the kind of
+  fake-functioning UI this project has consistently avoided.
+- **Provider profile**: added a real "Reviews" section (`reviews` table
+  already existed and was being written by the review flow, but never read
+  back and displayed anywhere) — matches the mockup's Reviews tab content,
+  rendered inline rather than as a separate tab. Found and worked around a
+  latent instance of the same PGRST200-class bug fixed in
+  `20260910240000_fix_postgrest_profile_embedding.sql`:
+  `reviews.reviewer_id`/`reviews.reviewee_id` still reference `auth.users`,
+  not `profiles`, so reviewer names are fetched with a second query instead
+  of a `profiles:reviewer_id(...)` embed. The FK itself was **not**
+  retargeted this pass (see `LAUNCH_READINESS.md` P2 #4 for the sibling
+  `service_requests.customer_id` case) — flagged, not silently fixed via
+  schema change, to keep this a visual-fidelity pass rather than a second
+  unrelated migration.
+- **Booking confirmation, job tracking, bookings list**: already closely
+  matched the mockups from the original build-out (Phases 5–7 above) — no
+  changes needed. One structural difference, kept deliberately: the
+  mockups split tracking into separate Tracking/Details/Messages/Files tabs;
+  this app keeps it as one page (`/account/bookings/[id]`) with the same
+  content in scroll order. Revisiting that as a genuine tabbed UI is a
+  reasonable follow-up, not done here to avoid restructuring a page whose
+  underlying logic (state machine, evidence, approval, review, cancel) is
+  working and was explicitly under a stabilization freeze this same session.
+- **Photography**: an Ideogram generation attempt for 5 category/service
+  photos failed on insufficient account quota (a different blocker than
+  the network-egress one described above). The user is supplying 5 real
+  photos directly instead — see the request left in that session's chat
+  for exact filenames/specs (`public/images/services/<category-slug>.jpg`,
+  square, ≥1200px). Once added, they wire into `ServiceCard` and the home
+  "Popular services" section with `next/image` — no further code change
+  needed beyond that.
+- **M-Pesa branding**: re-confirmed the same decision recorded above (no
+  trademarked logo) when this came up again with the new mockup set — kept
+  generic per explicit user direction this time, not just inferred.
