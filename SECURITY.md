@@ -412,13 +412,33 @@ existed against them. Not disabled to force it through — contained the
 same way as the earlier residue (fixture provider unpublished, profiles
 relabeled, transactions moved to `closed`).
 
+## Seeded checklists for the three services that had none
+
+This document's own "Known gaps" section (below) said only the flagship
+service had a full checklist, so `rpc_submit_completion` had nothing to
+block on for the other three — not a bug in the function, a real content
+gap. Each of the three (`landlords-quarterly-check`, `viewed-for-you`,
+`document-collection`) now has a checklist written to match that
+service's own description on the `services` row, not a copy of the
+flagship's 12-point property inspection: Landlord's Quarterly Check
+covers condition + both utility meter readings + tenant confirmation (9
+items); Viewed For You covers arrival + the live video call + room
+photos (7 items); Document & Physical Verification covers identification
++ condition + proof of exchange (7 items). All required, matching the
+flagship's own pattern.
+
+Verified live rather than just counting rows: built a real fixture
+transaction on Viewed For You at `checked_in` and confirmed
+`rpc_submit_completion` now actually rejects it with 0 of 7 required
+items complete (previously this would have silently succeeded, since an
+empty checklist has nothing to be incomplete), then confirmed it succeeds
+once all 7 are marked done. Fixtures cleaned up the same way as every
+other transaction-touching test this session — the append-only audit
+trail keeps the closed transaction and its unpublished fixture provider
+around; see the pattern established earlier in this document.
+
 ## Known gaps, stated rather than hidden
 
-- Only the flagship service (`know-before-you-pay`) has a full checklist.
-  The other three seeded services have zero checklist items, which means
-  `rpc_submit_completion` has nothing to block on for them — not a bug
-  (the function is unconditionally correct), but a scoping gap to close
-  before those three are actively promoted.
 - Deal Desk conversion requires the off-platform customer to already have
   a real account (the admin looks them up by phone/email) — there is no
   invite-and-create-an-account flow, which would be a separate, larger
