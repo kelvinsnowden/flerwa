@@ -78,7 +78,7 @@ back to the small inline `Icon` glyph instead of a broken image.
 | `empty-notifications.svg` | No updates yet | `src/app/notifications/page.tsx` |
 | `empty-search.svg` | No services match a search/category filter | `src/app/page.tsx` |
 | `empty-messages.svg` | No conversations yet | `src/app/messages/page.tsx` — real in-app messaging now exists (see `DESIGN_SYSTEM.md`'s "Messaging" section). |
-| `empty-saved.svg` | No saved providers yet | **Not wired** — no saved/favorites feature or table exists. Same reasoning. |
+| `empty-saved.svg` | No saved providers yet | `src/app/account/saved/page.tsx` — real saved-providers feature now exists (see `DESIGN_SYSTEM.md`'s "Saved providers" section). |
 
 ## Success states — `public/images/success/`
 

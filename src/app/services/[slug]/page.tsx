@@ -61,6 +61,19 @@ export default async function ServiceDetailPage({
     .eq("provider_categories.is_cleared", true)
     .returns<(Provider & { reliability_scores: ReliabilityScore[] })[]>();
 
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  let savedProviderIds: Set<string> | null = null;
+  if (user && providers && providers.length > 0) {
+    const { data: saved } = await supabase
+      .from("saved_providers")
+      .select("provider_id")
+      .eq("customer_id", user.id)
+      .in("provider_id", providers.map((p) => p.id));
+    savedProviderIds = new Set((saved ?? []).map((s) => s.provider_id));
+  }
+
   const includedItems = scopeItems?.filter((s) => s.included) ?? [];
   const excludedItems = scopeItems?.filter((s) => !s.included) ?? [];
 
@@ -119,7 +132,12 @@ export default async function ServiceDetailPage({
           <h2 className="font-semibold mb-3">Providers who offer this service</h2>
           <div className="flex flex-col gap-2">
             {providers.slice(0, 4).map((p) => (
-              <ProviderCard key={p.id} provider={p} reliability={p.reliability_scores?.[0]} />
+              <ProviderCard
+                key={p.id}
+                provider={p}
+                reliability={p.reliability_scores?.[0]}
+                saved={savedProviderIds ? savedProviderIds.has(p.id) : undefined}
+              />
             ))}
           </div>
         </div>

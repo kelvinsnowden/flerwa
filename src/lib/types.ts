@@ -186,3 +186,9 @@ export interface Message {
   created_at: string;
   read_at: string | null;
 }
+
+export interface SavedProvider {
+  customer_id: string;
+  provider_id: string;
+  created_at: string;
+}

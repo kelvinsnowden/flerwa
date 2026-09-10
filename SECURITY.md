@@ -224,6 +224,30 @@ real fixtures, not asserted from reading the policy source:
 All 9 checks passed; fixtures were fully cleaned up afterward (verified
 back to 0 rows in every touched table).
 
+## Saved providers
+
+A per-user bookmark on a public provider profile (`saved_providers`,
+`/account/saved`). Also discovered pre-existing from the original MVP
+build, same as `messages` — `customer_id`/`provider_id`/`created_at`, RLS
+already enabled with a single owner-only `ALL` policy
+(`customer_id = auth.uid()` on both `USING` and `WITH CHECK`). No schema
+change was needed; a migration was drafted before checking and deleted
+once the existing table was found.
+
+Verified live the same way:
+
+| Check | Result |
+|---|---|
+| A user can insert a save for themselves | PASS |
+| A different user sees 0 rows when querying the first user's saves | PASS |
+| A different user's attempt to insert a save with someone else's `customer_id` is rejected by RLS | PASS |
+| A different user's delete targeting someone else's row affects 0 rows | PASS |
+| The owning user can delete their own row | PASS |
+
+All 5 checks passed; fixtures (two customer users, one fixture provider,
+the save row) were fully cleaned up afterward (verified back to 0 rows in
+every touched table).
+
 ## Known gaps, stated rather than hidden
 
 - Only the flagship service (`know-before-you-pay`) has a full checklist.

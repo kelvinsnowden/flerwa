@@ -8,6 +8,7 @@ import { Avatar } from "@/components/ui/avatar";
 import { VerificationBadge } from "@/components/ui/verification-badge";
 import { Rating } from "@/components/ui/rating";
 import { Icon } from "@/components/ui/icon";
+import { SaveButton } from "@/components/ui/save-button";
 
 export default async function ProviderStorefrontPage({
   params,
@@ -44,6 +45,17 @@ export default async function ProviderStorefrontPage({
     notFound();
   }
 
+  let isSaved = false;
+  if (user && !isOwner) {
+    const { data: saved } = await supabase
+      .from("saved_providers")
+      .select("provider_id")
+      .eq("customer_id", user.id)
+      .eq("provider_id", provider.id)
+      .maybeSingle();
+    isSaved = Boolean(saved);
+  }
+
   const { data: services } = await supabase
     .from("provider_services")
     .select("*, services(*)")
@@ -61,7 +73,7 @@ export default async function ProviderStorefrontPage({
 
       <div className="flex items-center gap-3">
         <Avatar name={provider.display_name} size="lg" />
-        <div>
+        <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5">
             <h1 className="text-xl font-bold">{provider.display_name}</h1>
             <VerificationBadge status={provider.verification_status} />
@@ -74,6 +86,7 @@ export default async function ProviderStorefrontPage({
             </p>
           )}
         </div>
+        {user && !isOwner && <SaveButton providerId={provider.id} initialSaved={isSaved} />}
       </div>
 
       <div className="mt-5 grid grid-cols-3 gap-3">

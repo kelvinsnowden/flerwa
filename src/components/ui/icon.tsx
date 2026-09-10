@@ -26,6 +26,7 @@ export type IconName =
   | "briefcase"
   | "message-circle"
   | "send"
+  | "heart"
   | "grid";
 
 const PATHS: Record<IconName, React.ReactNode> = {
@@ -116,6 +117,9 @@ const PATHS: Record<IconName, React.ReactNode> = {
     <path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5c-1.35 0-2.6-.32-3.7-.9L3 21l1.9-5.7A8.5 8.5 0 1 1 21 11.5Z" />
   ),
   send: <path d="M22 2 11 13M22 2l-7 20-4-9-9-4 20-7Z" />,
+  heart: (
+    <path d="M12 20.5s-7.5-4.6-10-9.2C.4 7.9 2.3 4.5 5.8 4c2-.3 3.9.7 4.9 2.4l1.3 2 1.3-2c1-1.7 2.9-2.7 4.9-2.4 3.5.5 5.4 3.9 3.8 7.3-2.5 4.6-10 9.2-10 9.2Z" />
+  ),
   grid: (
     <>
       <rect x="3" y="3" width="7" height="7" rx="1.5" />

@@ -104,10 +104,11 @@ unchanged from the prior implementation.
 | `StateBadge` | Color-coded pill for every `TxnState`, mapped to the trust/warn/info/danger/muted tone scale. |
 | `StatusTimeline` | The real transaction-progress readout, driven by `service_transactions.state`. Off-path states (cancelled/disputed/expired/refunded) render as a standalone banner instead of being forced onto the happy-path timeline. |
 | `EmptyState` | Illustration-or-icon + title + body + optional action. See `ASSETS.md` for which illustration goes with which empty state. |
-| `ServiceCard` / `ProviderCard` / `BookingCard` / `CategoryCard` | The four reusable card patterns used across discovery, bookings, and provider dashboards. |
+| `ServiceCard` / `ProviderCard` / `BookingCard` / `CategoryCard` | The four reusable card patterns used across discovery, bookings, and provider dashboards. `ProviderCard` optionally renders a `SaveButton` (heart toggle) when a `saved` prop is passed — omitted entirely, not `false`, for a signed-out viewer. |
+| `SaveButton` | Client toggle for `saved_providers` — optimistic UI, rolls back to its previous state if the server action reports a real error. |
 | `TrustSignal` | The three static, generic trust claims the platform can actually back today (protected payment / ID-verified / evidence-backed) — deliberately no numbers here unless backed by a real aggregate query. |
 | `SearchBar` | A plain GET form (`?q=`) — no client JS, filters `page.tsx`'s services query server-side. |
-| `BottomNav` | The authenticated mobile tab bar (Home / Bookings / Updates / Profile), hidden ≥`sm` in favor of the top bar's inline nav. |
+| `BottomNav` | The authenticated mobile tab bar (Home / Bookings / Messages / Profile), hidden ≥`sm` in favor of the top bar's inline nav. |
 
 `ErrorNotice` (`src/components/error-notice.tsx`) is the shared "a query
 genuinely failed" banner — not a design-system primitive per se, but the
@@ -146,11 +147,19 @@ still real and still reachable (via `/account` and the desktop header),
 just no longer a primary tab. See `SECURITY.md` for the live RLS/trigger
 verification this went through before being wired into any screen.
 
+## Saved providers
+
+A simple bookmark on a public provider profile — `saved_providers` (present
+since the original MVP build, same pattern discovered as `messages`:
+`customer_id`/`provider_id`/`created_at`, RLS already correctly owner-only).
+Toggled from the `SaveButton` heart icon on `ProviderCard` (services list,
+`/services/[slug]` provider picker) and on the provider storefront header
+(`/provider/[slug]`, hidden for the provider viewing their own profile), and
+listed at `/account/saved` using `empty-saved.svg` for the empty case. See
+`SECURITY.md` for the live RLS verification.
+
 ## What is intentionally NOT built
 
-- **Saved/favorited providers.** No `saved_providers` table exists. The
-  `empty-saved.svg` asset exists (requested by the asset brief) but is not
-  wired to any screen for the same reason.
 - **Real M-Pesa integration / STK push.** Payment remains admin-confirmed
   after an out-of-band M-Pesa transfer (see `SECURITY.md`/`docs/07-payments.md`).
   `mpesa-payment.svg` is a **generic** mobile-money illustration — it does

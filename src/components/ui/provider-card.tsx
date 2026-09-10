@@ -2,20 +2,22 @@ import Link from "next/link";
 import { Avatar } from "./avatar";
 import { Rating } from "./rating";
 import { VerificationBadge } from "./verification-badge";
+import { SaveButton } from "./save-button";
 import type { Provider, ReliabilityScore } from "@/lib/types";
 
 export function ProviderCard({
   provider,
   reliability,
+  saved,
 }: {
-  provider: Pick<Provider, "slug" | "display_name" | "headline" | "verification_status">;
+  provider: Pick<Provider, "id" | "slug" | "display_name" | "headline" | "verification_status">;
   reliability?: ReliabilityScore | null;
+  /** Omit entirely (rather than false) when the viewer isn't signed in — hides the button instead of showing a save action that would just fail. */
+  saved?: boolean;
 }) {
   return (
-    <Link
-      href={`/provider/${provider.slug}`}
-      className="card card-shadow p-4 flex items-center gap-3 hover:border-[var(--trust)] transition-colors"
-    >
+    <div className="relative card card-shadow p-4 flex items-center gap-3 hover:border-[var(--trust)] transition-colors">
+      <Link href={`/provider/${provider.slug}`} className="absolute inset-0 z-0" aria-label={provider.display_name} />
       <Avatar name={provider.display_name} />
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-1.5">
@@ -36,6 +38,11 @@ export function ProviderCard({
           )}
         </div>
       </div>
-    </Link>
+      {saved !== undefined && (
+        <div className="relative z-10">
+          <SaveButton providerId={provider.id} initialSaved={saved} size="sm" />
+        </div>
+      )}
+    </div>
   );
 }
