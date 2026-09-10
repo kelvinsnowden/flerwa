@@ -69,6 +69,27 @@ export default async function ProviderStorefrontPage({
     .eq("is_active", true)
     .returns<{ price_minor: number | null; services: Service }[]>();
 
+  // reviews.reviewer_id references auth.users, not profiles (the same
+  // PostgREST-embedding limitation fixed for providers/service_transactions
+  // in 20260910240000 — not yet applied here), so reviewer names are
+  // fetched with a second query instead of a `profiles:reviewer_id(...)`
+  // embed rather than tripping the same PGRST200 class of failure.
+  const { data: reviews } = await supabase
+    .from("reviews")
+    .select("id, rating, comment, tags, would_book_again, created_at, reviewer_id")
+    .eq("reviewee_id", provider.user_id)
+    .eq("is_customer_review", true)
+    .order("created_at", { ascending: false })
+    .limit(3);
+  let reviewerNames: Record<string, string> = {};
+  if (reviews && reviews.length > 0) {
+    const { data: reviewers } = await supabase
+      .from("profiles")
+      .select("id, full_name")
+      .in("id", reviews.map((r) => r.reviewer_id));
+    reviewerNames = Object.fromEntries((reviewers ?? []).map((r) => [r.id, r.full_name ?? "A customer"]));
+  }
+
   const reliability = provider.reliability_scores?.[0];
 
   return (
@@ -138,6 +159,34 @@ export default async function ProviderStorefrontPage({
           </div>
         </div>
       )}
+
+      <div className="mt-8">
+        <h2 className="font-semibold mb-3">Reviews</h2>
+        {reviews && reviews.length > 0 ? (
+          <div className="flex flex-col gap-3">
+            {reviews.map((r) => (
+              <div key={r.id} className="card p-4">
+                <div className="flex items-center justify-between">
+                  <span className="font-medium text-sm">
+                    {reviewerNames[r.reviewer_id]?.split(" ")[0] ?? "A customer"}
+                  </span>
+                  <Rating value={r.rating} />
+                </div>
+                {r.comment && <p className="mt-2 text-sm text-[var(--muted)] leading-relaxed">{r.comment}</p>}
+                {r.tags && r.tags.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {r.tags.map((t: string) => (
+                      <span key={t} className="badge-muted">{t}</span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm text-[var(--muted)]">No reviews yet — this professional's reviews will show here once jobs are completed and reviewed.</p>
+        )}
+      </div>
     </div>
   );
 }
