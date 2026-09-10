@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { Combobox } from "@/components/ui/combobox";
 import { applyAsProvider } from "./actions";
 
 export function ApplyForm({ locations }: { locations: { id: string; ward: string | null; town: string }[] }) {
@@ -28,14 +29,14 @@ export function ApplyForm({ locations }: { locations: { id: string; ward: string
       </label>
       <label className="text-sm font-medium">
         Base location
-        <select name="location_id" className="mt-1" defaultValue="">
-          <option value="">Select an area…</option>
-          {locations.map((l) => (
-            <option key={l.id} value={l.id}>
-              {l.ward ? `${l.ward}, ${l.town}` : l.town}
-            </option>
-          ))}
-        </select>
+        <Combobox
+          name="location_id"
+          placeholder="Type an area…"
+          options={locations.map((l) => ({
+            value: l.id,
+            label: l.ward ? `${l.ward}, ${l.town}` : l.town,
+          }))}
+        />
       </label>
       <label className="text-sm font-medium">
         About you

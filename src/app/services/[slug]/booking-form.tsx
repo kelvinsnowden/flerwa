@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { Service, Location, Provider, ReliabilityScore } from "@/lib/types";
 import { Avatar } from "@/components/ui/avatar";
+import { Combobox } from "@/components/ui/combobox";
 import { bookService } from "./actions";
 
 export function BookingForm({
@@ -47,14 +48,15 @@ export function BookingForm({
       {service.requires_location && (
         <label className="text-sm font-medium">
           Where
-          <select name="location_id" required className="mt-1">
-            <option value="">Select an area…</option>
-            {locations.map((loc) => (
-              <option key={loc.id} value={loc.id}>
-                {loc.ward ? `${loc.ward}, ${loc.town}` : loc.town}
-              </option>
-            ))}
-          </select>
+          <Combobox
+            name="location_id"
+            required
+            placeholder="Type an area…"
+            options={locations.map((loc) => ({
+              value: loc.id,
+              label: loc.ward ? `${loc.ward}, ${loc.town}` : loc.town,
+            }))}
+          />
         </label>
       )}
 
