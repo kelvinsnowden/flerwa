@@ -53,13 +53,13 @@ export default async function ServiceDetailPage({
   // volume.
   const { data: providers } = await supabase
     .from("providers")
-    .select("*, reliability_scores(*), provider_categories!inner(category_id, is_cleared)")
+    .select("*, reliability_scores(*), provider_categories!inner(category_id, is_cleared), profiles:user_id(avatar_url)")
     .eq("is_published", true)
     .eq("verification_status", "verified")
     .eq("is_accepting_work", true)
     .eq("provider_categories.category_id", service.category_id)
     .eq("provider_categories.is_cleared", true)
-    .returns<(Provider & { reliability_scores: ReliabilityScore[] })[]>();
+    .returns<(Provider & { reliability_scores: ReliabilityScore[]; profiles: { avatar_url: string | null } | null })[]>();
 
   const {
     data: { user },
@@ -135,6 +135,7 @@ export default async function ServiceDetailPage({
               <ProviderCard
                 key={p.id}
                 provider={p}
+                photoUrl={p.profiles?.avatar_url}
                 reliability={p.reliability_scores?.[0]}
                 saved={savedProviderIds ? savedProviderIds.has(p.id) : undefined}
               />

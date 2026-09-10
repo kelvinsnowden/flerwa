@@ -20,9 +20,15 @@ export default async function ProviderStorefrontPage({
 
   const { data: provider, error: providerError } = await supabase
     .from("providers")
-    .select("*, reliability_scores(*), locations:base_location_id(ward, town)")
+    .select("*, reliability_scores(*), locations:base_location_id(ward, town), profiles:user_id(avatar_url)")
     .eq("slug", slug)
-    .single<Provider & { reliability_scores: ReliabilityScore[]; locations: { ward: string | null; town: string } | null }>();
+    .single<
+      Provider & {
+        reliability_scores: ReliabilityScore[];
+        locations: { ward: string | null; town: string } | null;
+        profiles: { avatar_url: string | null } | null;
+      }
+    >();
 
   if (providerError && providerError.code !== "PGRST116") {
     return (
@@ -72,7 +78,7 @@ export default async function ProviderStorefrontPage({
       )}
 
       <div className="flex items-center gap-3">
-        <Avatar name={provider.display_name} size="lg" />
+        <Avatar name={provider.display_name} photoUrl={provider.profiles?.avatar_url} size="lg" />
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5">
             <h1 className="text-xl font-bold">{provider.display_name}</h1>

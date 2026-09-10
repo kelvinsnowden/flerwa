@@ -98,7 +98,7 @@ unchanged from the prior implementation.
 | Component | Purpose |
 |---|---|
 | `Icon` | Small (16-24px) inline SVG glyph set, keyed by string name. Local, no icon-font/CDN dependency. |
-| `Avatar` | Initials-only fallback — no photo storage exists in the schema, so this never fakes a stock photo. |
+| `Avatar` | Renders the real photo from `profiles.avatar_url` when one is on file (uploaded by the provider themselves, from their own dashboard); falls back to initials otherwise. Never a stock/placeholder photo standing in for a real person. |
 | `Rating` | Renders a real `avg_rating`/count pair; callers must not call it without real reliability data. |
 | `VerificationBadge` | Renders **only** for `verification_status === "verified"` — every other status renders nothing. |
 | `StateBadge` | Color-coded pill for every `TxnState`, mapped to the trust/warn/info/danger/muted tone scale. |

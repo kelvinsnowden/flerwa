@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { formatMoney } from "@/lib/money";
 import { type ServiceTransaction, type Provider, type ReliabilityScore } from "@/lib/types";
 import { ErrorNotice } from "@/components/error-notice";
-import { Avatar } from "@/components/ui/avatar";
+import { PhotoUpload } from "./photo-upload";
 import { BookingCard } from "@/components/ui/booking-card";
 import { EmptyState } from "@/components/ui/empty-state";
 
@@ -26,9 +26,9 @@ export default async function ProviderDashboardPage() {
 
   const { data: provider } = await supabase
     .from("providers")
-    .select("*, reliability_scores(*)")
+    .select("*, reliability_scores(*), profiles:user_id(avatar_url)")
     .eq("user_id", user.id)
-    .maybeSingle<Provider & { reliability_scores: ReliabilityScore[] }>();
+    .maybeSingle<Provider & { reliability_scores: ReliabilityScore[]; profiles: { avatar_url: string | null } | null }>();
 
   if (!provider) redirect("/provider/apply");
 
@@ -52,7 +52,7 @@ export default async function ProviderDashboardPage() {
   return (
     <div className="mx-auto max-w-2xl px-4 py-8 pb-4">
       <div className="flex items-center gap-3">
-        <Avatar name={provider.display_name} size="lg" />
+        <PhotoUpload name={provider.display_name} initialPhotoUrl={provider.profiles?.avatar_url ?? null} />
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between">
             <h1 className="text-xl font-bold truncate">{provider.display_name}</h1>

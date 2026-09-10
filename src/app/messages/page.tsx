@@ -10,8 +10,8 @@ interface ThreadRow {
   id: string;
   customer_id: string;
   services: { name: string } | null;
-  providers: { display_name: string; user_id: string } | null;
-  profiles: { full_name: string | null } | null;
+  providers: { display_name: string; user_id: string; profiles: { avatar_url: string | null } | null } | null;
+  profiles: { full_name: string | null; avatar_url: string | null } | null;
 }
 
 export default async function MessagesInboxPage() {
@@ -23,7 +23,9 @@ export default async function MessagesInboxPage() {
 
   const { data: messages, error } = await supabase
     .from("messages")
-    .select("*, service_transactions(id, customer_id, services(name), providers(display_name, user_id), profiles:customer_id(full_name))")
+    .select(
+      "*, service_transactions(id, customer_id, services(name), providers(display_name, user_id, profiles:user_id(avatar_url)), profiles:customer_id(full_name, avatar_url))"
+    )
     .order("created_at", { ascending: false })
     .returns<(Message & { service_transactions: ThreadRow | null })[]>();
 
@@ -73,13 +75,14 @@ export default async function MessagesInboxPage() {
           const otherName = isCustomer
             ? txn.providers?.display_name ?? "Provider"
             : txn.profiles?.full_name ?? "Customer";
+          const otherPhotoUrl = isCustomer ? txn.providers?.profiles?.avatar_url ?? null : txn.profiles?.avatar_url ?? null;
           return (
             <Link
               key={txn.id}
               href={`/messages/${txn.id}`}
               className="card card-shadow p-4 flex items-center gap-3 hover:border-[var(--trust)] transition-colors"
             >
-              <Avatar name={otherName} />
+              <Avatar name={otherName} photoUrl={otherPhotoUrl} />
               <div className="min-w-0 flex-1">
                 <div className="flex items-center justify-between gap-2">
                   <p className="font-semibold truncate">{otherName}</p>

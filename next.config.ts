@@ -10,6 +10,17 @@ const nextConfig: NextConfig = {
     // flag, as defence in depth even though these files are trusted.
     dangerouslyAllowSVG: true,
     contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
+    // Provider profile photos live in the "avatars" Supabase Storage
+    // bucket (public read, owner-scoped write — see SECURITY.md) and are
+    // served from the project's own storage host, not arbitrary remote
+    // URLs.
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "famdxoardiibonghxepl.supabase.co",
+        pathname: "/storage/v1/object/public/avatars/**",
+      },
+    ],
   },
 };
 

@@ -17,9 +17,9 @@ export default async function AccountPage() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("full_name, phone, email, role")
+    .select("full_name, phone, email, role, avatar_url")
     .eq("id", user.id)
-    .single<{ full_name: string | null; phone: string | null; email: string | null; role: UserRole }>();
+    .single<{ full_name: string | null; phone: string | null; email: string | null; role: UserRole; avatar_url: string | null }>();
 
   const { data: provider } = await supabase
     .from("providers")
@@ -32,7 +32,7 @@ export default async function AccountPage() {
   return (
     <div className="mx-auto max-w-lg px-4 py-8 pb-4">
       <div className="flex items-center gap-3">
-        <Avatar name={displayName} size="lg" />
+        <Avatar name={displayName} photoUrl={profile?.avatar_url} size="lg" />
         <div>
           <h1 className="text-xl font-bold">{displayName}</h1>
           <p className="text-sm text-[var(--muted)]">{profile?.email}</p>

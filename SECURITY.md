@@ -248,6 +248,49 @@ All 5 checks passed; fixtures (two customer users, one fixture provider,
 the save row) were fully cleaned up afterward (verified back to 0 rows in
 every touched table).
 
+## Provider photos, and two real holes found while wiring them
+
+The reference mockups (shared directly in chat) show real provider
+photographs throughout — provider cards, the storefront profile, booking,
+tracking, messages. Investigating how to build this turned up that
+`profiles.avatar_url` and a public `avatars` Storage bucket (with correct
+owner-scoped RLS: `(storage.foldername(name))[1] = auth.uid()::text` for
+insert/update/delete, public read) already existed from the original MVP
+build, unused by any UI. `Avatar` (`src/components/ui/avatar.tsx`) now
+renders the real photo when one is on file, falling back to initials
+otherwise — never a stock/placeholder photo standing in for a real
+person. Upload happens from the provider's own dashboard
+(`src/app/provider/photo-upload.tsx`, a direct client upload to the
+user's own storage path, then `updateAvatar` re-validates the resulting
+URL actually points at that path before trusting it into `profiles`).
+
+While touching `providers` for this, found the "providers self update" RLS
+policy has no column restriction: a provider could directly
+`UPDATE providers SET verification_status = 'verified'` via PostgREST,
+completely bypassing `rpc_set_verification_status` — the admin-gated
+`SECURITY DEFINER` function a migration comment already said was
+"the" path ("verification_status is separately guarded — see rpc
+functions"), but nothing at the table level actually enforced that. Same
+shape of bug found in the sibling `profiles` table: `is_suspended` had no
+equivalent guard to the existing `role` guard, so a suspended user could
+un-suspend themselves. Both fixed with `BEFORE UPDATE` guard triggers
+(`supabase/migrations/20260910120000_provider_avatar_and_trust_guard.sql`,
+`20260910130000_guard_profile_suspension.sql`), admin bypass via
+`is_admin()`.
+
+Verified live:
+
+| Check | Result |
+|---|---|
+| A provider cannot self-set `verification_status = 'verified'` | PASS |
+| A user cannot self-set `is_suspended` in either direction | PASS |
+| A provider CAN still self-edit non-trust fields (`avatar_url`, `headline`, `full_name`, etc.) | PASS |
+| The admin path (`rpc_set_verification_status`) still works end to end | PASS |
+
+All 4 checks passed; fixtures (two users — one provider owner, one
+promoted to admin — one fixture provider, one `admin_actions` row from the
+RPC call) were fully cleaned up afterward.
+
 ## Known gaps, stated rather than hidden
 
 - Only the flagship service (`know-before-you-pay`) has a full checklist.

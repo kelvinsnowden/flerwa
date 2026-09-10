@@ -1,12 +1,37 @@
+import Image from "next/image";
+
 const SIZES = { sm: 32, md: 44, lg: 64 } as const;
 
 /**
- * Initials-only. No provider/customer photo storage exists in the schema
- * yet, so this never falls back to a stock/placeholder photo — an initial
- * on a tinted circle is an honest "no photo on file" state.
+ * Renders the real photo from profiles.avatar_url when one is on file
+ * (uploaded via the provider's own profile, stored in the "avatars"
+ * bucket). Falls back to initials-on-a-tinted-circle otherwise — an
+ * honest "no photo on file" state, never a stock/placeholder photo.
  */
-export function Avatar({ name, size = "md" }: { name: string; size?: keyof typeof SIZES }) {
+export function Avatar({
+  name,
+  photoUrl,
+  size = "md",
+}: {
+  name: string;
+  photoUrl?: string | null;
+  size?: keyof typeof SIZES;
+}) {
   const px = SIZES[size];
+
+  if (photoUrl) {
+    return (
+      <Image
+        src={photoUrl}
+        alt=""
+        width={px}
+        height={px}
+        className="rounded-full object-cover flex-shrink-0"
+        style={{ width: px, height: px }}
+      />
+    );
+  }
+
   const initials = name
     .trim()
     .split(/\s+/)

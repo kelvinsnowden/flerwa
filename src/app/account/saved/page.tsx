@@ -15,10 +15,15 @@ export default async function SavedProvidersPage() {
 
   const { data: saved, error } = await supabase
     .from("saved_providers")
-    .select("created_at, providers(*, reliability_scores(*))")
+    .select("created_at, providers(*, reliability_scores(*), profiles:user_id(avatar_url))")
     .eq("customer_id", user.id)
     .order("created_at", { ascending: false })
-    .returns<{ created_at: string; providers: (Provider & { reliability_scores: ReliabilityScore[] }) | null }[]>();
+    .returns<
+      {
+        created_at: string;
+        providers: (Provider & { reliability_scores: ReliabilityScore[]; profiles: { avatar_url: string | null } | null }) | null;
+      }[]
+    >();
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-8 pb-4">
@@ -49,6 +54,7 @@ export default async function SavedProvidersPage() {
               <ProviderCard
                 key={s.providers!.id}
                 provider={s.providers!}
+                photoUrl={s.providers!.profiles?.avatar_url}
                 reliability={s.providers!.reliability_scores?.[0]}
                 saved
               />
