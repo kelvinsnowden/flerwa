@@ -9,10 +9,13 @@ import { ProviderCard } from "@/components/ui/provider-card";
 
 export default async function ServiceDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ slug: string }>;
+  searchParams: Promise<{ provider?: string }>;
 }) {
   const { slug } = await params;
+  const { provider: providerParam } = await searchParams;
   const supabase = await createClient();
 
   const { data: service, error: serviceError } = await supabase
@@ -77,6 +80,13 @@ export default async function ServiceDetailPage({
   const includedItems = scopeItems?.filter((s) => s.included) ?? [];
   const excludedItems = scopeItems?.filter((s) => !s.included) ?? [];
 
+  // Only trust a ?provider= id if it's actually in the already-authorized
+  // eligible list (published + verified + accepting + cleared for this
+  // category) — this only pre-fills a display value, never a permission;
+  // rpc_book_service independently re-checks eligibility server-side
+  // regardless of what the form submits.
+  const preselectedProvider = providerParam ? providers?.find((p) => p.id === providerParam) : undefined;
+
   return (
     <div className="mx-auto max-w-2xl px-4 py-8 sm:py-10">
       <h1 className="text-2xl font-bold">{service.name}</h1>
@@ -128,8 +138,11 @@ export default async function ServiceDetailPage({
       )}
 
       {!!providers?.length && (
-        <div className="mt-8">
-          <h2 className="font-semibold mb-3">Providers who offer this service</h2>
+        <div id="providers" className="mt-8 scroll-mt-16">
+          <h2 className="font-semibold mb-3">Choose a provider</h2>
+          <p className="text-sm text-[var(--muted)] mb-3">
+            We&apos;ve found {providers.length} verified provider{providers.length === 1 ? "" : "s"} for this service.
+          </p>
           <div className="flex flex-col gap-2">
             {providers.slice(0, 4).map((p) => (
               <ProviderCard
@@ -138,18 +151,22 @@ export default async function ServiceDetailPage({
                 photoUrl={p.profiles?.avatar_url}
                 reliability={p.reliability_scores?.[0]}
                 saved={savedProviderIds ? savedProviderIds.has(p.id) : undefined}
+                selectHref={`/services/${service.slug}?provider=${p.id}#book`}
               />
             ))}
           </div>
         </div>
       )}
 
-      <div className="mt-8 card p-5">
+      <div id="book" className="mt-8 card p-5 scroll-mt-16">
         <h2 className="font-semibold mb-4">Book this service</h2>
         <BookingForm
           service={service}
           locations={locations ?? []}
           providers={providers ?? []}
+          preselectedProviderId={preselectedProvider?.id}
+          preselectedProviderName={preselectedProvider?.display_name}
+          preselectedPhotoUrl={preselectedProvider?.profiles?.avatar_url}
         />
       </div>
 

@@ -10,12 +10,15 @@ export function ProviderCard({
   photoUrl,
   reliability,
   saved,
+  selectHref,
 }: {
   provider: Pick<Provider, "id" | "slug" | "display_name" | "headline" | "verification_status">;
   photoUrl?: string | null;
   reliability?: ReliabilityScore | null;
   /** Omit entirely (rather than false) when the viewer isn't signed in — hides the button instead of showing a save action that would just fail. */
   saved?: boolean;
+  /** When given, renders a "Select" button (booking-flow provider picker) alongside the card's normal tap-through-to-profile behaviour. */
+  selectHref?: string;
 }) {
   return (
     <div className="relative card card-shadow p-4 flex items-center gap-3 hover:border-[var(--trust)] transition-colors">
@@ -44,6 +47,11 @@ export function ProviderCard({
         <div className="relative z-10">
           <SaveButton providerId={provider.id} initialSaved={saved} size="sm" />
         </div>
+      )}
+      {selectHref && (
+        <Link href={selectHref} className="btn-primary text-xs px-3 py-1.5 relative z-10 whitespace-nowrap">
+          Select
+        </Link>
       )}
     </div>
   );

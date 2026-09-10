@@ -123,12 +123,15 @@ export default async function ProviderStorefrontPage({
             {services.map((s) => (
               <Link
                 key={s.services.id}
-                href={`/services/${s.services.slug}`}
+                href={`/services/${s.services.slug}?provider=${provider.id}#book`}
                 className="card card-shadow p-4 flex items-center justify-between hover:border-[var(--trust)] transition-colors"
               >
                 <span className="font-medium">{s.services.name}</span>
-                <span className="font-bold text-sm" style={{ color: "var(--trust)" }}>
-                  {formatMoney(s.price_minor ?? s.services.base_price_minor, s.services.currency)}
+                <span className="flex items-center gap-2">
+                  <span className="font-bold text-sm" style={{ color: "var(--trust)" }}>
+                    {formatMoney(s.price_minor ?? s.services.base_price_minor, s.services.currency)}
+                  </span>
+                  <span className="btn-primary text-xs px-3 py-1.5">Book now</span>
                 </span>
               </Link>
             ))}

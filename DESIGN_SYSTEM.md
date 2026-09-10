@@ -162,6 +162,31 @@ still real and still reachable (via `/account` and the desktop header),
 just no longer a primary tab. See `SECURITY.md` for the live RLS/trigger
 verification this went through before being wired into any screen.
 
+## Booking flow: provider selection
+
+The mockups show provider selection as its own step (a "Choose a provider"
+list you `Select` from, and a "Book now" CTA on a provider's own profile)
+rather than the plain `<select>` dropdown the booking form used to bury
+it in. `ProviderCard` now takes an optional `selectHref` that renders a
+small `Select` button (`src/services/[slug]/page.tsx`'s "Choose a
+provider" section); the provider storefront's service rows now say
+`Book now` and link to `/services/[slug]?provider=<id>#book`.
+`BookingForm` reads that `?provider=` param (only trusting an id that's
+already in the page's own authorized eligible-providers query result —
+`rpc_book_service` independently re-checks eligibility server-side
+regardless) and shows a compact provider summary + `Change` link instead
+of the dropdown; omitting the param keeps the original "let us match you"
+default behavior working for categories with no providers or an
+indifferent customer.
+
+`/account/bookings` also gained the mockup's All / Upcoming / In Progress
+/ Completed pill-tab filter (`.pill-tab`, already in `globals.css` but
+unused until now) — plain `?filter=` links, no client JS, consistent with
+`SearchBar`'s GET-form philosophy. Off-path terminal states (cancelled/
+expired/disputed/refunded) bucket under "Completed" since they're no
+longer active or upcoming; the card's own state badge still shows the
+real status.
+
 ## Saved providers
 
 A simple bookmark on a public provider profile — `saved_providers` (present

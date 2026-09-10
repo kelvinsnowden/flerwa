@@ -88,14 +88,25 @@ export default async function BookingDetailPage({
       </div>
 
       {created === "1" && booking.state === "requested" && (
-        <div className="mt-4 card p-5 flex items-center gap-4" style={{ borderColor: "var(--trust)" }}>
-          <Image src="/images/success/success-booking.svg" alt="" width={72} height={72} className="flex-shrink-0" />
-          <div>
-            <p className="font-semibold">Booking confirmed</p>
-            <p className="text-sm text-[var(--muted)]">
-              We&apos;ll be in touch on {booking.contact_phone} to arrange payment.
-            </p>
+        <div className="mt-4 card p-5" style={{ borderColor: "var(--trust)" }}>
+          <div className="flex items-center gap-4">
+            <Image src="/images/success/success-booking.svg" alt="" width={72} height={72} className="flex-shrink-0" />
+            <div>
+              <p className="font-semibold">Booking confirmed!</p>
+              <p className="text-sm text-[var(--muted)]">
+                We&apos;ll be in touch on {booking.contact_phone} to arrange payment.
+              </p>
+            </div>
           </div>
+          <div className="mt-4 rounded-lg bg-[var(--surface)] p-3 text-xs text-[var(--muted)] flex flex-col gap-1.5">
+            <p className="font-semibold text-[var(--foreground)]">What happens next</p>
+            <p>Provider confirms (usually within 1 hour)</p>
+            <p>You&apos;ll get updates in the app</p>
+            <p>The provider will contact you before the visit</p>
+          </div>
+          <Link href="/" className="btn-secondary w-full mt-4">
+            Back to home
+          </Link>
         </div>
       )}
 

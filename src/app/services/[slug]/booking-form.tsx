@@ -3,16 +3,23 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { Service, Location, Provider, ReliabilityScore } from "@/lib/types";
+import { Avatar } from "@/components/ui/avatar";
 import { bookService } from "./actions";
 
 export function BookingForm({
   service,
   locations,
   providers,
+  preselectedProviderId,
+  preselectedProviderName,
+  preselectedPhotoUrl,
 }: {
   service: Service;
   locations: Location[];
   providers: (Provider & { reliability_scores: ReliabilityScore[] })[];
+  preselectedProviderId?: string;
+  preselectedProviderName?: string;
+  preselectedPhotoUrl?: string | null;
 }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
@@ -51,27 +58,46 @@ export function BookingForm({
         </label>
       )}
 
-      <label className="text-sm font-medium">
-        Provider
-        <select name="provider_id" className="mt-1" defaultValue="">
-          <option value="">Let us match you with a verified provider</option>
-          {providers.map((p) => {
-            const rel = p.reliability_scores?.[0];
-            return (
-              <option key={p.id} value={p.id}>
-                {p.display_name}
-                {rel?.jobs_completed ? ` — ${rel.jobs_completed} jobs completed` : " — new provider"}
-              </option>
-            );
-          })}
-        </select>
-        {providers.length === 0 && (
-          <span className="mt-1 block text-xs text-[var(--muted)]">
-            No providers are published in this category yet — your booking
-            will be assigned by our team once confirmed.
-          </span>
-        )}
-      </label>
+      {preselectedProviderId && preselectedProviderName ? (
+        <div>
+          <span className="text-sm font-medium">Provider</span>
+          <div className="mt-1 flex items-center gap-3 rounded-[var(--radius-sm)] border border-[var(--border)] p-3">
+            <Avatar name={preselectedProviderName} photoUrl={preselectedPhotoUrl} size="sm" />
+            <span className="flex-1 font-medium text-sm">{preselectedProviderName}</span>
+            <a href="#providers" className="text-xs font-semibold" style={{ color: "var(--trust)" }}>
+              Change
+            </a>
+          </div>
+          <input type="hidden" name="provider_id" value={preselectedProviderId} />
+        </div>
+      ) : (
+        <label className="text-sm font-medium">
+          Provider
+          <select name="provider_id" className="mt-1" defaultValue="">
+            <option value="">Let us match you with a verified provider</option>
+            {providers.map((p) => {
+              const rel = p.reliability_scores?.[0];
+              return (
+                <option key={p.id} value={p.id}>
+                  {p.display_name}
+                  {rel?.jobs_completed ? ` — ${rel.jobs_completed} jobs completed` : " — new provider"}
+                </option>
+              );
+            })}
+          </select>
+          {providers.length === 0 && (
+            <span className="mt-1 block text-xs text-[var(--muted)]">
+              No providers are published in this category yet — your booking
+              will be assigned by our team once confirmed.
+            </span>
+          )}
+          {providers.length > 0 && (
+            <a href="#providers" className="mt-1 block text-xs font-semibold" style={{ color: "var(--trust)" }}>
+              Choose a specific provider →
+            </a>
+          )}
+        </label>
+      )}
 
       <label className="text-sm font-medium">
         Preferred date
