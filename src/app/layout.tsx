@@ -26,10 +26,13 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   if (user) {
     const [{ data: profile }, { count }] = await Promise.all([
       supabase.from("profiles").select("role").eq("id", user.id).single<{ role: UserRole }>(),
+      // RLS ("messages participants read") already scopes this to threads
+      // the signed-in user is actually part of — no transaction_id filter
+      // needed here, unlike a direct table probe.
       supabase
-        .from("notifications")
+        .from("messages")
         .select("id", { count: "exact", head: true })
-        .eq("user_id", user.id)
+        .neq("sender_id", user.id)
         .is("read_at", null),
     ]);
     role = profile?.role ?? "customer";

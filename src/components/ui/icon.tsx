@@ -24,6 +24,8 @@ export type IconName =
   | "wallet"
   | "star"
   | "briefcase"
+  | "message-circle"
+  | "send"
   | "grid";
 
 const PATHS: Record<IconName, React.ReactNode> = {
@@ -110,6 +112,10 @@ const PATHS: Record<IconName, React.ReactNode> = {
       <path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M2.5 12h19" />
     </>
   ),
+  "message-circle": (
+    <path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5c-1.35 0-2.6-.32-3.7-.9L3 21l1.9-5.7A8.5 8.5 0 1 1 21 11.5Z" />
+  ),
+  send: <path d="M22 2 11 13M22 2l-7 20-4-9-9-4 20-7Z" />,
   grid: (
     <>
       <rect x="3" y="3" width="7" height="7" rx="1.5" />

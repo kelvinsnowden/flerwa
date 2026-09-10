@@ -59,6 +59,13 @@ export default async function AccountPage() {
             <Icon name="chevron-right" size={18} className="text-[var(--muted)]" />
           </Link>
         )}
+        <Link href="/notifications" className="card p-4 flex items-center justify-between hover:border-[var(--trust)] transition-colors">
+          <span className="flex items-center gap-2 font-medium">
+            <Icon name="bell" size={18} className="text-[var(--trust)]" />
+            Updates
+          </span>
+          <Icon name="chevron-right" size={18} className="text-[var(--muted)]" />
+        </Link>
         <Link href="/deal-desk" className="card p-4 flex items-center justify-between hover:border-[var(--trust)] transition-colors">
           <span className="flex items-center gap-2 font-medium">
             <Icon name="file-text" size={18} className="text-[var(--trust)]" />

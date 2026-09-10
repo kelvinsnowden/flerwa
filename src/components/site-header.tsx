@@ -46,6 +46,9 @@ export function SiteHeader({ role }: { role: UserRole | "anonymous" }) {
             >
               Bookings
             </Link>
+            <Link href="/messages" className="text-[var(--muted)] hover:text-[var(--foreground)]">
+              Messages
+            </Link>
             <Link href="/notifications" className="text-[var(--muted)] hover:text-[var(--foreground)]">
               Updates
             </Link>

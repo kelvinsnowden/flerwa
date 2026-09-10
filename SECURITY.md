@@ -194,6 +194,36 @@ the existing email flow was removed.
   `supabase/migrations/20260909090000_capture_phone_on_new_user.sql` and
   applied to the live project.
 
+## In-app messaging
+
+Real, transaction-scoped chat (`/messages`, `/messages/[transactionId]`),
+built on the `messages` table that already existed from the original MVP
+build (with participant read/send RLS already in place) — extended in
+`supabase/migrations/20260910080000_extend_messaging.sql` with a
+`read_at` column, an append-only guard trigger, a recipient-only
+"mark read" policy, a new-message notification (reusing the existing
+`notifications` table, the same pattern every other RPC uses), and
+Supabase Realtime.
+
+Verified live via the same role-simulation method as the rest of this
+document (`SET LOCAL ROLE authenticated` + `request.jwt.claims`) against
+real fixtures, not asserted from reading the policy source:
+
+| Check | Result |
+|---|---|
+| A transaction participant can send a message | PASS |
+| The other participant gets a `notifications` row | PASS |
+| The other participant can read the message | PASS |
+| A non-participant sees 0 rows on the same transaction | PASS |
+| A non-participant's insert is rejected by RLS | PASS |
+| The sender cannot mark their own message read (0 rows affected) | PASS |
+| The recipient CAN mark it read | PASS |
+| Nobody — including the recipient — can edit the message body | PASS |
+| Nobody can delete a message (no DELETE policy; RLS denies by default) | PASS |
+
+All 9 checks passed; fixtures were fully cleaned up afterward (verified
+back to 0 rows in every touched table).
+
 ## Known gaps, stated rather than hidden
 
 - Only the flagship service (`know-before-you-pay`) has a full checklist.

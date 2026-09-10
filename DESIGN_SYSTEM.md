@@ -130,13 +130,24 @@ state.
   `overflow-x-auto` deliberately (a horizontally-scrolling row is
   different from the *page* overflowing).
 
+## Messaging
+
+Real, transaction-scoped, realtime chat between the two actual
+participants on a booking (customer + assigned provider) — `/messages`
+(inbox) and `/messages/[transactionId]` (thread), backed by the
+`messages` table (present since the original MVP build, extended in
+`supabase/migrations/20260910080000_extend_messaging.sql` with a
+read-receipt column, an append-only guard, a new-message notification,
+and Realtime). It's the bottom nav's primary third tab, matching the
+reference designs' actual Home / Bookings / Messages / Profile layout —
+an earlier pass in this session substituted Notifications for that slot
+because no messaging schema existed yet at the time; Notifications is
+still real and still reachable (via `/account` and the desktop header),
+just no longer a primary tab. See `SECURITY.md` for the live RLS/trigger
+verification this went through before being wired into any screen.
+
 ## What is intentionally NOT built
 
-- **Messaging/chat.** No `messages` table or realtime infrastructure exists
-  in the schema. The bottom nav's "Updates" tab points at the real
-  `notifications` table instead of a fabricated inbox — see `ASSETS.md` for
-  the `empty-messages.svg` asset, which exists but is not wired to any
-  screen.
 - **Saved/favorited providers.** No `saved_providers` table exists. The
   `empty-saved.svg` asset exists (requested by the asset brief) but is not
   wired to any screen for the same reason.

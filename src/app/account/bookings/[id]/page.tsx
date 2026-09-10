@@ -1,5 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import Image from "next/image";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { formatMoney } from "@/lib/money";
 import { TXN_STATE_LABELS, type ServiceTransaction } from "@/lib/types";
@@ -130,6 +131,16 @@ export default async function BookingDetailPage({
           />
         )}
       </div>
+
+      {booking.providers && (
+        <Link href={`/messages/${booking.id}`} className="mt-4 card p-4 flex items-center justify-between hover:border-[var(--trust)] transition-colors">
+          <span className="flex items-center gap-2 font-medium">
+            <Icon name="message-circle" size={18} className="text-[var(--trust)]" />
+            Message {booking.providers.display_name}
+          </span>
+          <Icon name="chevron-right" size={18} className="text-[var(--muted)]" />
+        </Link>
+      )}
 
       {(!payment || payment.state === "unpaid") && booking.state === "requested" && (
         <div className="mt-4 rounded-lg border p-4 text-sm badge-warn inline-block">

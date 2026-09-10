@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { formatMoney } from "@/lib/money";
 import { type ServiceTransaction } from "@/lib/types";
@@ -30,13 +31,14 @@ export default async function ProviderJobDetailPage({
 
   const { data: job, error: jobError } = await supabase
     .from("service_transactions")
-    .select("*, services(id, name), locations(ward, town)")
+    .select("*, services(id, name), locations(ward, town), profiles:customer_id(full_name)")
     .eq("id", id)
     .eq("provider_id", provider.id) // defence in depth alongside RLS
     .single<
       ServiceTransaction & {
         services: { id: string; name: string } | null;
         locations: { ward: string | null; town: string } | null;
+        profiles: { full_name: string | null } | null;
       }
     >();
 
@@ -90,6 +92,14 @@ export default async function ProviderJobDetailPage({
       <div className="mt-6 card p-4">
         <StatusTimeline state={job.state} />
       </div>
+
+      <Link href={`/messages/${job.id}`} className="mt-4 card p-4 flex items-center justify-between hover:border-[var(--trust)] transition-colors">
+        <span className="flex items-center gap-2 font-medium">
+          <Icon name="message-circle" size={18} className="text-[var(--trust)]" />
+          Message {job.profiles?.full_name ?? "customer"}
+        </span>
+        <Icon name="chevron-right" size={18} className="text-[var(--muted)]" />
+      </Link>
 
       <div className="mt-4 card p-4 flex flex-col gap-2 text-sm">
         <div className="flex justify-between">

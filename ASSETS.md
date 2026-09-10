@@ -77,7 +77,7 @@ back to the small inline `Icon` glyph instead of a broken image.
 | `empty-bookings.svg` | No bookings/jobs yet | `src/app/account/bookings/page.tsx`, `src/app/provider/page.tsx` (active jobs) |
 | `empty-notifications.svg` | No updates yet | `src/app/notifications/page.tsx` |
 | `empty-search.svg` | No services match a search/category filter | `src/app/page.tsx` |
-| `empty-messages.svg` | No conversations yet | **Not wired** — no messaging feature exists (see `DESIGN_SYSTEM.md`). Authored because the asset brief explicitly requested it; do not wire it to a fake inbox. |
+| `empty-messages.svg` | No conversations yet | `src/app/messages/page.tsx` — real in-app messaging now exists (see `DESIGN_SYSTEM.md`'s "Messaging" section). |
 | `empty-saved.svg` | No saved providers yet | **Not wired** — no saved/favorites feature or table exists. Same reasoning. |
 
 ## Success states — `public/images/success/`
