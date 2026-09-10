@@ -23,11 +23,15 @@ export function ChecklistItemRow({
   isComplete: boolean;
 }) {
   const [done, setDone] = useState(isComplete);
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [description, setDescription] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const fileRef = useRef<HTMLInputElement>(null);
 
-  async function handleFile(file: File) {
+  function upload() {
+    const file = pendingFile;
+    if (!file) return;
     setError(null);
     startTransition(async () => {
       let lat: number | null = null;
@@ -60,45 +64,89 @@ export function ChecklistItemRow({
         checklistItemId: item.id,
         type,
         storagePath: path,
-        description: "",
+        description,
         geoLat: lat,
         geoLng: lng,
       });
-      if (res?.error) setError(res.error);
-      else setDone(true);
+      if (res?.error) {
+        setError(res.error);
+        return;
+      }
+      setDone(true);
+      setPendingFile(null);
+      setDescription("");
     });
   }
 
   return (
-    <li className="flex items-start gap-3 py-3 border-b last:border-0">
-      <div className="flex-1">
-        <p className="text-sm font-medium flex items-center gap-2">
-          {done && <Icon name="check-circle" size={16} className="text-[var(--trust)]" />}
-          {item.label}
-          {item.is_required && !done && <span className="badge-warn">required</span>}
-        </p>
-        {item.help_text && <p className="text-xs text-[var(--muted)] mt-0.5">{item.help_text}</p>}
-        {error && <p className="text-xs text-[var(--danger)] mt-1">{error}</p>}
+    <li className="flex flex-col gap-2 py-3 border-b last:border-0">
+      <div className="flex items-start gap-3">
+        <div className="flex-1">
+          <p className="text-sm font-medium flex items-center gap-2">
+            {done && <Icon name="check-circle" size={16} className="text-[var(--trust)]" />}
+            {item.label}
+            {item.is_required && !done && <span className="badge-warn">required</span>}
+          </p>
+          {item.help_text && <p className="text-xs text-[var(--muted)] mt-0.5">{item.help_text}</p>}
+          {error && <p className="text-xs text-[var(--danger)] mt-1">{error}</p>}
+        </div>
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/*,video/*"
+          capture="environment"
+          className="hidden"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) {
+              setPendingFile(file);
+              setError(null);
+            }
+          }}
+        />
+        {!pendingFile && (
+          <button
+            type="button"
+            className="btn-secondary text-xs shrink-0"
+            disabled={isPending}
+            onClick={() => fileRef.current?.click()}
+          >
+            {done ? "Replace" : "Capture"}
+          </button>
+        )}
       </div>
-      <input
-        ref={fileRef}
-        type="file"
-        accept="image/*,video/*"
-        capture="environment"
-        className="hidden"
-        onChange={(e) => {
-          const file = e.target.files?.[0];
-          if (file) handleFile(file);
-        }}
-      />
-      <button
-        type="button"
-        className="btn-secondary text-xs shrink-0"
-        disabled={isPending}
-        onClick={() => fileRef.current?.click()}
-      >
-        {isPending ? "Uploading…" : done ? "Replace" : "Capture"}
-      </button>
+
+      {pendingFile && (
+        <div className="flex flex-col gap-2 rounded-lg bg-[var(--surface)] p-3">
+          <p className="text-xs text-[var(--muted)] flex items-center gap-1.5">
+            <Icon name="camera" size={14} />
+            {pendingFile.name}
+          </p>
+          <textarea
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            rows={2}
+            placeholder="Add a description (optional)"
+            className="text-sm"
+          />
+          <div className="flex gap-2">
+            <button type="button" className="btn-primary text-xs flex-1" disabled={isPending} onClick={upload}>
+              {isPending ? "Uploading…" : "Upload evidence"}
+            </button>
+            <button
+              type="button"
+              className="btn-secondary text-xs"
+              disabled={isPending}
+              onClick={() => {
+                setPendingFile(null);
+                setDescription("");
+              }}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
     </li>
   );
 }

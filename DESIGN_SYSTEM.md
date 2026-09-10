@@ -187,6 +187,32 @@ expired/disputed/refunded) bucket under "Completed" since they're no
 longer active or upcoming; the card's own state badge still shows the
 real status.
 
+## Evidence, review, and completion
+
+Matches the mockup's Evidence Capture / Inspection Report / Review-and-
+Approve / Leave-a-Review / Completed-Job screens with real data at every
+step (see `SECURITY.md` for the schema additions and live verification):
+
+- Checklist photo/video capture (`ChecklistItemRow`) now holds the picked
+  file and asks for an optional description before uploading, instead of
+  uploading immediately with a blank description.
+- Submitting for review (`SubmitCompletionButton`) takes an optional
+  summary, shown to the customer as "Provider notes" on the report, above
+  an "Inspection completed" banner that precedes the approve/revise
+  controls.
+- `ReviewForm` gained the provider's avatar+name, a 500-character counter,
+  the fixed set of tag chips (`REVIEW_TAGS` in `src/lib/types.ts`), and a
+  "Would you book again?" Yes/Not-sure toggle — reusing `.pill-tab` as a
+  multi-select chip rather than its original single-select-tab role.
+- A terminal "All done!" card appears once a booking reaches
+  settled/reviewed/closed, with "Book provider again" (links to the
+  provider's storefront) and "Back to home".
+
+One deliberate style deviation, for consistency rather than oversight:
+the mockup's review stars are yellow/orange — kept trust-green here
+instead, per this document's own Principle 1 ("trust green is the only
+saturated color in the system").
+
 ## Saved providers
 
 A simple bookmark on a public provider profile — `saved_providers` (present

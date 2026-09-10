@@ -2,6 +2,8 @@
 
 import { useState, useTransition } from "react";
 import Image from "next/image";
+import { Avatar } from "@/components/ui/avatar";
+import { REVIEW_TAGS } from "@/lib/types";
 import { approveBooking, openDispute, requestRevision, submitReview } from "./actions";
 
 export function ApproveOrReviseControls({
@@ -143,12 +145,17 @@ export function ReviewForm({
   transactionId,
   revieweeId,
   revieweeName,
+  revieweePhotoUrl,
 }: {
   transactionId: string;
   revieweeId: string;
   revieweeName: string;
+  revieweePhotoUrl?: string | null;
 }) {
   const [rating, setRating] = useState(5);
+  const [comment, setComment] = useState("");
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [wouldBookAgain, setWouldBookAgain] = useState<"true" | "false" | "">("");
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -157,9 +164,13 @@ export function ReviewForm({
     return <p className="text-sm badge-trust inline-flex">Thanks for your review</p>;
   }
 
+  function toggleTag(tag: string) {
+    setSelectedTags((prev) => (prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]));
+  }
+
   return (
     <form
-      className="flex flex-col gap-2"
+      className="flex flex-col gap-4"
       action={(formData) => {
         startTransition(async () => {
           const res = await submitReview(formData);
@@ -170,25 +181,93 @@ export function ReviewForm({
     >
       <input type="hidden" name="transaction_id" value={transactionId} />
       <input type="hidden" name="reviewee_id" value={revieweeId} />
-      <p className="text-sm font-medium">Rate {revieweeName}</p>
-      <div className="flex gap-1">
-        {[1, 2, 3, 4, 5].map((n) => (
-          <button
-            key={n}
-            type="button"
-            onClick={() => setRating(n)}
-            className="text-2xl leading-none"
-            style={{ color: n <= rating ? "var(--trust)" : "var(--border)" }}
-            aria-label={`${n} stars`}
-          >
-            ★
-          </button>
-        ))}
-      </div>
       <input type="hidden" name="rating" value={rating} />
-      <textarea name="comment" rows={2} placeholder="Optional comment" />
-      {error && <p className="text-sm text-[var(--danger)]">{error}</p>}
-      <button type="submit" disabled={isPending} className="btn-primary w-fit">
+      {selectedTags.map((tag) => (
+        <input key={tag} type="hidden" name="tags" value={tag} />
+      ))}
+      {wouldBookAgain && <input type="hidden" name="would_book_again" value={wouldBookAgain} />}
+
+      <div className="flex items-center gap-3">
+        <Avatar name={revieweeName} photoUrl={revieweePhotoUrl} />
+        <div>
+          <p className="font-semibold">{revieweeName}</p>
+          <p className="text-xs text-[var(--muted)]">Provider</p>
+        </div>
+      </div>
+
+      <div>
+        <p className="text-sm font-medium mb-1.5">How was your experience?</p>
+        <div className="flex gap-1">
+          {[1, 2, 3, 4, 5].map((n) => (
+            <button
+              key={n}
+              type="button"
+              onClick={() => setRating(n)}
+              className="text-3xl leading-none"
+              style={{ color: n <= rating ? "var(--trust)" : "var(--border)" }}
+              aria-label={`${n} stars`}
+            >
+              ★
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <label className="text-sm font-medium">
+        Tell us more (optional)
+        <textarea
+          name="comment"
+          value={comment}
+          onChange={(e) => setComment(e.target.value.slice(0, 500))}
+          rows={3}
+          maxLength={500}
+          placeholder="Excellent service! Very detailed report with clear photos. Great communication throughout. Highly recommend."
+          className="mt-1"
+        />
+        <span className="block text-right text-xs text-[var(--muted-2)] mt-0.5">{comment.length}/500</span>
+      </label>
+
+      <div>
+        <p className="text-sm font-medium mb-1.5">What did you like most?</p>
+        <div className="flex flex-wrap gap-2">
+          {REVIEW_TAGS.map((tag) => (
+            <button
+              key={tag}
+              type="button"
+              onClick={() => toggleTag(tag)}
+              className="pill-tab"
+              data-active={selectedTags.includes(tag)}
+            >
+              {tag}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div>
+        <p className="text-sm font-medium mb-1.5">Would you book again?</p>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => setWouldBookAgain(wouldBookAgain === "true" ? "" : "true")}
+            className="pill-tab"
+            data-active={wouldBookAgain === "true"}
+          >
+            Yes
+          </button>
+          <button
+            type="button"
+            onClick={() => setWouldBookAgain(wouldBookAgain === "false" ? "" : "false")}
+            className="pill-tab"
+            data-active={wouldBookAgain === "false"}
+          >
+            Not sure
+          </button>
+        </div>
+      </div>
+
+      {error && <p className="notice-error">{error}</p>}
+      <button type="submit" disabled={isPending} className="btn-primary">
         {isPending ? "Submitting…" : "Submit review"}
       </button>
     </form>

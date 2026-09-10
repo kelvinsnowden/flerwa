@@ -167,6 +167,29 @@ export interface ServiceTransaction {
   evidence_at: string | null;
   auto_approve_at: string | null;
   settled_at: string | null;
+  completion_summary: string | null;
+}
+
+export const REVIEW_TAGS = [
+  "Professional",
+  "Detailed",
+  "On time",
+  "Great communication",
+  "Value for money",
+] as const;
+export type ReviewTag = (typeof REVIEW_TAGS)[number];
+
+export interface Review {
+  id: string;
+  transaction_id: string;
+  reviewer_id: string;
+  reviewee_id: string;
+  rating: number;
+  comment: string | null;
+  tags: string[];
+  would_book_again: boolean | null;
+  is_customer_review: boolean;
+  created_at: string;
 }
 
 export interface Location {

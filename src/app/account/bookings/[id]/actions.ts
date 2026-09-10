@@ -47,6 +47,9 @@ export async function submitReview(formData: FormData) {
   const revieweeId = String(formData.get("reviewee_id"));
   const rating = Number(formData.get("rating"));
   const comment = String(formData.get("comment") ?? "");
+  const tags = formData.getAll("tags").map(String);
+  const wouldBookAgainRaw = formData.get("would_book_again");
+  const wouldBookAgain = wouldBookAgainRaw === "true" ? true : wouldBookAgainRaw === "false" ? false : null;
 
   // RLS itself enforces "only from settled/reviewed/closed transactions" —
   // see the "reviews participant insert" policy — this insert will be
@@ -57,6 +60,8 @@ export async function submitReview(formData: FormData) {
     reviewee_id: revieweeId,
     rating,
     comment,
+    tags,
+    would_book_again: wouldBookAgain,
     is_customer_review: true,
   });
   if (error) return { error: error.message };

@@ -291,6 +291,50 @@ All 4 checks passed; fixtures (two users — one provider owner, one
 promoted to admin — one fixture provider, one `admin_actions` row from the
 RPC call) were fully cleaned up afterward.
 
+## Evidence, review, and completion
+
+Closes the mockup's Evidence Capture / Inspection Report / Review-and-
+Approve / Leave-a-Review / Completed-Job screens against real schema —
+one column addition each, no fabricated inputs:
+
+- `transaction_evidence.description` already existed and `recordEvidence`
+  already accepted it — `ChecklistItemRow` just never had a text input for
+  it. Now the photo/video capture flow holds the file, shows a description
+  field, and only uploads on confirm (mockup's "Add a description" step).
+- `service_transactions.completion_summary text` (new) — the provider's
+  optional free-text summary on submit, captured through
+  `rpc_submit_completion`'s new `p_summary` parameter (the old
+  single-argument signature was dropped and replaced, not overloaded, to
+  avoid PostgREST/Postgres overload ambiguity), shown to the customer as
+  "Provider notes" on the report.
+- `reviews.tags text[]` and `reviews.would_book_again boolean` (new) — the
+  mockup's tag chips and "Would you book again?" toggle. No column-level
+  RLS change was needed: `reviews participant insert` already restricts
+  the *row* (reviewer/reviewee/participant/settled-state), not specific
+  columns.
+
+Verified live:
+
+| Check | Result |
+|---|---|
+| Provider can call `rpc_submit_completion` with a summary; `completion_summary` is set and the state transitions correctly | PASS |
+| The old 1-argument `rpc_submit_completion(uuid)` no longer exists (confirmed via `pg_proc`, no overload ambiguity) | PASS |
+| Customer can insert a review with `tags` and `would_book_again` set | PASS |
+
+All 3 checks passed. Fixture cleanup hit a real, working control rather
+than sailing through: `transaction_events` is append-only (verified
+earlier this session too) and `service_transactions` can't be deleted
+while a child event row still references it, so the fixture transaction,
+its one audit event, and the fixture provider/users could not be fully
+removed. The trigger was **not** disabled to force it through — that
+would mean tampering with the exact control being relied on elsewhere in
+this document. Contained instead: the fixture provider was unpublished
+and both fixture profiles renamed to say "QA fixture (unpublished, do not
+use)", and the transaction itself was moved to `closed`. One inert,
+clearly-labeled, unpublished fixture provider (`qa-evid-fixture`) remains
+in the live database as a result — a real, small mark left by testing a
+security control that worked as designed, not a data-integrity bug.
+
 ## Known gaps, stated rather than hidden
 
 - Only the flagship service (`know-before-you-pay`) has a full checklist.

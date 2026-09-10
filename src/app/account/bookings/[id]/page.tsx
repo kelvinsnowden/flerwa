@@ -39,12 +39,20 @@ export default async function BookingDetailPage({
 
   const { data: booking, error: bookingError } = await supabase
     .from("service_transactions")
-    .select("*, services(name), providers(id, display_name, user_id), locations(ward, town)")
+    .select(
+      "*, services(name), providers(id, slug, display_name, user_id, profiles:user_id(avatar_url)), locations(ward, town)"
+    )
     .eq("id", id)
     .single<
       ServiceTransaction & {
         services: { name: string } | null;
-        providers: { id: string; display_name: string; user_id: string } | null;
+        providers: {
+          id: string;
+          slug: string;
+          display_name: string;
+          user_id: string;
+          profiles: { avatar_url: string | null } | null;
+        } | null;
         locations: { ward: string | null; town: string } | null;
       }
     >();
@@ -159,14 +167,30 @@ export default async function BookingDetailPage({
         </div>
       )}
 
+      {canApproveOrRevise && (
+        <div className="mt-6 card p-5 text-center flex flex-col items-center">
+          <Image src="/images/success/success-completion.svg" alt="" width={64} height={64} />
+          <p className="font-semibold mt-2">Inspection completed</p>
+          <p className="text-sm text-[var(--muted)] mt-1">
+            {booking.providers?.display_name ?? "Your provider"} has submitted the full report for your review.
+          </p>
+        </div>
+      )}
+
       {["evidence_submitted", "customer_review", "settled", "reviewed", "closed"].includes(
         booking.state
       ) && (
-        <div className="mt-6">
+        <div id="report" className="mt-6 scroll-mt-16">
           <h2 className="font-semibold mb-3 flex items-center gap-1.5">
             <Icon name="camera" size={16} className="text-[var(--trust)]" />
             Evidence & report
           </h2>
+          {booking.completion_summary && (
+            <div className="card p-4 mb-3">
+              <p className="text-xs font-semibold text-[var(--muted)] mb-1">Provider notes</p>
+              <p className="text-sm">{booking.completion_summary}</p>
+            </div>
+          )}
           <EvidenceGallery transactionId={booking.id} />
         </div>
       )}
@@ -183,7 +207,31 @@ export default async function BookingDetailPage({
             transactionId={booking.id}
             revieweeId={booking.providers.user_id}
             revieweeName={booking.providers.display_name}
+            revieweePhotoUrl={booking.providers.profiles?.avatar_url}
           />
+        </div>
+      )}
+
+      {["settled", "reviewed", "closed"].includes(booking.state) && (
+        <div className="mt-6 card p-5 text-center flex flex-col items-center">
+          <Image src="/images/success/success-completion.svg" alt="" width={64} height={64} />
+          <p className="font-bold text-lg mt-2">All done!</p>
+          <p className="text-sm text-[var(--muted)] mt-1">
+            This booking has been completed. Thank you for using Trusted Services.
+          </p>
+          <div className="flex flex-col gap-2 w-full mt-4">
+            {booking.providers && (
+              <Link href={`/provider/${booking.providers.slug}`} className="btn-primary w-full">
+                Book provider again
+              </Link>
+            )}
+            <a href="#report" className="btn-secondary w-full">
+              View full report
+            </a>
+            <Link href="/" className="btn-secondary w-full">
+              Back to home
+            </Link>
+          </div>
         </div>
       )}
     </div>

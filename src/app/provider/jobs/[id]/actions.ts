@@ -64,13 +64,14 @@ export async function recordEvidence(input: {
   return { success: true };
 }
 
-export async function submitCompletion(transactionId: string) {
+export async function submitCompletion(transactionId: string, summary: string | null) {
   const supabase = await createClient();
   // rpc_submit_completion itself re-checks every REQUIRED checklist item has
   // is_complete=true and raises if any are missing — this is not a client-side
   // gate, it is enforced in the database. See BUILD_PLAN.md Phase 8.
   const { error } = await supabase.rpc("rpc_submit_completion", {
     p_transaction_id: transactionId,
+    p_summary: summary,
   });
   if (error) return { error: error.message };
   revalidatePath(`/provider/jobs/${transactionId}`);
