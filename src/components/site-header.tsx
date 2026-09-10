@@ -9,7 +9,7 @@ import type { UserRole } from "@/lib/types";
  * destinations as a desktop-only inline nav so the product doesn't lose
  * navigation entirely above the `sm` breakpoint where the tab bar is hidden.
  */
-export function SiteHeader({ role }: { role: UserRole | "anonymous" }) {
+export function SiteHeader({ role, isSeller }: { role: UserRole | "anonymous"; isSeller?: boolean }) {
   const signedIn = role !== "anonymous";
   return (
     <header className="sticky top-0 z-40 border-b bg-[var(--card)]/95 backdrop-blur">
@@ -41,7 +41,7 @@ export function SiteHeader({ role }: { role: UserRole | "anonymous" }) {
               Home
             </Link>
             <Link
-              href={role === "provider" ? "/provider" : "/account/bookings"}
+              href={isSeller ? "/provider" : "/account/bookings"}
               className="text-[var(--muted)] hover:text-[var(--foreground)]"
             >
               Bookings

@@ -44,7 +44,7 @@ export function ApplyForm({ locations }: { locations: { id: string; ward: string
       </label>
       {error && <p className="text-sm text-[var(--danger)]">{error}</p>}
       <button type="submit" disabled={isPending} className="btn-primary">
-        {isPending ? "Submitting…" : "Apply as a Pro"}
+        {isPending ? "Submitting…" : "Start selling"}
       </button>
     </form>
   );

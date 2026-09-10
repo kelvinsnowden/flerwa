@@ -139,9 +139,9 @@ export default async function ServiceDetailPage({
 
       {!!providers?.length && (
         <div id="providers" className="mt-8 scroll-mt-16">
-          <h2 className="font-semibold mb-3">Choose a Pro</h2>
+          <h2 className="font-semibold mb-3">Choose a professional</h2>
           <p className="text-sm text-[var(--muted)] mb-3">
-            We&apos;ve found {providers.length} verified pro{providers.length === 1 ? "" : "s"} for this service.
+            We&apos;ve found {providers.length} verified professional{providers.length === 1 ? "" : "s"} for this service.
           </p>
           <div className="flex flex-col gap-2">
             {providers.slice(0, 4).map((p) => (
@@ -172,7 +172,7 @@ export default async function ServiceDetailPage({
 
       <p className="mt-4 text-xs text-[var(--muted)] flex items-center gap-1.5">
         <Icon name="shield-check" size={14} className="text-[var(--trust)]" />
-        Your payment is held and only released to the pro once you approve the completed work.
+        Your payment is held and only released to the professional once you approve the completed work.
       </p>
     </div>
   );

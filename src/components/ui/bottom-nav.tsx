@@ -15,9 +15,17 @@ import type { UserRole } from "@/lib/types";
  * and still reachable, just no longer a primary tab: see its link on
  * /account and in the desktop header.)
  */
-export function BottomNav({ role, unreadCount }: { role: UserRole | null; unreadCount?: number }) {
+export function BottomNav({
+  role,
+  isSeller,
+  unreadCount,
+}: {
+  role: UserRole | null;
+  isSeller?: boolean;
+  unreadCount?: number;
+}) {
   const pathname = usePathname();
-  const bookingsHref = role === "provider" ? "/provider" : "/account/bookings";
+  const bookingsHref = isSeller ? "/provider" : "/account/bookings";
 
   const items = [
     { href: "/", label: "Home", icon: "home", match: (p: string) => p === "/" },

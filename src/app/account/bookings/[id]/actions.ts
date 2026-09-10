@@ -25,6 +25,18 @@ export async function openDispute(transactionId: string, reason: string, descrip
   return { success: true };
 }
 
+export async function cancelBooking(transactionId: string, reason: string) {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("rpc_cancel_booking", {
+    p_transaction_id: transactionId,
+    p_reason: reason || null,
+  });
+  if (error) return { error: error.message };
+  revalidatePath(`/account/bookings/${transactionId}`);
+  revalidatePath("/account/bookings");
+  return { success: true };
+}
+
 export async function requestRevision(transactionId: string, reason: string) {
   const supabase = await createClient();
   const { error } = await supabase.rpc("rpc_request_revision", {

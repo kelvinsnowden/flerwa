@@ -38,6 +38,12 @@ export async function proxy(request: NextRequest) {
   // remove even though the return value looks unused.
   await supabase.auth.getClaims();
 
+  // Lets the root layout (a Server Component with no router access of its
+  // own) decide whether to render the SiteHeader/BottomNav chrome — the
+  // full-bleed auth screens (login/signup) render their own AuthHeader
+  // and must not double up on navigation chrome.
+  response.headers.set("x-pathname", request.nextUrl.pathname);
+
   return response;
 }
 

@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import Image from "next/image";
 import { createClient } from "@/lib/supabase/server";
 import { ApplyForm } from "./apply-form";
 
@@ -20,7 +21,16 @@ export default async function ProviderApplyPage() {
 
   return (
     <div className="mx-auto max-w-lg px-4 py-10">
-      <h1 className="text-2xl font-bold">Become a Pro</h1>
+      <div className="relative h-40 rounded-2xl overflow-hidden mb-6">
+        <Image
+          src="/images/photos/provider-at-work.jpg"
+          alt="A professional photographing a kitchen while completing a structured checklist"
+          fill
+          sizes="(min-width: 640px) 512px, 100vw"
+          className="object-cover"
+        />
+      </div>
+      <h1 className="text-2xl font-bold">Sell your services</h1>
       <p className="text-sm text-[var(--muted)] mt-1">
         Get discovered. Get paid securely. Every completed job builds your
         professional record — not just another listing.

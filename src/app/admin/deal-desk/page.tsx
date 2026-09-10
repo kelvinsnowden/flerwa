@@ -40,9 +40,9 @@ export default async function AdminDealDeskPage() {
     <div>
       <h1 className="text-xl font-bold mb-6">Deal Desk</h1>
       <p className="text-sm text-[var(--muted)] mb-4">
-        Pros submit jobs they already arranged with a customer directly.
+        Professionals submit jobs they already arranged with a customer directly.
         Converting one requires the customer to already have an account —
-        look them up by the phone or email they gave the pro.
+        look them up by the phone or email they gave the professional.
       </p>
       {!requests?.length && <p className="text-sm text-[var(--muted)]">No pending Deal Desk requests.</p>}
       <div className="flex flex-col gap-4">
@@ -51,7 +51,7 @@ export default async function AdminDealDeskPage() {
             key={r.id}
             request={{
               id: r.id,
-              providerName: r.providers?.display_name ?? "Pro",
+              providerName: r.providers?.display_name ?? "Professional",
               customerEmail: r.customer_email,
               customerPhone: r.customer_phone,
               description: r.description,

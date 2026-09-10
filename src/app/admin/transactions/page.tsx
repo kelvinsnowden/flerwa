@@ -27,7 +27,7 @@ export default async function AdminTransactionsPage() {
           <thead>
             <tr className="text-left text-[var(--muted)] border-b">
               <th className="py-2 pr-4">Service</th>
-              <th className="py-2 pr-4">Pro</th>
+              <th className="py-2 pr-4">Professional</th>
               <th className="py-2 pr-4">State</th>
               <th className="py-2 pr-4">Amount</th>
               <th className="py-2">Requested</th>

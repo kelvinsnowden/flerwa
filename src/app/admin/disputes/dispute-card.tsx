@@ -65,7 +65,7 @@ export function DisputeCard({ dispute }: Props) {
         <p className="text-xs font-medium mb-1">Resolution split</p>
         <div className="flex flex-wrap gap-2">
           <button type="button" className="pill-tab" data-active={split === "provider"} onClick={() => setSplit("provider")}>
-            Full pay to Pro
+            Full pay to professional
           </button>
           <button type="button" className="pill-tab" data-active={split === "customer"} onClick={() => setSplit("customer")}>
             Full refund to customer
@@ -76,7 +76,7 @@ export function DisputeCard({ dispute }: Props) {
         </div>
         {split === "custom" && (
           <label className="text-xs font-medium mt-2 block">
-            Amount to Pro (KSh)
+            Amount to professional (KSh)
             <input
               type="number"
               min="0"
@@ -88,7 +88,7 @@ export function DisputeCard({ dispute }: Props) {
           </label>
         )}
         <p className="text-xs text-[var(--muted)] mt-1">
-          Pro gets {formatMoney(providerMinor, dispute.currency)}, customer refunded {formatMoney(customerRefundMinor, dispute.currency)}.
+          Professional gets {formatMoney(providerMinor, dispute.currency)}, customer refunded {formatMoney(customerRefundMinor, dispute.currency)}.
         </p>
       </div>
 

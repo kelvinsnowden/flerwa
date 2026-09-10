@@ -42,7 +42,7 @@ export default async function MessageThreadPage({
   if (!txn) notFound();
 
   const isCustomer = txn.customer_id === user.id;
-  const otherName = isCustomer ? txn.providers?.display_name ?? "Pro" : txn.profiles?.full_name ?? "Customer";
+  const otherName = isCustomer ? txn.providers?.display_name ?? "Professional" : txn.profiles?.full_name ?? "Customer";
   const otherPhotoUrl = isCustomer ? txn.providers?.profiles?.avatar_url ?? null : txn.profiles?.avatar_url ?? null;
 
   const { data: messages } = await supabase

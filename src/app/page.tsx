@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { createClient } from "@/lib/supabase/server";
 import type { Category, Service } from "@/lib/types";
 import { ErrorNotice } from "@/components/error-notice";
@@ -11,9 +12,9 @@ import { EmptyState } from "@/components/ui/empty-state";
 export default async function HomePage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; category?: string }>;
+  searchParams: Promise<{ q?: string; category?: string; task?: string }>;
 }) {
-  const { q, category } = await searchParams;
+  const { q, category, task } = await searchParams;
   const supabase = await createClient();
 
   const {
@@ -38,7 +39,7 @@ export default async function HomePage({
     if (cat) servicesQuery = servicesQuery.eq("category_id", cat.id);
   }
   if (q) {
-    servicesQuery = servicesQuery.or(`name.ilike.%${q}%,summary.ilike.%${q}%`);
+    servicesQuery = servicesQuery.or(`name.ilike.%${q}%,summary.ilike.%${q}%,description.ilike.%${q}%`);
   }
   const { data: services, error: servicesError } = await servicesQuery
     .order("base_price_minor", { ascending: false })
@@ -63,8 +64,48 @@ export default async function HomePage({
         </div>
       </section>
 
+      {task === "1" && (
+        <div className="mt-6 card p-4 flex items-center gap-3" style={{ borderColor: "var(--trust)" }}>
+          <span
+            className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
+            style={{ background: "var(--trust-tint)", color: "var(--trust)" }}
+          >
+            ✓
+          </span>
+          <div>
+            <p className="font-semibold text-sm">Task posted</p>
+            <p className="text-xs text-[var(--muted)]">
+              Professionals in that category can now see it and reach out with a quote.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {!q && !category && (
+        <Link
+          href="/services/know-before-you-pay"
+          className="mt-6 relative block h-40 rounded-2xl overflow-hidden"
+        >
+          <Image
+            src="/images/photos/property-exterior.jpg"
+            alt=""
+            fill
+            sizes="(min-width: 640px) 672px, 100vw"
+            className="object-cover"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
+          <div className="absolute bottom-3 left-4 right-4">
+            <p className="font-semibold text-sm text-white">Know Before You Pay</p>
+            <p className="text-xs text-white/85 mt-0.5">
+              A verified professional inspects the property in person before you send a deposit
+            </p>
+          </div>
+        </Link>
+      )}
+
       {!categoriesError && !!categories?.length && (
         <section className="mt-8">
+          <h2 className="text-sm font-semibold text-[var(--muted)] mb-3">Popular categories</h2>
           <div className="flex gap-5 overflow-x-auto pb-1">
             {categories.map((c) => (
               <CategoryCard key={c.id} category={c} />
@@ -76,7 +117,7 @@ export default async function HomePage({
       <section className="mt-10">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold">
-            {activeCategory ? activeCategory.name : q ? `Results for "${q}"` : "Book a service"}
+            {activeCategory ? activeCategory.name : q ? `Results for "${q}"` : "Services near you"}
           </h2>
           {(activeCategory || q) && (
             <Link href="/" className="text-sm font-semibold" style={{ color: "var(--trust)" }}>
@@ -100,13 +141,31 @@ export default async function HomePage({
         )}
       </section>
 
+      <section className="mt-10 card p-5">
+        <p className="font-semibold">Can&apos;t find what you need?</p>
+        <p className="text-sm text-[var(--muted)] mt-1">
+          Tell us what you need done and we&apos;ll help you find the right professional.
+        </p>
+        <Link href="/tasks/new" className="btn-secondary mt-4">
+          Post a task
+        </Link>
+      </section>
+
+      <section className="mt-4 card p-5">
+        <p className="font-semibold">Want to earn from your skills?</p>
+        <p className="text-sm text-[var(--muted)] mt-1">Offer your services and get hired.</p>
+        <Link href="/provider/apply" className="btn-secondary mt-4">
+          Sell your services
+        </Link>
+      </section>
+
       <section className="mt-12 flex justify-center">
         <TrustSignal />
       </section>
 
       <section className="mt-10 card p-5 text-sm text-[var(--muted)]">
         <p>
-          Have an existing arrangement with a Pro you already trust?{" "}
+          Have an existing arrangement with a professional you already trust?{" "}
           <Link href="/deal-desk" className="font-semibold" style={{ color: "var(--trust)" }}>
             Bring it onto the platform
           </Link>{" "}

@@ -8,7 +8,7 @@ import { lookupCustomer, convertRequest, declineRequest } from "./actions";
 const FULFILMENT_MODES = [
   { value: "on_site_customer_present", label: "On-site, customer present" },
   { value: "on_site_customer_absent", label: "On-site, customer absent" },
-  { value: "at_provider", label: "At the pro's location" },
+  { value: "at_provider", label: "At the professional's location" },
   { value: "remote_digital", label: "Remote / digital" },
   { value: "representation", label: "Representation" },
 ];

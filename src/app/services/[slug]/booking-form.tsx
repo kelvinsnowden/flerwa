@@ -62,7 +62,7 @@ export function BookingForm({
 
       {preselectedProviderId && preselectedProviderName ? (
         <div>
-          <span className="text-sm font-medium">Pro</span>
+          <span className="text-sm font-medium">Professional</span>
           <div className="mt-1 flex items-center gap-3 rounded-[var(--radius-sm)] border border-[var(--border)] p-3">
             <Avatar name={preselectedProviderName} photoUrl={preselectedPhotoUrl} size="sm" />
             <span className="flex-1 font-medium text-sm">{preselectedProviderName}</span>
@@ -74,28 +74,28 @@ export function BookingForm({
         </div>
       ) : (
         <label className="text-sm font-medium">
-          Pro
+          Professional
           <select name="provider_id" className="mt-1" defaultValue="">
-            <option value="">Let us match you with a verified pro</option>
+            <option value="">Let us match you with a verified professional</option>
             {providers.map((p) => {
               const rel = p.reliability_scores?.[0];
               return (
                 <option key={p.id} value={p.id}>
                   {p.display_name}
-                  {rel?.jobs_completed ? ` — ${rel.jobs_completed} jobs completed` : " — new pro"}
+                  {rel?.jobs_completed ? ` — ${rel.jobs_completed} jobs completed` : " — new professional"}
                 </option>
               );
             })}
           </select>
           {providers.length === 0 && (
             <span className="mt-1 block text-xs text-[var(--muted)]">
-              No Pros are published in this category yet — your booking
+              No professionals are published in this category yet — your booking
               will be assigned by our team once confirmed.
             </span>
           )}
           {providers.length > 0 && (
             <a href="#providers" className="mt-1 block text-xs font-semibold" style={{ color: "var(--trust)" }}>
-              Choose a specific Pro →
+              Choose a specific professional →
             </a>
           )}
         </label>
@@ -133,7 +133,7 @@ export function BookingForm({
         <p className="font-semibold text-[var(--foreground)]">What happens next</p>
         <p>1. We confirm your booking and reach out to arrange M-Pesa payment.</p>
         <p>2. Your payment is held until the job is done and you approve it.</p>
-        <p>3. Your pro is assigned or confirmed and the job gets scheduled.</p>
+        <p>3. Your professional is assigned or confirmed and the job gets scheduled.</p>
       </div>
 
       <button type="submit" disabled={isPending} className="btn-primary">

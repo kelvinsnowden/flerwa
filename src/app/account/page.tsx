@@ -44,7 +44,7 @@ export default async function AccountPage() {
           <Link href="/provider" className="card p-4 flex items-center justify-between hover:border-[var(--trust)] transition-colors">
             <span className="flex items-center gap-2 font-medium">
               <Icon name="wallet" size={18} className="text-[var(--trust)]" />
-              Pro dashboard
+              Seller dashboard
               <VerificationBadge status={provider.verification_status} />
             </span>
             <Icon name="chevron-right" size={18} className="text-[var(--muted)]" />
@@ -54,7 +54,7 @@ export default async function AccountPage() {
           <Link href="/provider/apply" className="card p-4 flex items-center justify-between hover:border-[var(--trust)] transition-colors">
             <span className="flex items-center gap-2 font-medium">
               <Icon name="wallet" size={18} className="text-[var(--trust)]" />
-              Become a Pro
+              Sell your services
             </span>
             <Icon name="chevron-right" size={18} className="text-[var(--muted)]" />
           </Link>
@@ -62,7 +62,7 @@ export default async function AccountPage() {
         <Link href="/account/saved" className="card p-4 flex items-center justify-between hover:border-[var(--trust)] transition-colors">
           <span className="flex items-center gap-2 font-medium">
             <Icon name="heart" size={18} className="text-[var(--trust)]" />
-            Saved Pros
+            Saved professionals
           </span>
           <Icon name="chevron-right" size={18} className="text-[var(--muted)]" />
         </Link>

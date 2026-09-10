@@ -30,7 +30,7 @@ export async function EvidenceGallery({ transactionId }: { transactionId: string
       <EmptyState
         icon={<Icon name="camera" size={20} />}
         title="No evidence yet"
-        body="Evidence will appear here once the pro starts the job."
+        body="Evidence will appear here once the professional starts the job."
       />
     );
   }

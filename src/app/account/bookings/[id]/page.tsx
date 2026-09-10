@@ -7,6 +7,7 @@ import { TXN_STATE_LABELS, type ServiceTransaction } from "@/lib/types";
 import { EvidenceGallery } from "./evidence-gallery";
 import { ApproveOrReviseControls, ReviewForm } from "./booking-actions";
 import { DisputeLink } from "./dispute-link";
+import { CancelBooking } from "./cancel-booking";
 import { ErrorNotice } from "@/components/error-notice";
 import { StatusTimeline } from "@/components/ui/status-timeline";
 import { StateBadge } from "@/components/ui/state-badge";
@@ -20,6 +21,17 @@ const DISPUTABLE_ELSEWHERE_STATES: ServiceTransaction["state"][] = [
   "in_progress",
   "customer_review",
   "revision_requested",
+];
+
+// Mirrors rpc_cancel_booking's own state check: free to cancel any time
+// up to (not including) the Pro checking in.
+const CANCELLABLE_STATES: ServiceTransaction["state"][] = [
+  "requested",
+  "quoted",
+  "quote_accepted",
+  "funded",
+  "scheduled",
+  "en_route",
 ];
 
 export default async function BookingDetailPage({
@@ -86,6 +98,7 @@ export default async function BookingDetailPage({
   const canApproveOrRevise = booking.state === "evidence_submitted";
   const canDisputeElsewhere = DISPUTABLE_ELSEWHERE_STATES.includes(booking.state);
   const canReview = ["settled", "reviewed", "closed"].includes(booking.state) && !existingReview;
+  const canCancel = CANCELLABLE_STATES.includes(booking.state);
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-8 pb-4">
@@ -108,9 +121,9 @@ export default async function BookingDetailPage({
           </div>
           <div className="mt-4 rounded-lg bg-[var(--surface)] p-3 text-xs text-[var(--muted)] flex flex-col gap-1.5">
             <p className="font-semibold text-[var(--foreground)]">What happens next</p>
-            <p>Pro confirms (usually within 1 hour)</p>
+            <p>Professional confirms (usually within 1 hour)</p>
             <p>You&apos;ll get updates in the app</p>
-            <p>The pro will contact you before the visit</p>
+            <p>The professional will contact you before the visit</p>
           </div>
           <Link href="/" className="btn-secondary w-full mt-4">
             Back to home
@@ -123,7 +136,7 @@ export default async function BookingDetailPage({
       </div>
 
       <div className="mt-4 card p-4 flex flex-col gap-2 text-sm">
-        <Row label="Pro" value={booking.providers?.display_name ?? "Awaiting assignment"} />
+        <Row label="Professional" value={booking.providers?.display_name ?? "Awaiting assignment"} />
         <Row
           label="Location"
           value={booking.locations ? `${booking.locations.ward ?? ""} ${booking.locations.town}`.trim() : "—"}
@@ -139,7 +152,7 @@ export default async function BookingDetailPage({
                 : payment.state === "funded"
                   ? "Confirmed & held"
                   : payment.state === "released"
-                    ? "Released to pro"
+                    ? "Released to professional"
                     : payment.state
           }
         />
@@ -172,7 +185,7 @@ export default async function BookingDetailPage({
           <Image src="/images/success/success-completion.svg" alt="" width={64} height={64} />
           <p className="font-semibold mt-2">Inspection completed</p>
           <p className="text-sm text-[var(--muted)] mt-1">
-            {booking.providers?.display_name ?? "Your Pro"} has submitted the full report for your review.
+            {booking.providers?.display_name ?? "Your professional"} has submitted the full report for your review.
           </p>
         </div>
       )}
@@ -187,7 +200,7 @@ export default async function BookingDetailPage({
           </h2>
           {booking.completion_summary && (
             <div className="card p-4 mb-3">
-              <p className="text-xs font-semibold text-[var(--muted)] mb-1">Pro notes</p>
+              <p className="text-xs font-semibold text-[var(--muted)] mb-1">Professional notes</p>
               <p className="text-sm">{booking.completion_summary}</p>
             </div>
           )}
@@ -200,6 +213,8 @@ export default async function BookingDetailPage({
       )}
 
       {!canApproveOrRevise && canDisputeElsewhere && <DisputeLink transactionId={booking.id} />}
+
+      {canCancel && <CancelBooking transactionId={booking.id} />}
 
       {canReview && booking.providers && (
         <div className="mt-6 card p-4">
@@ -222,7 +237,7 @@ export default async function BookingDetailPage({
           <div className="flex flex-col gap-2 w-full mt-4">
             {booking.providers && (
               <Link href={`/provider/${booking.providers.slug}`} className="btn-primary w-full">
-                Book Pro again
+                Book professional again
               </Link>
             )}
             <a href="#report" className="btn-secondary w-full">
