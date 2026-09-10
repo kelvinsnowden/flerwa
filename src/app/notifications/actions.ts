@@ -22,3 +22,21 @@ export async function markNotificationRead(notificationId: string) {
   revalidatePath("/notifications");
   return {};
 }
+
+export async function markAllNotificationsRead() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Not signed in." };
+
+  const { error } = await supabase
+    .from("notifications")
+    .update({ read_at: new Date().toISOString() })
+    .eq("user_id", user.id)
+    .is("read_at", null);
+
+  if (error) return { error: error.message };
+  revalidatePath("/notifications");
+  return {};
+}

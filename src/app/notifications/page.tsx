@@ -3,7 +3,8 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { ErrorNotice } from "@/components/error-notice";
 import { EmptyState } from "@/components/ui/empty-state";
-import { MarkReadButton } from "./mark-read-button";
+import { Icon, type IconName } from "@/components/ui/icon";
+import { MarkReadButton, MarkAllReadButton } from "./mark-read-button";
 
 interface NotificationRow {
   id: string;
@@ -14,6 +15,14 @@ interface NotificationRow {
   read_at: string | null;
   created_at: string;
 }
+
+const TYPE_ICON: Record<string, IconName> = {
+  new_message: "message-circle",
+  evidence_ready: "camera",
+  payment_released: "wallet",
+  dispute_resolved: "shield-check",
+  deal_desk_converted: "briefcase",
+};
 
 export default async function NotificationsPage() {
   const supabase = await createClient();
@@ -29,9 +38,14 @@ export default async function NotificationsPage() {
     .limit(50)
     .returns<NotificationRow[]>();
 
+  const unreadCount = notifications?.filter((n) => !n.read_at).length ?? 0;
+
   return (
     <div className="mx-auto max-w-lg px-4 py-8 pb-4">
-      <h1 className="text-2xl font-bold mb-6">Updates</h1>
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-2xl font-bold">Updates</h1>
+        {unreadCount > 0 && <MarkAllReadButton />}
+      </div>
 
       {error && (
         <ErrorNotice message="We couldn't load your updates right now. Please refresh." />
@@ -50,10 +64,16 @@ export default async function NotificationsPage() {
           {notifications.map((n) => (
             <li
               key={n.id}
-              className="card p-4 flex items-start justify-between gap-3"
+              className="card p-4 flex items-start gap-3"
               style={n.read_at ? undefined : { borderColor: "var(--trust)" }}
             >
-              <div className="min-w-0">
+              <span
+                className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
+                style={{ background: "var(--trust-tint)", color: "var(--trust)" }}
+              >
+                <Icon name={TYPE_ICON[n.type] ?? "bell"} size={16} />
+              </span>
+              <div className="min-w-0 flex-1">
                 {n.transaction_id ? (
                   <Link href={`/account/bookings/${n.transaction_id}`} className="font-semibold hover:underline">
                     {n.title}

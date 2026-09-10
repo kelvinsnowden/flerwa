@@ -30,7 +30,10 @@ export async function submitDealDeskRequest(formData: FormData) {
     customer_email: customerEmail || null,
     customer_phone: customerPhone || null,
     description,
-    proposed_amount_minor: amountKes > 0 ? Math.round(amountKes * 100) / 100 : null,
+    // proposed_amount_minor is minor units (cents) despite the form
+    // taking whole KES — this used to divide back out by 100 right after
+    // multiplying, silently storing whole KES into a "minor units" column.
+    proposed_amount_minor: amountKes > 0 ? Math.round(amountKes * 100) : null,
   });
   if (error) return { error: error.message };
 

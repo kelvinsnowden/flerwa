@@ -213,6 +213,26 @@ the mockup's review stars are yellow/orange — kept trust-green here
 instead, per this document's own Principle 1 ("trust green is the only
 saturated color in the system").
 
+## Notifications, admin, and Deal Desk
+
+No reference mockups exist for these — extended using the app's own
+already-established conventions rather than inventing new ones:
+
+- `/notifications` gained "Mark all read" (only shown when there's
+  something unread) and a type-based icon per row, reusing `Icon` and the
+  same trust-tint badge treatment used elsewhere (`ProviderCard`'s
+  verification badge, `StateBadge`).
+- `/admin/disputes` and `/admin/deal-desk` are new admin pages, matching
+  `/admin/verifications`' established shape exactly: a server page that
+  fetches the queue, a client card component per row with its own
+  `useTransition`, server actions that call the underlying RPC. Both
+  follow the existing "admin density" rule — dense, desktop-oriented,
+  no illustration.
+
+See `SECURITY.md` for the dispute-resolution and Deal Desk RPCs these
+pages call, and for a real money-display bug (`formatMoney` never
+divided by 100) found and fixed while building the Deal Desk form.
+
 ## Saved providers
 
 A simple bookmark on a public provider profile — `saved_providers` (present

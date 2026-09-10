@@ -335,6 +335,83 @@ clearly-labeled, unpublished fixture provider (`qa-evid-fixture`) remains
 in the live database as a result — a real, small mark left by testing a
 security control that worked as designed, not a data-integrity bug.
 
+## A real, live money-display bug found while building the Deal Desk admin form
+
+While cross-checking a proposed amount against the mockup's price for the
+same service (both should read "KSh 6,000"), found that `formatMoney`
+(`src/lib/money.ts` — its own comment already called itself "the ONLY
+place money is formatted for display") never actually divided by 100.
+Every price shown anywhere in the app — service prices, booking totals,
+provider earnings, the admin GMV stat — was rendering 100x too large
+(e.g. "KSh 600,000" instead of "KSh 6,000"). Confirmed against real seed
+data: `services.base_price_minor` is `600000` for the service the
+mockups show priced at "KSh 6,000"; `600000 / 100 = 6000` is correct,
+`600000` alone is the bug. `src/app/admin/page.tsx`'s GMV stat had the
+identical bug independently (it bypassed `formatMoney` entirely with its
+own unlabelled `.toLocaleString()` call) — fixed by routing it through
+`formatMoney` like everywhere else, closing both instances at once.
+
+This went undetected for the whole session because this sandbox's dev
+server has never been able to reach Supabase to render a real page with
+a real price (confirmed repeatedly — even the unrelated home page
+fails the same way); every other verification in this document used
+direct database checks instead, which don't exercise display
+formatting. Grepped the rest of the codebase for `toLocaleString`/`KSh`
+near money afterward — no other instances found. Verified the fix
+directly (`600000` → "KSh 6,000", `550000` → "KSh 5,500") rather than
+through this session's browser sandbox, since that path is the reason
+the bug was invisible in the first place.
+
+## Admin: dispute resolution and Deal Desk conversion
+
+Two real gaps this session's own earlier audit had already surfaced but
+never built: `disputes.financial_outcome` had a documented shape
+(`{"provider_minor": x, "customer_refund_minor": y}`) in a column
+comment with no function that ever wrote it, and this document's own
+"Known gaps" section already said Deal Desk requests had no admin
+conversion path into a funded transaction. Both close the same way as
+every other money-moving change in this schema: a `SECURITY DEFINER`
+RPC, admin-gated, using the established `app.bypass_txn_guard` escape
+hatch for the one guarded state transition each needs.
+
+`rpc_resolve_dispute` splits the service amount between provider and
+customer per the admin's decision (the platform fee is retained either
+way), writes balanced `ledger_entries`, and moves the transaction to
+`settled` or `refunded` depending on whether the provider got anything.
+`rpc_convert_deal_desk_request` creates a real `service_transactions`
+row from a Deal Desk request — but only for a customer who already has
+an account, looked up by phone or email; it deliberately does not create
+an account on the customer's behalf, which would be a separate, larger
+feature (invites, Admin API user creation). `rpc_decline_deal_desk_request`
+covers the request rejection case. Found and fixed a real unit bug in
+the same area while there: the provider-facing Deal Desk form divided a
+KES amount by 100 right after multiplying it by 100 (`Math.round(amountKes
+* 100) / 100`), silently storing whole KES into a column named
+`proposed_amount_minor` — no existing rows were affected (the table was
+empty).
+
+Verified live:
+
+| Check | Result |
+|---|---|
+| A non-admin cannot call `rpc_resolve_dispute` | PASS |
+| A split that doesn't add up to the service amount is rejected | PASS |
+| A valid custom split resolves correctly — ledger entries balance, dispute and transaction both reach the right terminal state | PASS |
+| An already-resolved dispute cannot be resolved again (and produces no duplicate ledger entries) | PASS |
+| A non-admin cannot call `rpc_convert_deal_desk_request` | PASS |
+| Converting to an unknown customer id is rejected | PASS |
+| A valid conversion creates a correct `service_transactions` row (origin, amounts, description carried over) and marks the request `converted` | PASS |
+| An already-converted request cannot be converted again | PASS |
+| `rpc_decline_deal_desk_request` works and is recorded in `admin_actions` | PASS |
+
+All 9 checks passed. Cleanup hit the same real, working control as
+before, in a second table this time: `ledger_entries` is also
+append-only, so the two fixture transactions (one disputed, one
+deal-desk-converted) couldn't be fully removed once ledger entries
+existed against them. Not disabled to force it through — contained the
+same way as the earlier residue (fixture provider unpublished, profiles
+relabeled, transactions moved to `closed`).
+
 ## Known gaps, stated rather than hidden
 
 - Only the flagship service (`know-before-you-pay`) has a full checklist.
@@ -342,9 +419,9 @@ security control that worked as designed, not a data-integrity bug.
   `rpc_submit_completion` has nothing to block on for them — not a bug
   (the function is unconditionally correct), but a scoping gap to close
   before those three are actively promoted.
-- Deal Desk requests are captured (`deal_desk_requests` table, RLS in place,
-  provider-facing form works) but there is no admin conversion flow from a
-  Deal Desk request into a funded `service_transaction` yet — that queue is
-  visible only via direct database access today.
+- Deal Desk conversion requires the off-platform customer to already have
+  a real account (the admin looks them up by phone/email) — there is no
+  invite-and-create-an-account flow, which would be a separate, larger
+  feature. Until the customer signs up, their request just waits.
 - No automated tests exist. Every verification in this document is either a
   direct database query or a build/typecheck pass, not a test suite.

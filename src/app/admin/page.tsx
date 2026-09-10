@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { formatMoney } from "@/lib/money";
 
 export default async function AdminOverviewPage() {
   const supabase = await createClient();
@@ -27,7 +28,7 @@ export default async function AdminOverviewPage() {
       </div>
       <p className="mt-6 text-sm text-[var(--muted)]">
         GMV (settled, service amount only, excludes materials pass-through):{" "}
-        <strong className="text-[var(--foreground)]">KSh {(gmvMinor).toLocaleString("en-KE")}</strong>
+        <strong className="text-[var(--foreground)]">{formatMoney(gmvMinor)}</strong>
       </p>
     </div>
   );
