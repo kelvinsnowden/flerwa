@@ -160,17 +160,32 @@ export default async function HomePage({
 }
 
 function EmptyStateBlock({ query, category }: { query?: string; category?: string }) {
+  if (category && !query) {
+    return (
+      <EmptyState
+        illustration="/images/empty-states/empty-search.svg"
+        title="More professionals are joining this category"
+        body="Check back soon, or post a task and we'll help you find someone."
+        action={
+          <div className="flex flex-col gap-2 w-full items-center">
+            <Link href="/tasks/new" className="btn-primary">
+              Post a task
+            </Link>
+            <Link href="/" className="btn-secondary">
+              Browse all services
+            </Link>
+          </div>
+        }
+      />
+    );
+  }
   return (
     <EmptyState
       illustration="/images/empty-states/empty-search.svg"
-      title={query ? `No services match "${query}"` : category ? `Nothing in ${category} yet` : "No services published yet"}
-      body={
-        query || category
-          ? "Try a different search, or browse all services."
-          : "Check back soon — new services are added regularly."
-      }
+      title={query ? `No services match "${query}"` : "No services published yet"}
+      body={query ? "Try a different search, or browse all services." : "Check back soon — new services are added regularly."}
       action={
-        (query || category) && (
+        query && (
           <Link href="/" className="btn-secondary">
             Browse all services
           </Link>
