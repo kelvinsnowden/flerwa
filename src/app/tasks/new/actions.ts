@@ -25,19 +25,27 @@ export async function postTask(formData: FormData) {
     return { error: "Budget must be a positive number." };
   }
 
+  const contactPhone = String(formData.get("contact_phone") ?? "").trim();
+  if (!contactPhone) return { error: "A contact phone number is required." };
+
   // RLS ("requests customer read/write own") is what actually enforces
   // that a request can only be created for the signed-in customer —
   // this insert would be rejected by the database, not just the UI, if
   // customer_id didn't match auth.uid().
-  const { error } = await supabase.from("service_requests").insert({
-    customer_id: user.id,
-    category_id: categoryId,
-    location_id: locationId || null,
-    title,
-    description,
-    budget_hint_minor: budgetHintMinor,
-  });
+  const { data, error } = await supabase
+    .from("service_requests")
+    .insert({
+      customer_id: user.id,
+      category_id: categoryId,
+      location_id: locationId || null,
+      title,
+      description,
+      budget_hint_minor: budgetHintMinor,
+      contact_phone: contactPhone,
+    })
+    .select("id")
+    .single();
   if (error) return { error: error.message };
 
-  redirect("/?task=1");
+  redirect(`/tasks/${data.id}`);
 }

@@ -94,6 +94,37 @@ does not automatically outrank one with 60 jobs and a real track record.
 Matches `docs/06-trust-architecture.md`'s "Bayesian cold start" rule
 directly.
 
+## The two-sided-marketplace correction (5 new migrations)
+
+`20260910180000_marketplace_intent_and_categories.sql` through
+`20260910220000_submit_for_verification_rpc.sql` — see
+`MARKETPLACE_UX_AUDIT.md` for the product-level why, `SELLER_FLOW.md` for
+the seller-facing flow these support end to end, `SECURITY.md` §9–11 for
+the authorization detail. Schema-level summary:
+
+- `profiles.intent` (nullable, checked `buyer|seller|both`) — onboarding
+  preference only, never read for access control.
+- 3 new `categories` rows (Home & Property, Personal, Errands & Tasks) +
+  7 new `services` rows under them with real scope/checklist items —
+  catalogue seeding, no fake providers/bookings/reviews.
+- `service_requests` gained `fulfilment_mode` (not null, defaulted),
+  `contact_phone`, `transaction_id` — needed to convert an accepted quote
+  into a real `service_transactions` row.
+- `providers.experience_summary` (nullable text) — seller-authored, shown
+  on their profile/wizard review step.
+- New `SECURITY DEFINER` functions: `rpc_set_provider_category` (seller
+  self-declares a category + competence `attributes`, never touches
+  `is_cleared`), `rpc_submit_quote`, `rpc_accept_quote` (creates the
+  `service_transactions` row — same table, same fee calc, same state
+  machine as `rpc_book_service`), `rpc_decline_quote`,
+  `rpc_submit_for_verification` (the only self-service path to
+  `verification_status = 'submitted'`).
+- `trg_guard_provider_trust_fields` (pre-existing, from an earlier
+  session) extended to also cover `is_published`, not just
+  `verification_status`/`verified_at` — see `SECURITY.md` §9 for exactly
+  what gap that closes, and for a correction to this pass's own first
+  (overstated) write-up of it.
+
 ## Row Level Security — the short version
 
 Default deny on all 29 tables. See `SECURITY.md` for what was actually

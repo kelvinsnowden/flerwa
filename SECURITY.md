@@ -25,8 +25,11 @@ migration, not just the source file.
 row, **but** `trg_profiles_guard_role` (a `BEFORE UPDATE` trigger) raises an
 exception if `role` changes and the caller is not already an admin. A user
 cannot make themselves an admin or a provider-privileged role through the
-`profiles` table. Provider status is separately controlled by
-`rpc_set_verification_status`, callable only by `is_admin()`.
+`profiles` table. Provider verification status is separately controlled by
+`rpc_set_verification_status`, callable only by `is_admin()`, and has been
+row-level guarded since `20260910120000_provider_avatar_and_trust_guard.sql`
+(`trg_guard_provider_trust_fields`) — see §9 for a narrower gap in that
+same trigger found and closed later.
 
 ### 3. Client-supplied price / payment state
 `rpc_book_service` resolves price server-side (`provider_services.price_minor`
@@ -99,6 +102,79 @@ caller regardless of the PostgREST grant. It was closed anyway, because the
 grant surface should match intent exactly, and because "the internal check
 saves us" is exactly the kind of assumption that should be verified, not
 trusted.
+
+### 9. `providers.is_published` — a narrower version of the same class of bug, found and corrected mid-pass
+While building the seller onboarding wizard's "submit for verification"
+step, went looking for whether a seller could self-promote their own
+`providers` row the same way `profiles.role` is guarded against. First
+pass here (now corrected) **wrongly claimed no guard existed at all** — a
+grep for `trg_providers_guard` missed the real, pre-existing trigger,
+named the other way round: `trg_guard_provider_trust_fields`
+(`20260910120000_provider_avatar_and_trust_guard.sql`). That trigger
+already blocked self-changes to `verification_status`, `verified_at`,
+`user_id`, and `id`. Re-checked directly against the live database
+(`pg_trigger`/`pg_get_functiondef`) before writing this correction, per
+this document's own standard at the top of the file.
+
+**What that pre-existing trigger did not cover: `is_published`.**
+`src/app/services/[slug]/page.tsx`'s provider-picker query filters on
+`is_published = true` (+ category clearance) without separately
+re-checking `verification_status` in that same query. So a seller who
+directly ran `update providers set is_published = true where user_id =
+auth.uid()` could appear as a bookable choice on a service page as soon
+as an admin had cleared them for at least one category (`provider_
+categories.is_cleared` — a real, separate admin action) — skipping the
+admin's distinct "go live" decision, even though `verification_status`
+itself stayed correctly guarded and unverified everywhere that field is
+shown. Smaller than the original write-up claimed, but real.
+
+Fix (`20260910230000_consolidate_provider_trust_guard.sql`): extended the
+**existing** `trg_guard_provider_trust_fields` to also cover
+`is_published`, rather than leaving a second, confusingly-named parallel
+trigger in place (an intermediate migration in this same pass had added
+one before the live-DB check surfaced the pre-existing one — dropped in
+the same consolidation migration). The one legitimate self-transition (a
+seller marking their own application `pending -> submitted`) goes through
+a narrow RPC, `rpc_submit_for_verification`, which sets a session-local
+bypass flag (`app.bypass_provider_trust_guard`) before its own single,
+hard-coded update — the same escape-hatch pattern
+`trg_guard_transaction_financial_write` already used for
+`app.bypass_txn_guard`. The RPC itself still refuses to run unless the
+current status is exactly `'pending'`, so it cannot be reused to reach
+`'verified'` or to self-publish independently of that one transition.
+
+### 10. New quote/task RPCs — authorization boundaries
+`rpc_submit_quote`, `rpc_accept_quote`, `rpc_decline_quote` (Post-a-Task's
+seller side, added in the same migration):
+- A seller can only quote on a request in a category they've declared via
+  `provider_categories` (checked inside `rpc_submit_quote`, not left to
+  RLS) — they cannot quote outside their stated competence.
+- A seller cannot submit a second quote on the same request (`quotes`'
+  `unique(request_id, provider_id)`) and cannot exceed 5 quotes per
+  request (pre-existing `trg_enforce_quote_cap`, untouched, still
+  `SECURITY DEFINER`).
+- Only the request's own `customer_id = auth.uid()` can accept or decline
+  a quote on it — checked explicitly in both RPCs, not inferred from RLS
+  alone.
+- Accepting one quote server-side declines every other pending quote on
+  the same request in the same transaction — a seller cannot "claim"
+  another seller's accepted slot after the fact, since `rpc_accept_quote`
+  re-checks `quotes.state = 'pending'` and `service_requests.state =
+  'open'` under `for update` locks before writing anything.
+- The resulting booking is created with the same 12% platform-fee
+  calculation `rpc_book_service` uses, through the same
+  `service_transactions` table and the same guarded state machine — no
+  parallel payment path, no way for either party to set price or state
+  directly.
+
+### 11. Seller self-declared categories — `rpc_set_provider_category`
+`provider_categories` is otherwise entirely admin-write (`is_cleared`,
+`cleared_by`, `jobs_completed`, `quality_rating`, `competence_score` are
+all trust-sensitive). This narrow RPC lets a seller upsert **only**
+`attributes` (their own free-text years-of-experience/specialties) for a
+category they're declaring — it never writes `is_cleared` or any of the
+admin-only columns, and `on conflict` only updates `attributes`. A seller
+cannot self-clear themselves for a category through this path.
 
 ## What was NOT tested, and why
 

@@ -40,25 +40,20 @@ export default async function AccountPage() {
       </div>
 
       <div className="mt-6 flex flex-col gap-2">
-        {provider && (
-          <Link href="/provider" className="card p-4 flex items-center justify-between hover:border-[var(--trust)] transition-colors">
-            <span className="flex items-center gap-2 font-medium">
-              <Icon name="wallet" size={18} className="text-[var(--trust)]" />
-              Seller dashboard
-              <VerificationBadge status={provider.verification_status} />
-            </span>
-            <Icon name="chevron-right" size={18} className="text-[var(--muted)]" />
-          </Link>
-        )}
-        {!provider && (
-          <Link href="/provider/apply" className="card p-4 flex items-center justify-between hover:border-[var(--trust)] transition-colors">
-            <span className="flex items-center gap-2 font-medium">
-              <Icon name="wallet" size={18} className="text-[var(--trust)]" />
-              Sell your services
-            </span>
-            <Icon name="chevron-right" size={18} className="text-[var(--muted)]" />
-          </Link>
-        )}
+        <Link href="/" className="card p-4 flex items-center justify-between hover:border-[var(--trust)] transition-colors">
+          <span className="flex items-center gap-2 font-medium">
+            <Icon name="search" size={18} className="text-[var(--trust)]" />
+            Find services
+          </span>
+          <Icon name="chevron-right" size={18} className="text-[var(--muted)]" />
+        </Link>
+        <Link href="/account/bookings" className="card p-4 flex items-center justify-between hover:border-[var(--trust)] transition-colors">
+          <span className="flex items-center gap-2 font-medium">
+            <Icon name="calendar" size={18} className="text-[var(--trust)]" />
+            Your bookings
+          </span>
+          <Icon name="chevron-right" size={18} className="text-[var(--muted)]" />
+        </Link>
         <Link href="/account/saved" className="card p-4 flex items-center justify-between hover:border-[var(--trust)] transition-colors">
           <span className="flex items-center gap-2 font-medium">
             <Icon name="heart" size={18} className="text-[var(--trust)]" />
@@ -73,13 +68,6 @@ export default async function AccountPage() {
           </span>
           <Icon name="chevron-right" size={18} className="text-[var(--muted)]" />
         </Link>
-        <Link href="/deal-desk" className="card p-4 flex items-center justify-between hover:border-[var(--trust)] transition-colors">
-          <span className="flex items-center gap-2 font-medium">
-            <Icon name="file-text" size={18} className="text-[var(--trust)]" />
-            Bring your own customer
-          </span>
-          <Icon name="chevron-right" size={18} className="text-[var(--muted)]" />
-        </Link>
         {profile?.role === "admin" && (
           <Link href="/admin" className="card p-4 flex items-center justify-between hover:border-[var(--trust)] transition-colors">
             <span className="flex items-center gap-2 font-medium">
@@ -89,6 +77,46 @@ export default async function AccountPage() {
             <Icon name="chevron-right" size={18} className="text-[var(--muted)]" />
           </Link>
         )}
+      </div>
+
+      <div className="mt-8">
+        <h2 className="text-xs font-semibold tracking-[0.1em] text-[var(--muted)] mb-3">SELL YOUR SERVICES</h2>
+        <div className="flex flex-col gap-2">
+          {provider ? (
+            <>
+              <Link href="/provider" className="card p-4 flex items-center justify-between hover:border-[var(--trust)] transition-colors">
+                <span className="flex items-center gap-2 font-medium">
+                  <Icon name="wallet" size={18} className="text-[var(--trust)]" />
+                  Seller dashboard
+                  <VerificationBadge status={provider.verification_status} />
+                </span>
+                <Icon name="chevron-right" size={18} className="text-[var(--muted)]" />
+              </Link>
+              <Link href="/provider/requests" className="card p-4 flex items-center justify-between hover:border-[var(--trust)] transition-colors">
+                <span className="flex items-center gap-2 font-medium">
+                  <Icon name="file-text" size={18} className="text-[var(--trust)]" />
+                  Task requests
+                </span>
+                <Icon name="chevron-right" size={18} className="text-[var(--muted)]" />
+              </Link>
+            </>
+          ) : (
+            <Link href="/provider/apply" className="card p-4 flex items-center justify-between hover:border-[var(--trust)] transition-colors">
+              <span className="flex items-center gap-2 font-medium">
+                <Icon name="wallet" size={18} className="text-[var(--trust)]" />
+                Sell your services
+              </span>
+              <Icon name="chevron-right" size={18} className="text-[var(--muted)]" />
+            </Link>
+          )}
+          <Link href="/deal-desk" className="card p-4 flex items-center justify-between hover:border-[var(--trust)] transition-colors">
+            <span className="flex items-center gap-2 font-medium">
+              <Icon name="user" size={18} className="text-[var(--trust)]" />
+              Bring your own customer
+            </span>
+            <Icon name="chevron-right" size={18} className="text-[var(--muted)]" />
+          </Link>
+        </div>
       </div>
 
       <div className="mt-8">

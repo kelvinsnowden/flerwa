@@ -12,9 +12,9 @@ import { EmptyState } from "@/components/ui/empty-state";
 export default async function HomePage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; category?: string; task?: string }>;
+  searchParams: Promise<{ q?: string; category?: string }>;
 }) {
-  const { q, category, task } = await searchParams;
+  const { q, category } = await searchParams;
   const supabase = await createClient();
 
   const {
@@ -63,23 +63,6 @@ export default async function HomePage({
           <SearchBar defaultValue={q} />
         </div>
       </section>
-
-      {task === "1" && (
-        <div className="mt-6 card p-4 flex items-center gap-3" style={{ borderColor: "var(--trust)" }}>
-          <span
-            className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
-            style={{ background: "var(--trust-tint)", color: "var(--trust)" }}
-          >
-            ✓
-          </span>
-          <div>
-            <p className="font-semibold text-sm">Task posted</p>
-            <p className="text-xs text-[var(--muted)]">
-              Professionals in that category can now see it and reach out with a quote.
-            </p>
-          </div>
-        </div>
-      )}
 
       {!q && !category && (
         <Link

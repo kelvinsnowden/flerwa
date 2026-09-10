@@ -23,6 +23,8 @@ const TYPE_ICON: Record<string, IconName> = {
   dispute_resolved: "shield-check",
   deal_desk_converted: "briefcase",
   booking_cancelled: "alert-circle",
+  quote_received: "file-text",
+  quote_accepted: "check-circle",
 };
 
 export default async function NotificationsPage() {

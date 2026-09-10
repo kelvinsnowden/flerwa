@@ -19,18 +19,28 @@ export function Combobox({
   placeholder = "Type to search…",
   required,
   defaultValue,
+  onChange,
 }: {
   name: string;
   options: ComboboxOption[];
   placeholder?: string;
   required?: boolean;
   defaultValue?: string;
+  /** Notified whenever the selected value changes — e.g. so a parent form
+   * can also filter a second field by the chosen location, without every
+   * caller having to DOM-query this component's hidden input. */
+  onChange?: (value: string) => void;
 }) {
   const initial = options.find((o) => o.value === defaultValue) ?? null;
   const [query, setQuery] = useState(initial?.label ?? "");
   const [selected, setSelected] = useState<ComboboxOption | null>(initial);
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
+
+  function select(o: ComboboxOption | null) {
+    setSelected(o);
+    onChange?.(o?.value ?? "");
+  }
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -55,9 +65,9 @@ export function Combobox({
     if (open) return;
     const match = options.find((o) => o.label === query);
     if (match) {
-      setSelected(match);
+      select(match);
     } else {
-      setSelected(null);
+      select(null);
       setQuery("");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -74,7 +84,7 @@ export function Combobox({
         value={query}
         onChange={(e) => {
           setQuery(e.target.value);
-          setSelected(null);
+          select(null);
           setOpen(true);
         }}
         onFocus={() => setOpen(true)}
@@ -99,7 +109,7 @@ export function Combobox({
                   type="button"
                   className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm hover:bg-[var(--surface)]"
                   onClick={() => {
-                    setSelected(o);
+                    select(o);
                     setQuery(o.label);
                     setOpen(false);
                   }}

@@ -7,6 +7,7 @@ import { ErrorNotice } from "@/components/error-notice";
 import { PhotoUpload } from "./photo-upload";
 import { BookingCard } from "@/components/ui/booking-card";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Icon } from "@/components/ui/icon";
 
 const VERIFICATION_COPY: Record<string, { label: string; tone: "warn" | "trust" }> = {
   pending: { label: "Complete your profile to submit for verification", tone: "warn" },
@@ -32,12 +33,21 @@ export default async function ProviderDashboardPage() {
 
   if (!provider) redirect("/provider/apply");
 
-  const { data: jobs, error: jobsError } = await supabase
-    .from("service_transactions")
-    .select("*, services(name)")
-    .eq("provider_id", provider.id)
-    .order("requested_at", { ascending: false })
-    .returns<(ServiceTransaction & { services: { name: string } | null })[]>();
+  const [{ data: jobs, error: jobsError }, { data: myServices }] = await Promise.all([
+    supabase
+      .from("service_transactions")
+      .select("*, services(name)")
+      .eq("provider_id", provider.id)
+      .order("requested_at", { ascending: false })
+      .returns<(ServiceTransaction & { services: { name: string } | null })[]>(),
+    supabase
+      .from("provider_services")
+      .select("service_id, price_minor, is_active, services(name, base_price_minor, currency)")
+      .eq("provider_id", provider.id)
+      .returns<
+        { service_id: string; price_minor: number | null; is_active: boolean; services: { name: string; base_price_minor: number; currency: string } | null }[]
+      >(),
+  ]);
 
   const reliability = provider.reliability_scores?.[0];
   const verificationCopy = VERIFICATION_COPY[provider.verification_status];
@@ -64,6 +74,46 @@ export default async function ProviderDashboardPage() {
             {verificationCopy.label}
           </span>
         </div>
+      </div>
+
+      <div className="mt-6 grid grid-cols-2 gap-2">
+        <Link href="/provider/requests" className="card p-3 flex items-center gap-2 text-sm font-medium hover:border-[var(--trust)] transition-colors">
+          <Icon name="file-text" size={16} className="text-[var(--trust)]" />
+          Task requests
+        </Link>
+        <Link href="/provider/apply" className="card p-3 flex items-center gap-2 text-sm font-medium hover:border-[var(--trust)] transition-colors">
+          <Icon name="briefcase" size={16} className="text-[var(--trust)]" />
+          Add a service
+        </Link>
+        <Link href="/messages" className="card p-3 flex items-center gap-2 text-sm font-medium hover:border-[var(--trust)] transition-colors">
+          <Icon name="message-circle" size={16} className="text-[var(--trust)]" />
+          Messages
+        </Link>
+        <Link href="/deal-desk" className="card p-3 flex items-center gap-2 text-sm font-medium hover:border-[var(--trust)] transition-colors">
+          <Icon name="user" size={16} className="text-[var(--trust)]" />
+          Bring your own customer
+        </Link>
+      </div>
+
+      <h2 className="mt-8 font-semibold">Your services</h2>
+      <div className="mt-3 flex flex-col gap-2">
+        {!myServices?.length && (
+          <p className="text-sm text-[var(--muted)]">
+            You haven&apos;t added any services yet.{" "}
+            <Link href="/provider/apply" className="font-semibold" style={{ color: "var(--trust)" }}>
+              Add one
+            </Link>
+            .
+          </p>
+        )}
+        {myServices?.map((s) => (
+          <div key={s.service_id} className="card p-3 flex items-center justify-between">
+            <span className="text-sm font-medium">{s.services?.name}</span>
+            <span className="text-sm text-[var(--muted)]">
+              {formatMoney(s.price_minor ?? s.services?.base_price_minor ?? 0, s.services?.currency)}
+            </span>
+          </div>
+        ))}
       </div>
 
       {jobsError && (

@@ -72,6 +72,11 @@ export function TaskForm({
         <input name="budget_hint" type="number" min="0" step="1" placeholder="e.g. 3000" className="mt-1" />
       </label>
 
+      <label className="text-sm font-medium">
+        Contact phone
+        <input name="contact_phone" type="tel" required placeholder="07XX XXX XXX" className="mt-1" />
+      </label>
+
       {error && <p className="notice-error">{error}</p>}
 
       <button type="submit" disabled={isPending} className="btn-primary">

@@ -12,6 +12,15 @@ key available anywhere in the repo or conversation history) — this audit is
 based on `/design-references/mobile/*.png` (2 screens: login, OTP) and a
 direct read of the current implementation.
 
+**Update:** the top of §11's follow-up list (seller onboarding wizard,
+Post-a-Task's provider side, real services under the new categories) was
+built in the very next pass — see `SELLER_FLOW.md` for how, and
+`SECURITY.md` §9–11 for a real, pre-existing authorization gap
+(`providers.verification_status` had no guard trigger) found and fixed
+while building it. §11 below is left as originally written for the
+historical record; treat `SELLER_FLOW.md`'s own "still deferred" section
+as the current one.
+
 ## 1. What the architecture already got right
 
 Before touching anything, the actual database/backend was checked against
