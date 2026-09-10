@@ -59,7 +59,10 @@ export function PhoneForm({ next }: { next?: string }) {
 
       <p className="flex items-start gap-2 text-xs text-[var(--muted)] bg-[var(--trust-tint)] rounded-lg p-3">
         <Icon name="shield-check" size={16} className="text-[var(--trust)] flex-shrink-0 mt-0.5" />
-        Your information is protected. We never share it without your consent.
+        <span>
+          <span className="block font-medium text-[var(--foreground)]">Your information is safe</span>
+          We use industry-standard security to keep your data protected.
+        </span>
       </p>
     </form>
   );

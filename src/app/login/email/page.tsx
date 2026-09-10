@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { AuthForm } from "@/components/auth-form";
-import { Icon } from "@/components/ui/icon";
+import { AuthHeader } from "@/components/auth-header";
 import { login } from "../actions";
 
 export default async function LoginEmailPage({
@@ -12,10 +12,10 @@ export default async function LoginEmailPage({
 
   return (
     <div className="mx-auto max-w-sm px-4 py-12">
-      <Link href={`/login${next ? `?next=${encodeURIComponent(next)}` : ""}`} className="text-sm text-[var(--muted)] flex items-center gap-1 mb-4">
-        <Icon name="chevron-right" size={14} className="rotate-180" />
-        Use phone number instead
-      </Link>
+      <AuthHeader
+        backHref={`/login${next ? `?next=${encodeURIComponent(next)}` : ""}`}
+        backLabel="Use phone number instead"
+      />
       <h1 className="text-2xl font-bold">Log in with email</h1>
       <p className="text-sm text-[var(--muted)] mt-1">
         New here?{" "}

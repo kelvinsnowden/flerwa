@@ -10,15 +10,30 @@ plus a shared component library in `src/components/ui/`.
 
 This brief asked for the approved reference images to be inspected from a
 `/design-references` folder in the repository. As of this document, **that
-folder does not exist** — the repo was checked and only the default
-Next.js starter SVGs were present under `public/`. The design language
-documented here was extracted from the five mobile design-image sets the
-user attached directly in conversation during the prior redesign session,
-which this Claude session still has full recall of. If the actual approved
-files are added to the repo under `/design-references`, they should be
-diffed against this document and the component library updated for any
-real discrepancy — treat this document as a snapshot, not a guarantee of
-pixel-perfect match to files that were never actually inspected on disk.
+folder still only holds `01-login.png` and `02-otp.png`** — every other
+reference screen (including a full second, more complete round shared
+later covering discovery/booking/tracking/evidence/review, and a separate
+auth-flow round with different framing) exists only as images attached
+directly in chat, never as files this session has any tool-level way to
+write to disk. That's a real tool gap, not an oversight: there is no
+"save this pasted image" capability available here. Every visual claim in
+this document and in `SECURITY.md`'s per-feature notes that says a screen
+was checked "against the mockups" means checked against those in-chat
+images while they were actually visible in context, not against files on
+disk — if a future session revisits this without that chat history, it
+should ask for the images again rather than trust stale recall, and treat
+this document as a snapshot rather than a guarantee of continued
+pixel-perfect match.
+
+One further honest gap from that comparison: the phone-entry mockup shows
+a thin decorative Nairobi-skyline line-art illustration + a handwritten
+"For a brighter Kenya" tagline at the screen's foot. The tagline is real
+(`src/components/auth-skyline-footer.tsx`); the line-art was meant to be
+a new SVGator asset per this session's own convention (see `ASSETS.md`),
+but SVGator was failing to export even a single bare shape when this was
+built — isolated with minimal repros, not a JSON authoring mistake. Ships
+without the illustration for now rather than block on a broken tool or
+hand-author it against the established convention.
 
 ## Principles
 
@@ -158,18 +173,47 @@ Toggled from the `SaveButton` heart icon on `ProviderCard` (services list,
 listed at `/account/saved` using `empty-saved.svg` for the empty case. See
 `SECURITY.md` for the live RLS verification.
 
+## Two deliberate deviations from the reference mockups
+
+The `Payment` screen in the mockups shared directly in chat shows an
+in-app "Pay KSh 6,000" button that triggers an immediate M-Pesa STK push,
+styled with Safaricom's actual M-PESA wordmark/logo. Two separate reasons
+this was **not** reproduced as shown, rather than silently diverging or
+silently complying:
+
+1. **No real STK push exists.** Payment stays admin-confirmed after an
+   out-of-band M-Pesa transfer (see `SECURITY.md`/`docs/07-payments.md`) —
+   there is no Safaricom Daraja API integration, and building a "Pay Now"
+   button that doesn't actually charge anything would fake a successful
+   payment state, which this session's explicit constraints forbid outright
+   (see the phone/OTP correction earlier in this document's history: no
+   faked auth or payment states, ever). The honest version of this screen
+   is the existing "we'll be in touch to confirm payment" flow — matching
+   the mockup's visual polish is worth doing, but not at the cost of
+   implying a transaction that doesn't happen.
+2. **The trademark itself.** `mpesa-payment.svg` is a deliberately
+   **generic** mobile-money illustration, not a reproduction of Safaricom's
+   actual M-PESA logo — using the real mark without a licensing agreement
+   this session has no way to obtain would be a real brand/legal risk, not
+   just a design choice.
+
+If real Daraja credentials and an M-Pesa brand licence are supplied, both
+of these become straightforward to build for real; until then, reproducing
+the mockup's payment screen exactly would mean shipping something fake.
+
 ## What is intentionally NOT built
 
-- **Real M-Pesa integration / STK push.** Payment remains admin-confirmed
-  after an out-of-band M-Pesa transfer (see `SECURITY.md`/`docs/07-payments.md`).
-  `mpesa-payment.svg` is a **generic** mobile-money illustration — it does
-  not reproduce Safaricom's actual M-Pesa trademark/logo, since that would
-  require a real licensing agreement this session has no way to obtain.
-- **Photography.** No provider/property/Nairobi photographs were sourced —
-  this session has no stock-photography or image-generation tool, and
-  fetching arbitrary photos from the internet for production use would be
-  both a licensing risk and outside what a coding session should do
-  unattended. Every illustrative surface uses the SVGator-authored SVG system
-  instead. If real photography is wanted, it needs to be supplied by the
-  team (e.g. under `/public/images/photos/`) and wired in with
-  `next/image` — no code changes are blocked on this, it's a pure asset gap.
+- **Real M-Pesa STK push.** See above.
+- **Stock/decorative photography** (service-category imagery, hero
+  banners). Real *provider* photos now exist (see the "Provider photos"
+  section above) — that gap is closed. What remains is generic
+  illustrative photography (a Nairobi skyline banner, category thumbnails)
+  that the mockups also show; this session has no stock-photography
+  source, and an AI image-generation connector (Ideogram) was connected
+  mid-session but its results couldn't be pulled into the repo — the
+  session's network egress policy blocks direct downloads from
+  `ideogram.ai`. Every such illustrative surface uses the SVGator-authored
+  SVG system instead. If real photography or a working image pipeline is
+  supplied, it needs to land under `/public/images/photos/` and be wired in
+  with `next/image` — no code changes are blocked on this, it's a pure
+  asset gap.
