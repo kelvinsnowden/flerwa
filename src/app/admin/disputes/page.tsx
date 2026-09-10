@@ -57,7 +57,7 @@ export default async function AdminDisputesPage() {
               serviceAmountMinor: d.service_transactions?.service_amount_minor ?? 0,
               currency: d.service_transactions?.currency ?? "KES",
               serviceName: d.service_transactions?.services?.name ?? "Service",
-              providerName: d.service_transactions?.providers?.display_name ?? "Provider",
+              providerName: d.service_transactions?.providers?.display_name ?? "Pro",
               customerName: d.service_transactions?.profiles?.full_name ?? "Customer",
             }}
           />

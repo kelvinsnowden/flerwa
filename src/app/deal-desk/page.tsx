@@ -27,11 +27,11 @@ export default async function DealDeskPage() {
       {!provider ? (
         <div className="mt-6 card p-5">
           <p className="text-sm">
-            Deal Desk is for providers. Apply as a provider first, then come
+            Deal Desk is for Pros. Apply as a Pro first, then come
             back here.
           </p>
           <a href="/provider/apply" className="btn-primary mt-4 inline-block">
-            Apply as a provider
+            Apply as a Pro
           </a>
         </div>
       ) : (

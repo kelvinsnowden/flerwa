@@ -8,14 +8,14 @@ export async function submitDealDeskRequest(formData: FormData) {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return { error: "Please log in as a provider first." };
+  if (!user) return { error: "Please log in as a Pro first." };
 
   const { data: provider } = await supabase
     .from("providers")
     .select("id")
     .eq("user_id", user.id)
     .maybeSingle();
-  if (!provider) return { error: "You need a provider profile first — apply as a provider." };
+  if (!provider) return { error: "You need a Pro profile first — apply as a Pro." };
 
   const customerEmail = String(formData.get("customer_email") ?? "").trim();
   const customerPhone = String(formData.get("customer_phone") ?? "").trim();

@@ -43,7 +43,7 @@ export async function applyAsProvider(formData: FormData) {
   });
 
   if (error) {
-    if (error.code === "23505") return { error: "You've already applied as a provider." };
+    if (error.code === "23505") return { error: "You've already applied as a Pro." };
     return { error: error.message };
   }
 

@@ -27,7 +27,7 @@ export function DisputeLink({ transactionId }: { transactionId: string }) {
 
   return (
     <div className="mt-4 flex flex-col gap-2">
-      <input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Reason (e.g. provider hasn't shown up)" />
+      <input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Reason (e.g. pro hasn't shown up)" />
       <textarea rows={3} value={detail} onChange={(e) => setDetail(e.target.value)} placeholder="What went wrong? Be specific." />
       {error && <p className="notice-error">{error}</p>}
       <div className="flex gap-2">

@@ -20,7 +20,7 @@ export default async function ProviderApplyPage() {
 
   return (
     <div className="mx-auto max-w-lg px-4 py-10">
-      <h1 className="text-2xl font-bold">Become a provider</h1>
+      <h1 className="text-2xl font-bold">Become a Pro</h1>
       <p className="text-sm text-[var(--muted)] mt-1">
         Get discovered. Get paid securely. Every completed job builds your
         professional record — not just another listing.

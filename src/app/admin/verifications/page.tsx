@@ -49,7 +49,7 @@ export default async function AdminVerificationsPage() {
     <div>
       <h1 className="text-xl font-bold mb-6">Verification queue</h1>
       {withDocUrls.length === 0 && (
-        <p className="text-sm text-[var(--muted)]">No providers awaiting verification.</p>
+        <p className="text-sm text-[var(--muted)]">No Pros awaiting verification.</p>
       )}
       <div className="flex flex-col gap-4">
         {withDocUrls.map((provider) => (

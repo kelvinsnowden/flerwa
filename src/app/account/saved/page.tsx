@@ -27,17 +27,17 @@ export default async function SavedProvidersPage() {
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-8 pb-4">
-      <h1 className="text-2xl font-bold mb-6">Saved providers</h1>
+      <h1 className="text-2xl font-bold mb-6">Saved Pros</h1>
 
       {error && (
-        <ErrorNotice message="We couldn't load your saved providers right now. Please refresh — this does not mean you have none saved." />
+        <ErrorNotice message="We couldn't load your saved pros right now. Please refresh — this does not mean you have none saved." />
       )}
 
       {!error && !saved?.length && (
         <EmptyState
           illustration="/images/empty-states/empty-saved.svg"
-          title="No saved providers yet"
-          body="Tap the heart on a provider's profile to keep them here for later."
+          title="No saved Pros yet"
+          body="Tap the heart on a pro's profile to keep them here for later."
           action={
             <Link href="/" className="btn-primary">
               Browse services

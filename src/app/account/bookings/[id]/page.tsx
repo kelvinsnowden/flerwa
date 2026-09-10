@@ -108,9 +108,9 @@ export default async function BookingDetailPage({
           </div>
           <div className="mt-4 rounded-lg bg-[var(--surface)] p-3 text-xs text-[var(--muted)] flex flex-col gap-1.5">
             <p className="font-semibold text-[var(--foreground)]">What happens next</p>
-            <p>Provider confirms (usually within 1 hour)</p>
+            <p>Pro confirms (usually within 1 hour)</p>
             <p>You&apos;ll get updates in the app</p>
-            <p>The provider will contact you before the visit</p>
+            <p>The pro will contact you before the visit</p>
           </div>
           <Link href="/" className="btn-secondary w-full mt-4">
             Back to home
@@ -123,7 +123,7 @@ export default async function BookingDetailPage({
       </div>
 
       <div className="mt-4 card p-4 flex flex-col gap-2 text-sm">
-        <Row label="Provider" value={booking.providers?.display_name ?? "Awaiting assignment"} />
+        <Row label="Pro" value={booking.providers?.display_name ?? "Awaiting assignment"} />
         <Row
           label="Location"
           value={booking.locations ? `${booking.locations.ward ?? ""} ${booking.locations.town}`.trim() : "—"}
@@ -139,7 +139,7 @@ export default async function BookingDetailPage({
                 : payment.state === "funded"
                   ? "Confirmed & held"
                   : payment.state === "released"
-                    ? "Released to provider"
+                    ? "Released to pro"
                     : payment.state
           }
         />
@@ -172,7 +172,7 @@ export default async function BookingDetailPage({
           <Image src="/images/success/success-completion.svg" alt="" width={64} height={64} />
           <p className="font-semibold mt-2">Inspection completed</p>
           <p className="text-sm text-[var(--muted)] mt-1">
-            {booking.providers?.display_name ?? "Your provider"} has submitted the full report for your review.
+            {booking.providers?.display_name ?? "Your Pro"} has submitted the full report for your review.
           </p>
         </div>
       )}
@@ -187,7 +187,7 @@ export default async function BookingDetailPage({
           </h2>
           {booking.completion_summary && (
             <div className="card p-4 mb-3">
-              <p className="text-xs font-semibold text-[var(--muted)] mb-1">Provider notes</p>
+              <p className="text-xs font-semibold text-[var(--muted)] mb-1">Pro notes</p>
               <p className="text-sm">{booking.completion_summary}</p>
             </div>
           )}
@@ -222,7 +222,7 @@ export default async function BookingDetailPage({
           <div className="flex flex-col gap-2 w-full mt-4">
             {booking.providers && (
               <Link href={`/provider/${booking.providers.slug}`} className="btn-primary w-full">
-                Book provider again
+                Book Pro again
               </Link>
             )}
             <a href="#report" className="btn-secondary w-full">

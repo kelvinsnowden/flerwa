@@ -106,7 +106,7 @@ export default async function HomePage({
 
       <section className="mt-10 card p-5 text-sm text-[var(--muted)]">
         <p>
-          Have an existing arrangement with a provider you already trust?{" "}
+          Have an existing arrangement with a Pro you already trust?{" "}
           <Link href="/deal-desk" className="font-semibold" style={{ color: "var(--trust)" }}>
             Bring it onto the platform
           </Link>{" "}

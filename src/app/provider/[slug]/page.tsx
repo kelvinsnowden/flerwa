@@ -33,7 +33,7 @@ export default async function ProviderStorefrontPage({
   if (providerError && providerError.code !== "PGRST116") {
     return (
       <div className="mx-auto max-w-2xl px-4 py-10">
-        <ErrorNotice message="We couldn't load this provider's profile right now. Please refresh." />
+        <ErrorNotice message="We couldn't load this pro's profile right now. Please refresh." />
       </div>
     );
   }

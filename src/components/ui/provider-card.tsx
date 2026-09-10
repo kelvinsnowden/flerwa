@@ -36,7 +36,7 @@ export function ProviderCard({
           {reliability?.avg_rating != null ? (
             <Rating value={reliability.avg_rating} count={reliability.sample_size} />
           ) : (
-            <span>New provider</span>
+            <span>New Pro</span>
           )}
           {reliability?.jobs_completed != null && reliability.jobs_completed > 0 && (
             <span>{reliability.jobs_completed} jobs done</span>

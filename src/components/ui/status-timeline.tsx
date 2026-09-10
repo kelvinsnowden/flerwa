@@ -3,14 +3,14 @@ import type { TxnState } from "@/lib/types";
 const STEPS: { label: string; states: TxnState[] }[] = [
   { label: "Booked", states: ["requested", "quoted", "quote_accepted"] },
   { label: "Payment confirmed", states: ["funded", "scheduled"] },
-  { label: "Provider on site", states: ["en_route", "checked_in", "in_progress"] },
+  { label: "Pro on site", states: ["en_route", "checked_in", "in_progress"] },
   { label: "Report ready", states: ["evidence_submitted", "customer_review", "revision_requested"] },
   { label: "Completed", states: ["approved", "released", "settled", "reviewed", "closed"] },
 ];
 
 const OFF_PATH: Partial<Record<TxnState, string>> = {
   cancelled_by_customer: "Cancelled by you",
-  cancelled_by_provider: "Cancelled by the provider",
+  cancelled_by_provider: "Cancelled by the pro",
   expired: "This booking expired",
   disputed: "Under dispute review",
   refunded: "Refunded",

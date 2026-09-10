@@ -27,7 +27,7 @@ export function ApproveOrReviseControls({
         <Image src="/images/success/success-completion.svg" alt="" width={64} height={64} className="flex-shrink-0" />
         <div>
           <p className="font-semibold">Payment released</p>
-          <p className="text-sm text-[var(--muted)]">Thanks for confirming — your provider has been paid.</p>
+          <p className="text-sm text-[var(--muted)]">Thanks for confirming — your pro has been paid.</p>
         </div>
       </div>
     );
@@ -191,7 +191,7 @@ export function ReviewForm({
         <Avatar name={revieweeName} photoUrl={revieweePhotoUrl} />
         <div>
           <p className="font-semibold">{revieweeName}</p>
-          <p className="text-xs text-[var(--muted)]">Provider</p>
+          <p className="text-xs text-[var(--muted)]">Pro</p>
         </div>
       </div>
 

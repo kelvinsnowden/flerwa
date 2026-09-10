@@ -65,7 +65,7 @@ export default async function MessagesInboxPage() {
         <EmptyState
           illustration="/images/empty-states/empty-messages.svg"
           title="No conversations yet"
-          body="Once you have an active booking, you can message your provider or customer here."
+          body="Once you have an active booking, you can message your Pro or customer here."
         />
       )}
 
@@ -73,7 +73,7 @@ export default async function MessagesInboxPage() {
         {threadList.map(({ latest, txn, unread }) => {
           const isCustomer = txn.customer_id === user.id;
           const otherName = isCustomer
-            ? txn.providers?.display_name ?? "Provider"
+            ? txn.providers?.display_name ?? "Pro"
             : txn.profiles?.full_name ?? "Customer";
           const otherPhotoUrl = isCustomer ? txn.providers?.profiles?.avatar_url ?? null : txn.profiles?.avatar_url ?? null;
           return (

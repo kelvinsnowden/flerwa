@@ -23,7 +23,7 @@ export function SaveButton({
     <button
       type="button"
       aria-pressed={saved}
-      aria-label={saved ? "Remove from saved providers" : "Save provider"}
+      aria-label={saved ? "Remove from saved pros" : "Save pro"}
       disabled={isPending}
       onClick={(e) => {
         e.preventDefault();
