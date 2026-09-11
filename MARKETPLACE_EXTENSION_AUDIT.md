@@ -189,9 +189,52 @@ Chef is follow-up work given this pass's scope).
   a confirmed booking — holds at the database level, not just in
   application code.
 
-  **Still open on this step**: the customer-facing slot-picker UI for
-  Chef bookings (currently the booking form still takes a free
-  `datetime-local` input with no visibility into which slots are actually
-  open), and the provider-side availability management UI (setting
-  weekly hours / blocking time off). Both tracked as the next two pieces
-  of work.
+  **Now built**: `rpc_get_available_slots` (read-only, mirrors the same
+  rules/blocked/booked checks as `rpc_book_service`) backs a real slot
+  picker on the booking form — for `scheduling_mode = 'scheduled'`
+  services the free `datetime-local` field is replaced by a date picker
+  and a grid of actually-open times; submission is disabled until a real
+  slot is chosen. A provider-facing Availability page
+  (`/provider/availability`) lets a professional set weekly working hours
+  and block time off, using the same plain RLS self-write pattern as
+  `provider_service_areas` — no RPC needed for that part.
+
+- **Terminology pass** (step 3): grepped every customer-facing file under
+  `src/app` for "Job"/"Jobs" and replaced with "Service"/"booking" —
+  storefront stat tiles, ProviderCard, the booking flow's provider picker
+  and "what happens next" copy, the booking detail page's evidence and
+  dispute copy, the shared notifications empty-state, the trust-signal
+  row, and the site meta description. A second pass on the *catalogue*
+  itself (service summaries/descriptions and checklist item labels, which
+  are customer-visible on the storefront and the evidence-review screen)
+  found and fixed three more "provider" mentions the code-only grep
+  couldn't see (`know-before-you-pay`, `viewed-for-you`,
+  `document-collection` service text; two checklist item labels).
+  Provider-facing surfaces (`/provider` dashboard, `/provider/jobs/[id]`,
+  Deal Desk, admin) intentionally keep "job" as their own operational
+  vocabulary — out of the brief's customer-facing scope — and internal
+  route/DB/code names are unchanged, no unnecessary renaming.
+
+## Final verification
+
+- `npx tsc --noEmit` and `npm run build` both clean after every step
+  above (re-run one final time at the end of the pass).
+- Live-checked the production deployment (auto-deployed from each push):
+  the redesigned Personal Chef service detail page correctly shows the
+  new "This service runs on a real calendar — choose a professional
+  above to see their open times" copy and a disabled "Choose a time to
+  continue" button (no cleared/verified chef provider exists yet in
+  production, so no slot picker renders — this is the correct, honest
+  empty state, not a bug); `/messages` and `/provider/availability` both
+  correctly redirect an unauthenticated visitor to
+  `/login?next=<path>` with a 200 response, no server error.
+- The double-booking conflict guarantee was verified against the live
+  database with role-simulated SQL (synthetic fixtures inside a
+  rolled-back transaction, nothing persisted): two customers attempting
+  an overlapping slot cannot both get a confirmed booking.
+- Not independently re-verified end-to-end in a browser with a real
+  signed-in customer and a real onboarded chef provider with configured
+  availability — that would require creating real accounts in
+  production. The server-side conflict guarantee (the actual safety
+  property the brief requires) is proven at the database level
+  regardless of what any particular UI session does.
