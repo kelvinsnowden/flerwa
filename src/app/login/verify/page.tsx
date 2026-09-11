@@ -36,7 +36,7 @@ export default async function VerifyPage({
         </span>
       </p>
 
-      <AuthSkylineFooter activeDot={0} />
+      <AuthSkylineFooter />
     </div>
   );
 }

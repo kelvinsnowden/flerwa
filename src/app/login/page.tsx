@@ -19,11 +19,8 @@ export default async function LoginPage({
 
   return (
     <div className="flex flex-col min-h-dvh">
-      {/* Hero: nairobi-skyline-hero.jpg per design-references/mobile/01-login.png —
-          tall enough to still show behind the phone-entry card below, not just
-          behind the header/tagline, so the image reads as one continuous scene
-          rather than a banner that hands off to plain white. */}
-      <div className="relative w-full h-[620px] flex-shrink-0 overflow-hidden">
+      {/* Hero: nairobi-skyline-hero.jpg per design-references/mobile/01-login.png */}
+      <div className="relative w-full h-[440px] flex-shrink-0 overflow-hidden">
         <Image
           src="/images/photos/nairobi-skyline-hero.jpg"
           alt="The Nairobi skyline at golden hour"
@@ -34,7 +31,7 @@ export default async function LoginPage({
         />
         <div
           className="absolute inset-0"
-          style={{ background: "linear-gradient(to bottom, rgba(255,255,255,0) 55%, var(--background) 92%)" }}
+          style={{ background: "linear-gradient(to bottom, rgba(255,255,255,0) 75%, var(--background) 98%)" }}
         />
         <div className="relative z-10 px-4 pt-5 flex flex-col items-center">
           <AuthHeader showHelp />
@@ -52,7 +49,7 @@ export default async function LoginPage({
         </div>
       </div>
 
-      <div className="mx-auto max-w-sm w-full px-4 -mt-40 relative z-10 pb-4 flex flex-col flex-1">
+      <div className="mx-auto max-w-sm w-full px-4 -mt-12 relative z-10 pb-4 flex flex-col flex-1">
         <div className="card p-5 shadow-lg">
           <h2 className="text-lg font-bold text-center">Enter your phone number</h2>
           <p className="text-sm text-[var(--muted)] mt-1 text-center">
@@ -77,7 +74,7 @@ export default async function LoginPage({
           ))}
         </div>
 
-        <AuthSkylineFooter activeDot={0} />
+        <AuthSkylineFooter />
       </div>
     </div>
   );
