@@ -38,3 +38,19 @@ export async function bookService(formData: FormData) {
 
   redirect(`/account/bookings/${data}?created=1`);
 }
+
+// Read-only: mirrors the exact rules/blocked/booked checks rpc_book_service
+// itself enforces at write time, so what the customer sees here is
+// consistent with what booking will actually accept. rpc_book_service still
+// independently re-validates server-side — this is a display aid, not the
+// source of truth for whether a slot is really available.
+export async function getAvailableSlots(providerId: string, serviceId: string, date: string) {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("rpc_get_available_slots", {
+    p_provider_id: providerId,
+    p_service_id: serviceId,
+    p_date: date,
+  });
+  if (error) return { error: error.message };
+  return { slots: (data ?? []).map((r: { slot_start: string }) => r.slot_start) };
+}

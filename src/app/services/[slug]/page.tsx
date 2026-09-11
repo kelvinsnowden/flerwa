@@ -169,6 +169,7 @@ export default async function ServiceDetailPage({
           preselectedProviderId={preselectedProvider?.id}
           preselectedProviderName={preselectedProvider?.display_name}
           preselectedPhotoUrl={preselectedProvider?.profiles?.avatar_url}
+          preselectedProviderMaxAdvanceDays={preselectedProvider?.max_advance_days}
         />
       </div>
 

@@ -6,6 +6,7 @@ import type { Service, Location, Provider, ReliabilityScore } from "@/lib/types"
 import { Avatar } from "@/components/ui/avatar";
 import { Combobox } from "@/components/ui/combobox";
 import { bookService } from "./actions";
+import { SlotPicker } from "./slot-picker";
 
 export function BookingForm({
   service,
@@ -14,6 +15,7 @@ export function BookingForm({
   preselectedProviderId,
   preselectedProviderName,
   preselectedPhotoUrl,
+  preselectedProviderMaxAdvanceDays,
 }: {
   service: Service;
   locations: Location[];
@@ -21,10 +23,13 @@ export function BookingForm({
   preselectedProviderId?: string;
   preselectedProviderName?: string;
   preselectedPhotoUrl?: string | null;
+  preselectedProviderMaxAdvanceDays?: number;
 }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
+  const isScheduled = service.scheduling_mode === "scheduled";
 
   return (
     <form
@@ -73,6 +78,16 @@ export function BookingForm({
           </div>
           <input type="hidden" name="provider_id" value={preselectedProviderId} />
         </div>
+      ) : isScheduled ? (
+        <div className="rounded-lg bg-[var(--surface)] p-3 text-sm">
+          This service runs on a real calendar — choose a professional above
+          to see their open times.
+          {providers.length > 0 && (
+            <a href="#providers" className="block mt-1 text-xs font-semibold" style={{ color: "var(--trust)" }}>
+              Choose a professional →
+            </a>
+          )}
+        </div>
       ) : (
         <label className="text-sm font-medium">
           Professional
@@ -102,10 +117,26 @@ export function BookingForm({
         </label>
       )}
 
-      <label className="text-sm font-medium">
-        Preferred date
-        <input type="datetime-local" name="scheduled_for" className="mt-1" />
-      </label>
+      {isScheduled && preselectedProviderId ? (
+        <div>
+          <span className="text-sm font-medium">Choose a time</span>
+          <div className="mt-1">
+            <SlotPicker
+              providerId={preselectedProviderId}
+              serviceId={service.id}
+              maxAdvanceDays={preselectedProviderMaxAdvanceDays ?? 60}
+              selected={selectedSlot}
+              onSelect={setSelectedSlot}
+            />
+          </div>
+          <input type="hidden" name="scheduled_for" value={selectedSlot ?? ""} />
+        </div>
+      ) : !isScheduled ? (
+        <label className="text-sm font-medium">
+          Preferred date
+          <input type="datetime-local" name="scheduled_for" className="mt-1" />
+        </label>
+      ) : null}
 
       <label className="text-sm font-medium">
         Contact phone
@@ -137,8 +168,12 @@ export function BookingForm({
         <p>3. Your professional is assigned or confirmed and the job gets scheduled.</p>
       </div>
 
-      <button type="submit" disabled={isPending} className="btn-primary">
-        {isPending ? "Booking…" : "Book this service"}
+      <button
+        type="submit"
+        disabled={isPending || (isScheduled && (!preselectedProviderId || !selectedSlot))}
+        className="btn-primary"
+      >
+        {isPending ? "Booking…" : isScheduled && !selectedSlot ? "Choose a time to continue" : "Book this service"}
       </button>
     </form>
   );

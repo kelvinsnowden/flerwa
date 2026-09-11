@@ -93,6 +93,10 @@ export default async function ProviderDashboardPage() {
           <Icon name="user" size={16} className="text-[var(--trust)]" />
           Bring your own customer
         </Link>
+        <Link href="/provider/availability" className="card p-3 flex items-center gap-2 text-sm font-medium hover:border-[var(--trust)] transition-colors">
+          <Icon name="clock" size={16} className="text-[var(--trust)]" />
+          Availability
+        </Link>
       </div>
 
       <h2 className="mt-8 font-semibold">Your services</h2>
