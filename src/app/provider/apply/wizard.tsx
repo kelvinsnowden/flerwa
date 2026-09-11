@@ -158,7 +158,8 @@ export function Wizard({
             <Combobox
               name="location_id"
               defaultValue={locationId}
-              placeholder="Type an area…"
+              freeText
+              placeholder="Type your area or town — anywhere in Kenya…"
               onChange={setLocationId}
               options={locations.map((l) => ({ value: l.id, label: l.ward ? `${l.ward}, ${l.town}` : l.town }))}
             />

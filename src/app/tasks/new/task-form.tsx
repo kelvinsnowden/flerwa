@@ -48,7 +48,8 @@ export function TaskForm({
         Where
         <Combobox
           name="location_id"
-          placeholder="Type an area…"
+          freeText
+          placeholder="Type your area or town — anywhere in Kenya…"
           options={locations.map((l) => ({
             value: l.id,
             label: l.ward ? `${l.ward}, ${l.town}` : l.town,

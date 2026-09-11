@@ -51,7 +51,8 @@ export function BookingForm({
           <Combobox
             name="location_id"
             required
-            placeholder="Type an area…"
+            freeText
+            placeholder="Type your area or town — anywhere in Kenya…"
             options={locations.map((loc) => ({
               value: loc.id,
               label: loc.ward ? `${loc.ward}, ${loc.town}` : loc.town,

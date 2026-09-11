@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { resolveLocationId } from "@/lib/resolve-location";
 
 export async function postTask(formData: FormData) {
   const supabase = await createClient();
@@ -11,7 +12,9 @@ export async function postTask(formData: FormData) {
   if (!user) return { error: "Please log in to post a task." };
 
   const categoryId = String(formData.get("category_id") ?? "");
-  const locationId = String(formData.get("location_id") ?? "");
+  const rawLocation = String(formData.get("location_id") ?? "");
+  const { id: locationId, error: locationError } = await resolveLocationId(supabase, rawLocation);
+  if (locationError) return { error: locationError };
   const title = String(formData.get("title") ?? "").trim();
   const description = String(formData.get("description") ?? "").trim();
   const budgetRaw = String(formData.get("budget_hint") ?? "").trim();
@@ -37,7 +40,7 @@ export async function postTask(formData: FormData) {
     .insert({
       customer_id: user.id,
       category_id: categoryId,
-      location_id: locationId || null,
+      location_id: locationId,
       title,
       description,
       budget_hint_minor: budgetHintMinor,

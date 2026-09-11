@@ -20,6 +20,7 @@ export function Combobox({
   required,
   defaultValue,
   onChange,
+  freeText = false,
 }: {
   name: string;
   options: ComboboxOption[];
@@ -30,6 +31,13 @@ export function Combobox({
    * can also filter a second field by the chosen location, without every
    * caller having to DOM-query this component's hidden input. */
   onChange?: (value: string) => void;
+  /** When true, closing the field with typed text that matches no option
+   * submits the raw typed text itself (trimmed) instead of clearing back
+   * to empty — e.g. so a location field isn't limited to a pre-seeded
+   * list. The caller is then responsible for resolving that raw text
+   * server-side (see rpc_get_or_create_location) rather than assuming the
+   * submitted value is always one of `options`' values. */
+  freeText?: boolean;
 }) {
   const initial = options.find((o) => o.value === defaultValue) ?? null;
   const [query, setQuery] = useState(initial?.label ?? "");
@@ -59,13 +67,18 @@ export function Combobox({
   }, []);
 
   // If the field is closed with typed text that doesn't match a real
-  // option, snap back to the selected label (or empty) so the hidden
-  // value submitted to the server and the visible text never disagree.
+  // option: in freeText mode, keep the raw typed text (the server resolves
+  // it, e.g. into a new `locations` row) instead of discarding it. Outside
+  // freeText mode, snap back to the selected label (or empty) so the
+  // hidden value submitted to the server and the visible text never
+  // disagree with a real option.
   useEffect(() => {
     if (open) return;
     const match = options.find((o) => o.label === query);
     if (match) {
       select(match);
+    } else if (freeText) {
+      select(query.trim() ? { value: query.trim(), label: query.trim() } : null);
     } else {
       select(null);
       setQuery("");
@@ -101,7 +114,9 @@ export function Combobox({
       {open && (
         <ul className="absolute z-20 mt-1 max-h-56 w-full overflow-auto rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--background)] py-1 shadow-lg">
           {filtered.length === 0 ? (
-            <li className="px-3 py-2 text-sm text-[var(--muted)]">No matching areas</li>
+            <li className="px-3 py-2 text-sm text-[var(--muted)]">
+              {freeText && query.trim() ? `Use "${query.trim()}"` : "No matching areas"}
+            </li>
           ) : (
             filtered.map((o) => (
               <li key={o.value}>

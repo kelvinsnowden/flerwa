@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { resolveLocationId } from "@/lib/resolve-location";
 
 function slugify(name: string) {
   return (
@@ -30,7 +31,9 @@ export async function saveAboutYou(formData: FormData) {
   const headline = String(formData.get("headline") ?? "").trim();
   const bio = String(formData.get("bio") ?? "").trim();
   const experienceSummary = String(formData.get("experience_summary") ?? "").trim();
-  const locationId = String(formData.get("location_id") ?? "");
+  const rawLocation = String(formData.get("location_id") ?? "");
+  const { id: locationId, error: locationError } = await resolveLocationId(supabase, rawLocation);
+  if (locationError) return { error: locationError };
 
   if (!displayName) return { error: "Your display name is required." };
 
@@ -44,7 +47,7 @@ export async function saveAboutYou(formData: FormData) {
         headline,
         bio,
         experience_summary: experienceSummary,
-        base_location_id: locationId || null,
+        base_location_id: locationId,
       })
       .eq("id", existing.id);
     if (error) return { error: error.message };
@@ -62,7 +65,7 @@ export async function saveAboutYou(formData: FormData) {
     headline,
     bio,
     experience_summary: experienceSummary,
-    base_location_id: locationId || null,
+    base_location_id: locationId,
   });
   if (error) return { error: error.message };
   return { success: true as const };
