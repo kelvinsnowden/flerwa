@@ -9,21 +9,27 @@ interface Slide {
   caption: string;
 }
 
-// Real assets only — no fabricated stock photography. Until more real
-// "professional at work" photos exist (requested separately — see
-// public/images/services/), this rotates between the one real photo
-// already in the repo and the existing brand illustration, rather than
-// faking variety with a stock image. Adding more real photos here later
-// is a one-line change: just append to SLIDES.
+// Three different professionals across three real categories on the
+// platform (Personal, Errands & Tasks, Business & Creator Services) —
+// supplied directly for this slideshow. Every slide shares one caption
+// rather than a per-photo claim like "personal chefs available" — the
+// catalogue's actual services vary by what's really been seeded/listed,
+// and this tagline stays true regardless. Adding more is a one-line
+// change: just append to SLIDES.
 const SLIDES: Slide[] = [
   {
-    src: "/images/photos/provider-at-work.jpg",
-    alt: "A verified professional at work",
+    src: "/images/professionals/personal-chef.png",
+    alt: "A personal chef plating a dish",
     caption: "Kenyans Get Things Done",
   },
   {
-    src: "/images/illustrations/kenya-gets-things-done.svg",
-    alt: "",
+    src: "/images/professionals/errands-shopper.png",
+    alt: "A professional running errands in Nairobi",
+    caption: "Kenyans Get Things Done",
+  },
+  {
+    src: "/images/professionals/content-creator.png",
+    alt: "A content creator filming with a ring light",
     caption: "Kenyans Get Things Done",
   },
 ];
@@ -70,7 +76,7 @@ export function AuthSkylineFooter() {
       </div>
 
       <div
-        className="relative w-full max-w-[220px] aspect-[4/3] rounded-2xl overflow-hidden"
+        className="relative w-full max-w-[220px] aspect-square rounded-2xl overflow-hidden"
         style={{ background: "var(--surface)" }}
       >
         <Image
