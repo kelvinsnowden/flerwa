@@ -238,3 +238,51 @@ Chef is follow-up work given this pass's scope).
   production. The server-side conflict guarantee (the actual safety
   property the brief requires) is proven at the database level
   regardless of what any particular UI session does.
+
+## Storefront redesign (follow-up pass)
+
+Requested against a specific mockup after the pass above shipped. Rebuilt
+`/provider/[slug]` to match it, extending rather than replacing what
+already existed:
+
+- **Portfolio** (previously deferred in §5 above) — built for real:
+  `provider_portfolio_items` table + a `provider-portfolio` storage
+  bucket, reusing the `avatars` bucket's exact public-read/owner-write
+  RLS pattern. Management UI at `/provider/portfolio`. The storefront
+  hero gallery uses these real photos, with a plain placeholder (never a
+  stock photo) when a provider hasn't uploaded any.
+- **Real response-time stat** — `rpc_get_provider_response_minutes`
+  computes "usually responds within X min" from actual
+  conversations/messages timestamps (now that pre-service messaging
+  exists). SECURITY DEFINER since conversation/message RLS is
+  participant-only and a storefront visitor isn't one; only returns an
+  aggregate number, never row content. Omitted (not zero, not a
+  placeholder) until a provider has real conversation history.
+- **Public availability calendar** — `rpc_get_month_availability` colours
+  each day Available/Booked/Unavailable from the same
+  rules/blocked/booked tables the Chef booking flow already uses. Shown
+  only for providers with a `scheduling_mode='scheduled'` service.
+- **Service areas** — real `provider_service_areas` data plus a
+  deliberately generic decorative graphic (concentric rings, brand
+  colours) rather than a real map, since no maps API is wired up and
+  faking street-level precision would be its own kind of dishonesty.
+- **Explicitly did not add** the mockup's "Culinary Arts Certified" /
+  "Background Checked" badges — `docs/06-trust-architecture.md` states
+  outright not to claim "background checked," and there's no
+  certifications schema to back a specific credential claim honestly.
+  The trust box says exactly what `verification_status` substantiates:
+  "Identity verified by Flerwa."
+- Quick-nav (Overview/Services/Portfolio/Reviews) scrolls one continuous
+  page rather than hiding sections behind real tabs — matches the
+  `#providers`/`#book` anchor pattern already on the service detail page,
+  and keeps Availability/Service Areas (which aren't nav labels in the
+  mockup either) in the natural flow instead of orphaned behind a tab.
+
+Verified: `tsc --noEmit` and `npm run build` clean; live-checked on
+production — `/provider/portfolio` redirects an unauthenticated visitor
+to login, a nonexistent provider slug 404s cleanly, and the home page
+loads with zero console errors after the push. Not click-tested against
+a real portfolio/calendar/service-area on production, for the same
+reason as the availability pass above: no real provider has been
+onboarded with that data yet, and creating one would mean fabricating
+production data.
