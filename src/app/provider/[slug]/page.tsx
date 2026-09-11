@@ -9,6 +9,7 @@ import { VerificationBadge } from "@/components/ui/verification-badge";
 import { Rating } from "@/components/ui/rating";
 import { Icon } from "@/components/ui/icon";
 import { SaveButton } from "@/components/ui/save-button";
+import { MessageButton } from "@/components/ui/message-button";
 
 export default async function ProviderStorefrontPage({
   params,
@@ -115,6 +116,12 @@ export default async function ProviderStorefrontPage({
         </div>
         {user && !isOwner && <SaveButton providerId={provider.id} initialSaved={isSaved} />}
       </div>
+
+      {!isOwner && (
+        <div className="mt-4">
+          <MessageButton providerId={provider.id} isSignedIn={Boolean(user)} />
+        </div>
+      )}
 
       <div className="mt-5 grid grid-cols-3 gap-3">
         <div className="stat-tile">

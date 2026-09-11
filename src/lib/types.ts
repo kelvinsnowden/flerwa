@@ -203,11 +203,25 @@ export interface Location {
 
 export interface Message {
   id: string;
-  transaction_id: string;
+  transaction_id: string | null;
+  conversation_id: string | null;
   sender_id: string;
   body: string;
   created_at: string;
   read_at: string | null;
+}
+
+export interface Conversation {
+  id: string;
+  customer_id: string;
+  provider_id: string;
+  service_id: string | null;
+  transaction_id: string | null;
+  requested_date: string | null;
+  requested_time: string | null;
+  state: "open" | "converted" | "closed";
+  created_at: string;
+  updated_at: string;
 }
 
 export interface SavedProvider {

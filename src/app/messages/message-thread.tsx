@@ -4,14 +4,16 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Icon } from "@/components/ui/icon";
 import type { Message } from "@/lib/types";
-import { sendMessage, markThreadRead } from "../actions";
+import { sendMessage, markThreadRead } from "./actions";
+
+type ThreadRef = { transactionId: string } | { conversationId: string };
 
 export function MessageThread({
-  transactionId,
+  thread,
   currentUserId,
   initialMessages,
 }: {
-  transactionId: string;
+  thread: ThreadRef;
   currentUserId: string;
   initialMessages: Message[];
 }) {
@@ -21,6 +23,9 @@ export function MessageThread({
   const [isPending, startTransition] = useTransition();
   const bottomRef = useRef<HTMLDivElement>(null);
 
+  const column = "transactionId" in thread ? "transaction_id" : "conversation_id";
+  const id = "transactionId" in thread ? thread.transactionId : thread.conversationId;
+
   // Real-time: any message inserted on this thread (by either side) is
   // pushed straight into the postgres_changes stream — no polling. Falls
   // back to whatever was fetched server-side if the socket never connects
@@ -29,10 +34,10 @@ export function MessageThread({
   useEffect(() => {
     const supabase = createClient();
     const channel = supabase
-      .channel(`messages:${transactionId}`)
+      .channel(`messages:${column}:${id}`)
       .on(
         "postgres_changes",
-        { event: "INSERT", schema: "public", table: "messages", filter: `transaction_id=eq.${transactionId}` },
+        { event: "INSERT", schema: "public", table: "messages", filter: `${column}=eq.${id}` },
         (payload) => {
           const incoming = payload.new as Message;
           setMessages((prev) => (prev.some((m) => m.id === incoming.id) ? prev : [...prev, incoming]));
@@ -43,7 +48,7 @@ export function MessageThread({
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [transactionId]);
+  }, [column, id]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ block: "end" });
@@ -51,11 +56,11 @@ export function MessageThread({
 
   useEffect(() => {
     if (messages.some((m) => m.sender_id !== currentUserId && !m.read_at)) {
-      void markThreadRead(transactionId);
+      void markThreadRead(thread);
     }
     // Only re-check when new messages arrive, not on every render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [messages.length, transactionId, currentUserId]);
+  }, [messages.length, column, id, currentUserId]);
 
   function handleSend() {
     const body = draft.trim();
@@ -63,7 +68,7 @@ export function MessageThread({
     setError(null);
     setDraft("");
     startTransition(async () => {
-      const res = await sendMessage(transactionId, body);
+      const res = await sendMessage(thread, body);
       if (res?.error) {
         setError(res.error);
         setDraft(body);

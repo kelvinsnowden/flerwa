@@ -152,6 +152,8 @@ export default async function ServiceDetailPage({
                 reliability={p.reliability_scores?.[0]}
                 saved={savedProviderIds ? savedProviderIds.has(p.id) : undefined}
                 selectHref={`/services/${service.slug}?provider=${p.id}#book`}
+                isSignedIn={Boolean(user)}
+                serviceId={service.id}
               />
             ))}
           </div>
