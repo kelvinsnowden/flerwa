@@ -286,3 +286,51 @@ a real portfolio/calendar/service-area on production, for the same
 reason as the availability pass above: no real provider has been
 onboarded with that data yet, and creating one would mean fabricating
 production data.
+
+## Generalized creator-style extensions (second follow-up pass)
+
+Requested against a second mockup (a content creator's profile) with the
+explicit instruction that it needed to look different from the generic
+storefront. Rather than branching the storefront on provider type or
+category, extended the same generic schema with optional,
+provider-authored fields any provider can use — a chef or a house
+hunter benefits from these exactly as much as a content creator, per the
+original brief's "one generic architecture, not per-service systems"
+rule:
+
+- `services.icon` (admin-curated, same precedent as `categories.icon`)
+  drives the quick-chip row per real SERVICE instead of per category,
+  since one provider often sells several distinct services in one
+  category.
+- `provider_portfolio_items` gained `tag`/`reach_label`/`video_url`/
+  `media_type`, all optional and provider-typed. `reach_label` is
+  explicitly free text the provider enters themselves (e.g. "125K
+  views") — there is no analytics integration, so this is never
+  platform-computed or fabricated. `video_url` links out to an external
+  post (TikTok/Instagram/YouTube); no video hosting was built. The
+  storefront portfolio grid filters by whatever real tags a provider has
+  actually used and shows a play affordance for video items.
+- `providers.storefront_tagline`: an optional, self-authored short CTA
+  line, editable from the same wizard step that already edits headline/
+  bio/experience_summary — rendered as a banner that anchor-links to the
+  existing Message button (no new messaging path).
+- `provider_faqs`: a generic Q&A list any provider can author
+  (`/provider/faq`), same self-write RLS pattern as
+  `provider_availability_rules`. Only shown — and only added to the
+  quick-nav — when a provider has actually added questions.
+- "Open to remote projects" is a real badge derived from the provider
+  having a `fulfilment_mode = 'remote_digital'` service, not new data.
+- Deliberately skipped the mockup's fabricated engagement numbers
+  (platform-computed view counts) and did not add new certification
+  badges beyond what the base storefront pass already ruled out.
+
+Verified: `tsc --noEmit` and `npm run build` clean; RLS/grants confirmed
+via direct query (`provider_faqs` has the same public-read/self-write
+policy pair as the other provider-owned tables). Live-checked on
+production: `/provider/faq` and the `content-creator-session` service
+page both load correctly with zero console errors. One false alarm
+during this check — a reused Kernel browser session showed a stale 404
+for `/provider/faq` after the push; a raw HTTP fetch (bypassing any
+client-side state) and a fresh browser session both confirmed the route
+was actually live and redirecting correctly the whole time, so this was
+a browser-session artifact, not a deploy or code issue.
