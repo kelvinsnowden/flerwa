@@ -334,3 +334,64 @@ for `/provider/faq` after the push; a raw HTTP fetch (bypassing any
 client-side state) and a fresh browser session both confirmed the route
 was actually live and redirecting correctly the whole time, so this was
 a browser-session artifact, not a deploy or code issue.
+
+## Mobile storefront UX pass (third follow-up)
+
+Every prior pass above was verified structurally (types/build/RLS/grants)
+but never actually *seen* rendered — no real provider had been onboarded
+with data. For this pass, temporarily published one of the existing
+`qa-checklist-fixture` rows (already in the DB from earlier sessions,
+named "do not use", always unpublished) with realistic content — a real
+service link, real portfolio images reused from `public/images/`, real
+FAQ/availability/service-area rows — inspected it live on production at
+a 390px mobile viewport via structural accessibility snapshot + computed-
+layout diagnostics (overflow, font sizes, element positions, z-index),
+then deleted every row added and restored `is_published = false` and all
+profile fields to null immediately after. Nothing was left live.
+
+Real problems found from that inspection (not from re-reading the code):
+
+- The full bio + experience_summary text rendered immediately below the
+  identity row, before the primary actions — too much text above the
+  fold on mobile. Moved to a proper "About" section further down;
+  the top of the page now shows only the short headline.
+- Section order didn't match the requested hierarchy (it was services ->
+  about -> reviews -> availability -> service area -> FAQ, not the
+  requested services -> portfolio -> about -> FAQ -> availability ->
+  service area -> reviews-last). Reordered to match.
+- "0 services completed" rendered next to "New professional" for every
+  brand-new provider — real data, but redundant noise. Now only shown
+  once it's a real non-zero number.
+- Two text instances under the 12px floor (a portfolio reach_label badge
+  at 10px, a service-chip label at 11px) — bumped both to `text-xs`
+  (12px), the smallest size already used elsewhere on this page.
+- The page's own sticky "Message/Request Service" bar and the app's
+  global `BottomNav` both used `position: sticky; bottom: 0`, competing
+  for the same edge for a signed-in customer. Switched the page's bar to
+  `position: fixed` with a higher z-index (45 vs the nav's 40) so it
+  deliberately overlays the tab bar while viewing a professional's
+  profile, added matching safe-area bottom padding, and padded the page
+  content so the fixed bar never covers the last section.
+
+Re-verified on production after the fix deployed: the new section order,
+the suppressed zero-stat, and the decluttered top-of-page all render
+correctly at 390px with zero horizontal overflow (`scrollWidth` equals
+`innerWidth`). Clicked the real Message button while signed out — it
+redirected to `/login?next=/provider/qa-checklist-fixture` as designed
+(the actual redirect branch in MessageButton, not just code review).
+Clicked the real "Request a Service" link — it landed on
+`/services/personal-chef?provider=...#book`, the real booking form.
+Checked the fixed action bar's computed style directly: `z-index: 45`,
+correctly `display: none` above the `sm` breakpoint (no desktop
+regression). Re-checked the whole page at a 1280px desktop viewport: no
+horizontal overflow, no layout regression. FAQ's empty-state gating
+(`{faqs && faqs.length > 0 && ...}`) was verified by code inspection
+only, not against a second live fixture with zero FAQs — the identical
+gating pattern was already proven correct live for the Availability and
+Service Area sections in this same pass, so a second fixture wasn't
+necessary to trust it.
+
+No backend/schema changes in this pass — layout and information
+hierarchy only, reusing the same real data (reliability, reviews,
+portfolio, FAQ, availability, service areas) the storefront already
+fetched.
