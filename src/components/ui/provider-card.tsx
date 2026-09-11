@@ -46,7 +46,7 @@ export function ProviderCard({
               <span>New professional</span>
             )}
             {reliability?.jobs_completed != null && reliability.jobs_completed > 0 && (
-              <span>{reliability.jobs_completed} jobs done</span>
+              <span>{reliability.jobs_completed} services done</span>
             )}
           </div>
         </div>

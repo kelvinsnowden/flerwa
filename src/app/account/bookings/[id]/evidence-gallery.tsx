@@ -22,7 +22,7 @@ export async function EvidenceGallery({ transactionId }: { transactionId: string
     .returns<EvidenceRow[]>();
 
   if (error) {
-    return <ErrorNotice message="We couldn't load the evidence for this job. Please refresh — this does not mean no evidence was submitted." />;
+    return <ErrorNotice message="We couldn't load the evidence for this booking. Please refresh — this does not mean no evidence was submitted." />;
   }
 
   if (!evidence?.length) {
@@ -30,7 +30,7 @@ export async function EvidenceGallery({ transactionId }: { transactionId: string
       <EmptyState
         icon={<Icon name="camera" size={20} />}
         title="No evidence yet"
-        body="Evidence will appear here once the professional starts the job."
+        body="Evidence will appear here once the professional starts the service."
       />
     );
   }

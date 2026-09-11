@@ -126,7 +126,7 @@ export default async function ProviderStorefrontPage({
       <div className="mt-5 grid grid-cols-3 gap-3">
         <div className="stat-tile">
           <p className="text-lg font-bold">{reliability?.jobs_completed ?? 0}</p>
-          <p className="text-xs text-[var(--muted)]">jobs done</p>
+          <p className="text-xs text-[var(--muted)]">services done</p>
         </div>
         <div className="stat-tile">
           <p className="text-lg font-bold">
@@ -191,7 +191,7 @@ export default async function ProviderStorefrontPage({
             ))}
           </div>
         ) : (
-          <p className="text-sm text-[var(--muted)]">No reviews yet — this professional's reviews will show here once jobs are completed and reviewed.</p>
+          <p className="text-sm text-[var(--muted)]">No reviews yet — this professional's reviews will show here once services are completed and reviewed.</p>
         )}
       </div>
     </div>

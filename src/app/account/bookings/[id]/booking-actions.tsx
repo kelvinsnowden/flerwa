@@ -38,7 +38,7 @@ export function ApproveOrReviseControls({
       <div className="mt-4 flex flex-col gap-2">
         <p className="text-sm font-medium">Open a dispute</p>
         <p className="text-xs text-[var(--muted)]">
-          Our team will review the job and evidence and reach a resolution.
+          Our team will review the booking and evidence and reach a resolution.
           Payment stays held while a dispute is open.
         </p>
         <input

@@ -98,7 +98,7 @@ export function BookingForm({
               return (
                 <option key={p.id} value={p.id}>
                   {p.display_name}
-                  {rel?.jobs_completed ? ` — ${rel.jobs_completed} jobs completed` : " — new professional"}
+                  {rel?.jobs_completed ? ` — ${rel.jobs_completed} services completed` : " — new professional"}
                 </option>
               );
             })}
@@ -164,8 +164,8 @@ export function BookingForm({
       <div className="rounded-lg bg-[var(--surface)] p-3 text-xs text-[var(--muted)] flex flex-col gap-1">
         <p className="font-semibold text-[var(--foreground)]">What happens next</p>
         <p>1. We confirm your booking and reach out to arrange M-Pesa payment.</p>
-        <p>2. Your payment is held until the job is done and you approve it.</p>
-        <p>3. Your professional is assigned or confirmed and the job gets scheduled.</p>
+        <p>2. Your payment is held until the service is done and you approve it.</p>
+        <p>3. Your professional is assigned or confirmed and the service gets scheduled.</p>
       </div>
 
       <button

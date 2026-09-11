@@ -58,7 +58,7 @@ export default async function NotificationsPage() {
         <EmptyState
           illustration="/images/empty-states/empty-notifications.svg"
           title="No updates yet"
-          body="You'll see updates here as your bookings and jobs move forward."
+          body="You'll see updates here as your bookings and services move forward."
         />
       )}
 

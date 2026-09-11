@@ -3,7 +3,7 @@ import { Icon } from "./icon";
 const SIGNALS = [
   { icon: "wallet", label: "Payment held until you confirm" },
   { icon: "shield-check", label: "ID-verified professionals only" },
-  { icon: "file-text", label: "Every job comes with evidence" },
+  { icon: "file-text", label: "Every service comes with evidence" },
 ] as const;
 
 /**

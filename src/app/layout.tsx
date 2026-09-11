@@ -18,7 +18,7 @@ const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"]
 export const metadata: Metadata = {
   title: "Trusted Services | Know before you pay",
   description:
-    "Verified people in Kenya who will go, look, and tell you the truth — for anything you can't be there for. Money held safely until the job is done.",
+    "Verified people in Kenya who will go, look, and tell you the truth — for anything you can't be there for. Money held safely until the service is done.",
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
