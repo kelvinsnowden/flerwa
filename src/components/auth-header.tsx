@@ -21,7 +21,7 @@ export function AuthHeader({
   showHelp?: boolean;
 }) {
   return (
-    <div className="relative flex flex-col items-center text-center mb-8">
+    <div className="relative w-full flex flex-col items-center text-center mb-8">
       {backHref && (
         <Link
           href={backHref}
