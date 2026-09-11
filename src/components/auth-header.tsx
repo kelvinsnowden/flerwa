@@ -21,21 +21,27 @@ export function AuthHeader({
   showHelp?: boolean;
 }) {
   return (
-    <div className="relative w-full flex flex-col items-center text-center mb-8">
-      {backHref && (
-        <Link
-          href={backHref}
-          className="absolute left-0 top-1 text-sm text-[var(--muted)] flex items-center gap-1"
-        >
-          <Icon name="chevron-right" size={14} className="rotate-180" />
-          {backLabel}
-        </Link>
-      )}
-      {showHelp && (
-        <span className="absolute right-0 top-1 inline-flex items-center gap-1.5 rounded-full bg-[var(--card)] border border-[var(--border)] px-3 py-1 text-xs font-semibold text-[var(--foreground)]">
-          <Icon name="message-circle" size={13} className="text-[var(--trust)]" />
-          Need help?
-        </span>
+    <div className="w-full flex flex-col items-center text-center mb-8">
+      {(backHref || showHelp) && (
+        <div className="w-full flex items-center justify-between gap-3 mb-4">
+          {backHref ? (
+            <Link
+              href={backHref}
+              className="text-sm text-[var(--muted)] flex items-center gap-1 min-w-0"
+            >
+              <Icon name="chevron-right" size={14} className="rotate-180 flex-shrink-0" />
+              <span className="truncate">{backLabel}</span>
+            </Link>
+          ) : (
+            <span />
+          )}
+          {showHelp && (
+            <span className="flex-shrink-0 inline-flex items-center gap-1.5 rounded-full bg-[var(--card)] border border-[var(--border)] px-3 py-1 text-xs font-semibold text-[var(--foreground)]">
+              <Icon name="message-circle" size={13} className="text-[var(--trust)]" />
+              Need help?
+            </span>
+          )}
+        </div>
       )}
       <span
         className="w-12 h-12 rounded-2xl flex items-center justify-center text-white"
