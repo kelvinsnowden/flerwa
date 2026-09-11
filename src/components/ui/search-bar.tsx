@@ -5,7 +5,15 @@ import { Icon } from "./icon";
  * `q` param that the home page uses to filter services server-side
  * (see src/app/page.tsx), rather than a decorative input that goes nowhere.
  */
-export function SearchBar({ defaultValue, action = "/" }: { defaultValue?: string; action?: string }) {
+export function SearchBar({
+  defaultValue,
+  action = "/",
+  placeholder = "What do you need done?",
+}: {
+  defaultValue?: string;
+  action?: string;
+  placeholder?: string;
+}) {
   return (
     <form action={action} className="relative">
       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--muted)] pointer-events-none">
@@ -15,7 +23,7 @@ export function SearchBar({ defaultValue, action = "/" }: { defaultValue?: strin
         type="search"
         name="q"
         defaultValue={defaultValue}
-        placeholder="What do you need done?"
+        placeholder={placeholder}
         className="pl-10"
         aria-label="Search services"
       />

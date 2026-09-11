@@ -27,7 +27,9 @@ export type IconName =
   | "message-circle"
   | "send"
   | "heart"
-  | "grid";
+  | "grid"
+  | "shopping-bag"
+  | "chef-hat";
 
 const PATHS: Record<IconName, React.ReactNode> = {
   "shield-check": (
@@ -126,6 +128,18 @@ const PATHS: Record<IconName, React.ReactNode> = {
       <rect x="14" y="3" width="7" height="7" rx="1.5" />
       <rect x="3" y="14" width="7" height="7" rx="1.5" />
       <rect x="14" y="14" width="7" height="7" rx="1.5" />
+    </>
+  ),
+  "shopping-bag": (
+    <>
+      <path d="M6 8h12l-1 12H7L6 8Z" />
+      <path d="M9 8V6a3 3 0 0 1 6 0v2" />
+    </>
+  ),
+  "chef-hat": (
+    <>
+      <path d="M7 13a4 4 0 0 1 1-7.9 4 4 0 0 1 8 0 4 4 0 0 1 1 7.9V19H7v-6Z" />
+      <path d="M7.5 19h9" />
     </>
   ),
 };
