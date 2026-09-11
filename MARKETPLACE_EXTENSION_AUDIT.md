@@ -152,3 +152,46 @@ time/response-rate metrics (no real data source yet), full calendar UX
 for Content Creator/House Hunter/Verification (the reusable schema
 supports it; per-service UI polish for all four remaining pilots beyond
 Chef is follow-up work given this pass's scope).
+
+## Progress log
+
+- **Pre-service conversations** (step 1): built and applied
+  (`20260911102345_conversations.sql`). `conversations` table, nullable
+  `messages.conversation_id` alongside the existing `transaction_id`,
+  `rpc_start_conversation`, generalized messaging UI
+  (`/messages/c/[conversationId]`, unified inbox), Message button on the
+  storefront and service-detail provider cards. Verified via
+  role-simulated SQL: idempotent thread reuse, cross-customer RLS
+  isolation, anon cannot execute the RPC, non-participants rejected on
+  insert.
+- **Availability model + Chef scheduling** (step 2, schema half done):
+  built and applied (`20260911111652_availability.sql`).
+  `services.scheduling_mode` ('none'/'request'/'scheduled', default
+  'request') + `slot_duration_minutes`; `providers.booking_buffer_minutes`
+  / `min_notice_hours` / `max_advance_days`; `provider_availability_rules`
+  (weekly hours), `provider_blocked_slots` (one-off time off),
+  `provider_booked_slots` (confirmed commitments, `exclude using gist
+  (provider_id with =, slot_range with &&)` as the actual double-booking
+  guard). `rpc_book_service` extended in place to enforce min notice, max
+  advance, working-hours, and blocked-slot checks for
+  `scheduling_mode = 'scheduled'` services only — every other service
+  goes through the exact same path as before this migration.
+  `personal-chef` set to `scheduling_mode = 'scheduled'`, 120-minute
+  slots — the brief's own named strongest-calendar pilot.
+
+  Verified with a role-simulated concurrent-booking test (synthetic
+  fixtures inside a rolled-back transaction, nothing persisted): customer
+  A booking 14:00–16:00 succeeds; customer B attempting an overlapping
+  14:30 slot is rejected with a friendly error
+  ("That time was just booked by someone else…"); customer B booking the
+  non-overlapping 17:00 slot succeeds. Confirms the brief's explicit
+  requirement — two customers attempting the same time cannot both obtain
+  a confirmed booking — holds at the database level, not just in
+  application code.
+
+  **Still open on this step**: the customer-facing slot-picker UI for
+  Chef bookings (currently the booking form still takes a free
+  `datetime-local` input with no visibility into which slots are actually
+  open), and the provider-side availability management UI (setting
+  weekly hours / blocking time off). Both tracked as the next two pieces
+  of work.

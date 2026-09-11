@@ -85,6 +85,8 @@ export interface Category {
   sort_order: number;
 }
 
+export type SchedulingMode = "none" | "request" | "scheduled";
+
 export interface Service {
   id: string;
   category_id: string;
@@ -99,6 +101,9 @@ export interface Service {
   turnaround_hours: number;
   requires_location: boolean;
   is_active: boolean;
+  /** none: no calendar, request/conversation only. request: customer proposes a date/time (default). scheduled: real calendar enforced server-side. */
+  scheduling_mode: SchedulingMode;
+  slot_duration_minutes: number | null;
 }
 
 export interface ServiceScopeItem {
@@ -131,6 +136,25 @@ export interface Provider {
   verification_status: VerificationStatus;
   is_accepting_work: boolean;
   is_published: boolean;
+  booking_buffer_minutes: number;
+  min_notice_hours: number;
+  max_advance_days: number;
+}
+
+export interface AvailabilityRule {
+  id: string;
+  provider_id: string;
+  day_of_week: number; // 0 = Sunday .. 6 = Saturday
+  start_time: string;
+  end_time: string;
+}
+
+export interface BlockedSlot {
+  id: string;
+  provider_id: string;
+  starts_at: string;
+  ends_at: string;
+  reason: string | null;
 }
 
 export interface ReliabilityScore {
