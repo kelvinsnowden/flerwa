@@ -104,6 +104,8 @@ export interface Service {
   /** none: no calendar, request/conversation only. request: customer proposes a date/time (default). scheduled: real calendar enforced server-side. */
   scheduling_mode: SchedulingMode;
   slot_duration_minutes: number | null;
+  /** Admin-curated, same precedent as Category.icon — lets a storefront's quick-chip row show a per-service icon. */
+  icon: string | null;
 }
 
 export interface ServiceScopeItem {
@@ -141,6 +143,8 @@ export interface Provider {
   min_notice_hours: number;
   max_advance_days: number;
   created_at: string;
+  /** Optional, seller-authored short CTA line shown on their storefront. */
+  storefront_tagline: string | null;
 }
 
 export interface AvailabilityRule {
@@ -257,6 +261,20 @@ export interface PortfolioItem {
   caption: string | null;
   sort_order: number;
   created_at: string;
+  media_type: "image" | "video";
+  video_url: string | null;
+  /** Free text the provider types in themselves (e.g. "125K views") — never platform-computed; there's no real analytics integration. */
+  reach_label: string | null;
+  /** Provider-defined grouping used to build the portfolio's filter chips (e.g. "UGC", "TikTok"). */
+  tag: string | null;
+}
+
+export interface ProviderFaq {
+  id: string;
+  provider_id: string;
+  question: string;
+  answer: string;
+  sort_order: number;
 }
 
 export interface SavedProvider {

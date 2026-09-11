@@ -6,17 +6,18 @@
 // these just jump-scroll to the matching section. Matches the existing
 // `#providers`/`#book` anchor pattern already used on the service detail
 // page rather than introducing a second, hide/show tab paradigm.
-const TABS = [
+const BASE_TABS = [
   { label: "Overview", href: "#overview" },
   { label: "Services", href: "#services" },
   { label: "Portfolio", href: "#portfolio" },
   { label: "Reviews", href: "#reviews" },
 ] as const;
 
-export function StorefrontQuickNav() {
+export function StorefrontQuickNav({ showFaq = false }: { showFaq?: boolean }) {
+  const tabs = showFaq ? [...BASE_TABS, { label: "FAQ", href: "#faq" }] : BASE_TABS;
   return (
     <div className="flex border-b sticky top-14 bg-[var(--background)] z-10 -mx-4 px-4 sm:mx-0 sm:px-0 overflow-x-auto">
-      {TABS.map((tab) => (
+      {tabs.map((tab) => (
         <a
           key={tab.href}
           href={tab.href}

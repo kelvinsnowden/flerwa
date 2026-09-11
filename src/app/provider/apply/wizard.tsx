@@ -13,6 +13,7 @@ interface ProviderRow {
   headline: string | null;
   bio: string | null;
   experience_summary: string | null;
+  storefront_tagline: string | null;
   base_location_id: string | null;
   is_accepting_work: boolean;
   verification_status: string;
@@ -45,6 +46,7 @@ export function Wizard({
   const [headline, setHeadline] = useState(provider?.headline ?? "");
   const [bio, setBio] = useState(provider?.bio ?? "");
   const [experienceSummary, setExperienceSummary] = useState(provider?.experience_summary ?? "");
+  const [tagline, setTagline] = useState(provider?.storefront_tagline ?? "");
   const [locationId, setLocationId] = useState(provider?.base_location_id ?? "");
 
   // Step 2
@@ -154,6 +156,16 @@ export function Wizard({
             />
           </label>
           <label className="text-sm font-medium">
+            Storefront tagline (optional)
+            <input
+              value={tagline}
+              onChange={(e) => setTagline(e.target.value)}
+              placeholder="e.g. Let's create something amazing"
+              maxLength={80}
+              className="mt-1"
+            />
+          </label>
+          <label className="text-sm font-medium">
             Base location
             <Combobox
               name="location_id"
@@ -174,6 +186,7 @@ export function Wizard({
               fd.set("headline", headline);
               fd.set("bio", bio);
               fd.set("experience_summary", experienceSummary);
+              fd.set("storefront_tagline", tagline);
               fd.set("location_id", locationId);
               next(() => saveAboutYou(fd));
             }}

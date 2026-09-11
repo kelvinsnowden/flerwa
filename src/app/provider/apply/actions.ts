@@ -31,6 +31,7 @@ export async function saveAboutYou(formData: FormData) {
   const headline = String(formData.get("headline") ?? "").trim();
   const bio = String(formData.get("bio") ?? "").trim();
   const experienceSummary = String(formData.get("experience_summary") ?? "").trim();
+  const storefrontTagline = String(formData.get("storefront_tagline") ?? "").trim();
   const rawLocation = String(formData.get("location_id") ?? "");
   const { id: locationId, error: locationError } = await resolveLocationId(supabase, rawLocation);
   if (locationError) return { error: locationError };
@@ -47,6 +48,7 @@ export async function saveAboutYou(formData: FormData) {
         headline,
         bio,
         experience_summary: experienceSummary,
+        storefront_tagline: storefrontTagline || null,
         base_location_id: locationId,
       })
       .eq("id", existing.id);
@@ -65,6 +67,7 @@ export async function saveAboutYou(formData: FormData) {
     headline,
     bio,
     experience_summary: experienceSummary,
+    storefront_tagline: storefrontTagline || null,
     base_location_id: locationId,
   });
   if (error) return { error: error.message };

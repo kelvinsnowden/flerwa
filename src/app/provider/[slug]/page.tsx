@@ -2,9 +2,8 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { formatMoney } from "@/lib/money";
-import Image from "next/image";
 import type { IconName } from "@/components/ui/icon";
-import type { Provider, ReliabilityScore, Service, PortfolioItem } from "@/lib/types";
+import type { Provider, ReliabilityScore, Service, PortfolioItem, ProviderFaq } from "@/lib/types";
 import { ErrorNotice } from "@/components/error-notice";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Avatar } from "@/components/ui/avatar";
@@ -18,6 +17,7 @@ import { HeroGallery } from "./hero-gallery";
 import { StorefrontQuickNav } from "./storefront-tabs";
 import { AvailabilityCalendar } from "./availability-calendar";
 import { ServiceAreaVisual } from "./service-area-visual";
+import { PortfolioGallery } from "./portfolio-gallery";
 
 export default async function ProviderStorefrontPage({
   params,
@@ -69,6 +69,7 @@ export default async function ProviderStorefrontPage({
     { data: serviceAreas },
     { data: scheduledServices },
     { data: responseMinutes },
+    { data: faqs },
   ] = await Promise.all([
     user && !isOwner
       ? supabase
@@ -120,6 +121,12 @@ export default async function ProviderStorefrontPage({
       .eq("services.scheduling_mode", "scheduled")
       .returns<{ services: { name: string } | null }[]>(),
     supabase.rpc("rpc_get_provider_response_minutes", { p_provider_id: provider.id }),
+    supabase
+      .from("provider_faqs")
+      .select("*")
+      .eq("provider_id", provider.id)
+      .order("sort_order")
+      .returns<ProviderFaq[]>(),
   ]);
 
   const isSaved = Boolean(isSavedRow);
@@ -137,13 +144,17 @@ export default async function ProviderStorefrontPage({
   const reliability = provider.reliability_scores?.[0];
   const portfolioPhotoUrls = (portfolioItems ?? []).map((p) => p.photo_url);
 
-  // Distinct real categories the provider's active services belong to —
-  // used for the quick-chip row. No fabricated specialties: only what
-  // they actually sell.
-  const categoryChips = new Map<string, { name: string; icon: string | null }>();
-  for (const s of services ?? []) {
-    if (s.services.categories) categoryChips.set(s.services.categories.name, s.services.categories);
-  }
+  // The quick-chip row: one chip per distinct real SERVICE the provider
+  // offers (services.icon when set, else its category's icon) — no
+  // fabricated specialties, only what they actually sell. A chef and a
+  // content creator both sell several distinct services in one
+  // category, so this is keyed by service, not category.
+  const serviceChips = (services ?? []).map((s) => ({
+    name: s.services.name,
+    icon: s.services.icon ?? s.services.categories?.icon ?? null,
+  }));
+
+  const hasRemoteService = (services ?? []).some((s) => s.services.fulfilment_mode === "remote_digital");
 
   const memberSince = new Date(provider.created_at ?? Date.now()).toLocaleDateString("en-KE", {
     month: "short",
@@ -209,7 +220,7 @@ export default async function ProviderStorefrontPage({
         )}
 
         {!isOwner && (
-          <div className="mt-5 flex flex-col gap-2">
+          <div id="message-cta" className="mt-5 flex flex-col gap-2 scroll-mt-20">
             <MessageButton providerId={provider.id} isSignedIn={Boolean(user)} />
             {firstActiveService && (
               <Link href={`/services/${firstActiveService.slug}?provider=${provider.id}#book`} className="btn-secondary text-center">
@@ -219,27 +230,25 @@ export default async function ProviderStorefrontPage({
           </div>
         )}
 
-        {categoryChips.size > 0 && (
+        {serviceChips.length > 0 && (
           <div className="mt-5 grid grid-cols-4 gap-2">
-            {Array.from(categoryChips.values())
-              .slice(0, 4)
-              .map((c) => (
-                <div key={c.name} className="flex flex-col items-center gap-1.5 text-center">
-                  <span
-                    className="w-11 h-11 rounded-2xl flex items-center justify-center"
-                    style={{ background: "var(--trust-tint)", color: "var(--trust-dark)" }}
-                  >
-                    <Icon name={(c.icon as IconName) ?? "grid"} size={18} />
-                  </span>
-                  <span className="text-[11px] font-medium leading-tight line-clamp-2">{c.name}</span>
-                </div>
-              ))}
+            {serviceChips.slice(0, 4).map((c) => (
+              <div key={c.name} className="flex flex-col items-center gap-1.5 text-center">
+                <span
+                  className="w-11 h-11 rounded-2xl flex items-center justify-center"
+                  style={{ background: "var(--trust-tint)", color: "var(--trust-dark)" }}
+                >
+                  <Icon name={(c.icon as IconName) ?? "grid"} size={18} />
+                </span>
+                <span className="text-[11px] font-medium leading-tight line-clamp-2">{c.name}</span>
+              </div>
+            ))}
           </div>
         )}
       </div>
 
       <div className="mt-6">
-        <StorefrontQuickNav />
+        <StorefrontQuickNav showFaq={(faqs ?? []).length > 0} />
       </div>
 
       <div className="px-4">
@@ -256,8 +265,37 @@ export default async function ProviderStorefrontPage({
               <Icon name="clock" size={14} className="text-[var(--trust)]" />
               Member since {memberSince}
             </li>
+            {hasRemoteService && (
+              <li className="flex items-center gap-2">
+                <Icon name="video" size={14} className="text-[var(--trust)]" />
+                Open to remote projects
+              </li>
+            )}
           </ul>
         </div>
+
+        {provider.storefront_tagline && (
+          <a
+            href="#message-cta"
+            className="mt-6 block rounded-lg p-4 flex items-center gap-3 hover:opacity-90 transition-opacity"
+            style={{ background: "var(--trust-tint)" }}
+          >
+            <span
+              className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
+              style={{ background: "var(--trust-dark)", color: "white" }}
+            >
+              <Icon name="message-circle" size={16} />
+            </span>
+            <span>
+              <span className="block font-semibold text-sm" style={{ color: "var(--trust-dark)" }}>
+                {provider.storefront_tagline}
+              </span>
+              <span className="block text-xs" style={{ color: "var(--trust-dark)" }}>
+                Message me to discuss your idea!
+              </span>
+            </span>
+          </a>
+        )}
 
         {services && services.length > 0 && (
           <div id="services" className="pt-8 scroll-mt-28">
@@ -288,13 +326,7 @@ export default async function ProviderStorefrontPage({
         <div id="portfolio" className="pt-8 scroll-mt-28">
           <h2 className="font-semibold mb-3">Portfolio</h2>
           {portfolioItems && portfolioItems.length > 0 ? (
-            <div className="grid grid-cols-3 gap-2">
-              {portfolioItems.map((item) => (
-                <div key={item.id} className="relative aspect-square rounded-[var(--radius-sm)] overflow-hidden bg-[var(--surface)]">
-                  <Image src={item.photo_url} alt={item.caption ?? ""} fill className="object-cover" />
-                </div>
-              ))}
-            </div>
+            <PortfolioGallery items={portfolioItems} />
           ) : (
             <p className="text-sm text-[var(--muted)]">No portfolio photos yet.</p>
           )}
@@ -355,6 +387,20 @@ export default async function ProviderStorefrontPage({
             <p className="mt-2 text-xs text-[var(--muted)]">
               Not sure if you&apos;re in this professional&apos;s area? Message them and they&apos;ll confirm.
             </p>
+          </div>
+        )}
+
+        {faqs && faqs.length > 0 && (
+          <div id="faq" className="pt-8 scroll-mt-28">
+            <h2 className="font-semibold mb-3">FAQ</h2>
+            <div className="flex flex-col gap-2">
+              {faqs.map((f) => (
+                <div key={f.id} className="card p-4">
+                  <p className="font-medium text-sm">{f.question}</p>
+                  <p className="mt-1 text-sm text-[var(--muted)] leading-relaxed">{f.answer}</p>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
