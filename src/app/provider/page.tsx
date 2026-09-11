@@ -97,6 +97,10 @@ export default async function ProviderDashboardPage() {
           <Icon name="clock" size={16} className="text-[var(--trust)]" />
           Availability
         </Link>
+        <Link href="/provider/portfolio" className="card p-3 flex items-center gap-2 text-sm font-medium hover:border-[var(--trust)] transition-colors">
+          <Icon name="camera" size={16} className="text-[var(--trust)]" />
+          Portfolio
+        </Link>
       </div>
 
       <h2 className="mt-8 font-semibold">Your services</h2>

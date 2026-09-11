@@ -132,6 +132,7 @@ export interface Provider {
   display_name: string;
   headline: string | null;
   bio: string | null;
+  experience_summary: string | null;
   base_location_id: string | null;
   verification_status: VerificationStatus;
   is_accepting_work: boolean;
@@ -139,6 +140,7 @@ export interface Provider {
   booking_buffer_minutes: number;
   min_notice_hours: number;
   max_advance_days: number;
+  created_at: string;
 }
 
 export interface AvailabilityRule {
@@ -246,6 +248,15 @@ export interface Conversation {
   state: "open" | "converted" | "closed";
   created_at: string;
   updated_at: string;
+}
+
+export interface PortfolioItem {
+  id: string;
+  provider_id: string;
+  photo_url: string;
+  caption: string | null;
+  sort_order: number;
+  created_at: string;
 }
 
 export interface SavedProvider {
