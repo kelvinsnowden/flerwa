@@ -62,7 +62,7 @@ export function PortfolioGallery({ items }: { items: PortfolioItem[] }) {
                 </span>
               )}
               {item.reach_label && (
-                <span className="absolute bottom-1 left-1 text-[10px] font-semibold text-white bg-black/50 rounded-full px-1.5 py-0.5">
+                <span className="absolute bottom-1 left-1 text-xs font-semibold text-white bg-black/50 rounded-full px-1.5 py-0.5">
                   {item.reach_label}
                 </span>
               )}

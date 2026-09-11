@@ -164,14 +164,14 @@ export default async function ProviderStorefrontPage({
   const bioText = [provider.bio, provider.experience_summary].filter(Boolean).join("\n\n");
 
   return (
-    <div className="mx-auto max-w-2xl pb-8 sm:pb-10">
+    <div className={`mx-auto max-w-2xl sm:pb-10 ${isOwner ? "pb-8" : "pb-28"}`}>
       {isOwner && !isLive && (
         <div className="mx-4 mt-4 badge-warn inline-flex">Preview only — not yet public</div>
       )}
 
       <HeroGallery photoUrls={portfolioPhotoUrls} alt={provider.display_name} />
 
-      <div className="px-4">
+      <div id="overview" className="px-4 scroll-mt-16">
         <div className="flex items-end gap-3 -mt-8 relative">
           <span className="rounded-full border-4" style={{ borderColor: "var(--background)" }}>
             <Avatar name={provider.display_name} photoUrl={provider.profiles?.avatar_url} size="lg" />
@@ -184,27 +184,36 @@ export default async function ProviderStorefrontPage({
           <h1 className="text-xl font-bold">{provider.display_name}</h1>
           <VerificationBadge status={provider.verification_status} />
         </div>
+        {/* Short tagline — the headline is deliberately the only text shown
+            this high on the page; the full bio/experience live in the About
+            section further down so a first-time mobile visitor sees the
+            identity, trust signals, and primary actions without scrolling
+            past a wall of text. */}
         {provider.headline && <p className="text-[var(--muted)] text-sm mt-0.5">{provider.headline}</p>}
-        <div className="mt-1 flex items-center gap-3 text-sm text-[var(--muted)]">
+
+        <div className="mt-1 flex items-center gap-3 text-sm text-[var(--muted)] flex-wrap">
           {reliability?.avg_rating != null ? (
             <Rating value={reliability.avg_rating} count={reviewCount ?? undefined} />
           ) : (
             <span>New professional</span>
           )}
-        </div>
-
-        <div className="mt-4 grid grid-cols-2 gap-3">
-          <div className="flex items-center gap-2 text-sm">
-            <Icon name="briefcase" size={16} className="text-[var(--trust)] flex-shrink-0" />
-            <span>{reliability?.jobs_completed ?? 0} services completed</span>
-          </div>
+          {/* Only shown once it's a real, non-zero number — a "0 services
+              completed" line next to "New professional" is redundant noise,
+              not a useful signal. */}
+          {reliability?.jobs_completed != null && reliability.jobs_completed > 0 && (
+            <span className="flex items-center gap-1">
+              <Icon name="briefcase" size={13} className="text-[var(--trust)]" />
+              {reliability.jobs_completed} completed
+            </span>
+          )}
           {responseMinutes != null && (
-            <div className="flex items-center gap-2 text-sm">
-              <Icon name="clock" size={16} className="text-[var(--trust)] flex-shrink-0" />
-              <span>Usually responds within {responseMinutes < 60 ? `${responseMinutes} min` : `${Math.round(responseMinutes / 60)}h`}</span>
-            </div>
+            <span className="flex items-center gap-1">
+              <Icon name="clock" size={13} className="text-[var(--trust)]" />
+              Responds within {responseMinutes < 60 ? `${responseMinutes} min` : `${Math.round(responseMinutes / 60)}h`}
+            </span>
           )}
         </div>
+
         {provider.locations && (
           <p className="mt-2 flex items-center gap-2 text-sm">
             <Icon name="map-pin" size={16} className="text-[var(--trust)] flex-shrink-0" />
@@ -213,14 +222,8 @@ export default async function ProviderStorefrontPage({
           </p>
         )}
 
-        {bioText && (
-          <div className="mt-4">
-            <ReadMore text={bioText} />
-          </div>
-        )}
-
         {!isOwner && (
-          <div id="message-cta" className="mt-5 flex flex-col gap-2 scroll-mt-20">
+          <div id="message-cta" className="mt-4 flex flex-col gap-2 scroll-mt-20">
             <MessageButton providerId={provider.id} isSignedIn={Boolean(user)} />
             {firstActiveService && (
               <Link href={`/services/${firstActiveService.slug}?provider=${provider.id}#book`} className="btn-secondary text-center">
@@ -240,7 +243,7 @@ export default async function ProviderStorefrontPage({
                 >
                   <Icon name={(c.icon as IconName) ?? "grid"} size={18} />
                 </span>
-                <span className="text-[11px] font-medium leading-tight line-clamp-2">{c.name}</span>
+                <span className="text-xs font-medium leading-tight line-clamp-2">{c.name}</span>
               </div>
             ))}
           </div>
@@ -252,28 +255,6 @@ export default async function ProviderStorefrontPage({
       </div>
 
       <div className="px-4">
-        <div id="overview" className="pt-5 scroll-mt-28">
-          <h2 className="font-semibold mb-2">About</h2>
-          <ul className="flex flex-col gap-1.5 text-sm text-[var(--muted)]">
-            {provider.verification_status === "verified" && (
-              <li className="flex items-center gap-2">
-                <Icon name="shield-check" size={14} className="text-[var(--trust)]" />
-                Identity verified
-              </li>
-            )}
-            <li className="flex items-center gap-2">
-              <Icon name="clock" size={14} className="text-[var(--trust)]" />
-              Member since {memberSince}
-            </li>
-            {hasRemoteService && (
-              <li className="flex items-center gap-2">
-                <Icon name="video" size={14} className="text-[var(--trust)]" />
-                Open to remote projects
-              </li>
-            )}
-          </ul>
-        </div>
-
         {provider.storefront_tagline && (
           <a
             href="#message-cta"
@@ -332,6 +313,71 @@ export default async function ProviderStorefrontPage({
           )}
         </div>
 
+        {(bioText || provider.verification_status === "verified" || hasRemoteService) && (
+          <div className="pt-8">
+            <h2 className="font-semibold mb-3">About</h2>
+            {bioText && <ReadMore text={bioText} />}
+            <ul className={`flex flex-col gap-1.5 text-sm text-[var(--muted)] ${bioText ? "mt-3" : ""}`}>
+              {provider.verification_status === "verified" && (
+                <li className="flex items-center gap-2">
+                  <Icon name="shield-check" size={14} className="text-[var(--trust)]" />
+                  Identity verified
+                </li>
+              )}
+              <li className="flex items-center gap-2">
+                <Icon name="clock" size={14} className="text-[var(--trust)]" />
+                Member since {memberSince}
+              </li>
+              {hasRemoteService && (
+                <li className="flex items-center gap-2">
+                  <Icon name="video" size={14} className="text-[var(--trust)]" />
+                  Open to remote projects
+                </li>
+              )}
+            </ul>
+          </div>
+        )}
+
+        {faqs && faqs.length > 0 && (
+          <div id="faq" className="pt-8 scroll-mt-28">
+            <h2 className="font-semibold mb-3">FAQ</h2>
+            <div className="flex flex-col gap-2">
+              {faqs.map((f) => (
+                <div key={f.id} className="card p-4">
+                  <p className="font-medium text-sm">{f.question}</p>
+                  <p className="mt-1 text-sm text-[var(--muted)] leading-relaxed">{f.answer}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {hasScheduledService && (
+          <div className="pt-8">
+            <h2 className="font-semibold mb-3">Availability</h2>
+            <div className="card p-4">
+              <AvailabilityCalendar providerId={provider.id} />
+            </div>
+          </div>
+        )}
+
+        {serviceAreas && serviceAreas.length > 0 && (
+          <div className="pt-8">
+            <h2 className="font-semibold mb-3">Service Areas</h2>
+            <ServiceAreaVisual centerLabel={provider.locations?.town ?? "Kenya"} />
+            <ul className="mt-3 flex flex-wrap gap-1.5">
+              {serviceAreas.map((a, i) => (
+                <li key={i} className="badge-muted">
+                  {a.locations?.ward ?? a.locations?.town}
+                </li>
+              ))}
+            </ul>
+            <p className="mt-2 text-xs text-[var(--muted)]">
+              Not sure if you&apos;re in this professional&apos;s area? Message them and they&apos;ll confirm.
+            </p>
+          </div>
+        )}
+
         <div id="reviews" className="pt-8 scroll-mt-28">
           <h2 className="font-semibold mb-3">Reviews{reviewCount ? ` (${reviewCount})` : ""}</h2>
           {reviews && reviews.length > 0 ? (
@@ -364,46 +410,6 @@ export default async function ProviderStorefrontPage({
           )}
         </div>
 
-        {hasScheduledService && (
-          <div className="pt-8">
-            <h2 className="font-semibold mb-3">Availability</h2>
-            <div className="card p-4">
-              <AvailabilityCalendar providerId={provider.id} />
-            </div>
-          </div>
-        )}
-
-        {serviceAreas && serviceAreas.length > 0 && (
-          <div className="pt-8">
-            <h2 className="font-semibold mb-3">Service Areas</h2>
-            <ServiceAreaVisual centerLabel={provider.locations?.town ?? "Kenya"} />
-            <ul className="mt-3 flex flex-wrap gap-1.5">
-              {serviceAreas.map((a, i) => (
-                <li key={i} className="badge-muted">
-                  {a.locations?.ward ?? a.locations?.town}
-                </li>
-              ))}
-            </ul>
-            <p className="mt-2 text-xs text-[var(--muted)]">
-              Not sure if you&apos;re in this professional&apos;s area? Message them and they&apos;ll confirm.
-            </p>
-          </div>
-        )}
-
-        {faqs && faqs.length > 0 && (
-          <div id="faq" className="pt-8 scroll-mt-28">
-            <h2 className="font-semibold mb-3">FAQ</h2>
-            <div className="flex flex-col gap-2">
-              {faqs.map((f) => (
-                <div key={f.id} className="card p-4">
-                  <p className="font-medium text-sm">{f.question}</p>
-                  <p className="mt-1 text-sm text-[var(--muted)] leading-relaxed">{f.answer}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
         {provider.verification_status === "verified" && (
           <div className="mt-8 rounded-lg p-4 flex items-center gap-3" style={{ background: "var(--trust-tint)" }}>
             <Icon name="shield-check" size={22} className="text-[var(--trust-dark)] flex-shrink-0" />
@@ -415,8 +421,20 @@ export default async function ProviderStorefrontPage({
         )}
       </div>
 
+      {/* fixed, not sticky — the global BottomNav (also bottom:0, z-index 40)
+          renders as a sibling outside this page for signed-in users, so a
+          sticky bar here would compete with it for the same edge. This
+          intentionally sits above it (z-index 45) while viewing a
+          professional's profile — the contextual "message/book this
+          person" action matters more here than the persistent tab bar,
+          the same pattern product pages use elsewhere. The bottom padding
+          on the page content below keeps the last section from being
+          hidden behind it. */}
       {!isOwner && (
-        <div className="mt-8 px-4 pb-4 sticky bottom-0 bg-[var(--background)] border-t pt-3 flex gap-2 sm:hidden">
+        <div
+          className="fixed inset-x-0 bottom-0 z-[45] px-4 pb-3 bg-[var(--background)] border-t pt-3 flex gap-2 sm:hidden"
+          style={{ paddingBottom: "calc(var(--safe-bottom) + 0.75rem)" }}
+        >
           <div className="flex-1">
             <MessageButton providerId={provider.id} isSignedIn={Boolean(user)} />
           </div>
