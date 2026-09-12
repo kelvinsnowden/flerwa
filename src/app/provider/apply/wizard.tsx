@@ -303,6 +303,36 @@ export function Wizard({
               </div>
             );
           })}
+
+          {/* Confirmed gap (MARKETPLACE_UX_AUDIT.md §12): the catalog above is
+              fixed and admin-curated, so a real specialty (logo design,
+              printing, baking, ...) may have nothing to check here — even
+              when eligibleServices isn't empty, nothing in it may actually
+              fit. This doesn't add that specialty to the catalog; it points
+              at the existing task-request/quote flow, which already works
+              for any category. Opens in a new tab so nothing on this step
+              (unsaved service picks included) is lost by navigating away. */}
+          <div className="rounded-[var(--radius-sm)] p-3" style={{ background: "var(--surface)" }}>
+            <p className="text-sm font-semibold flex items-center gap-1.5">
+              <Icon name="search" size={15} className="text-[var(--trust)]" />
+              Don&apos;t see your service listed?
+            </p>
+            <p className="text-xs text-[var(--muted)] mt-1">
+              Your specialty might not be in our catalog yet. You can still find work in the meantime by
+              browsing open task requests from customers in your categories and submitting a quote for
+              ones that match your skills.
+            </p>
+            <Link
+              href="/provider/requests"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn-secondary text-sm mt-3 inline-flex items-center gap-1.5 w-fit"
+            >
+              Browse task requests
+              <Icon name="chevron-right" size={14} />
+            </Link>
+          </div>
+
           <div className="flex gap-2 mt-2">
             <button type="button" className="btn-secondary" onClick={() => setStep((s) => s - 1)}>
               Back
