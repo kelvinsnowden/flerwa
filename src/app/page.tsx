@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import type { Category, Service } from "@/lib/types";
+import { getActiveCategories, getRecommendedServices } from "@/lib/cache/catalog";
+import type { Service } from "@/lib/types";
 import { ErrorNotice } from "@/components/error-notice";
 import { SearchBar } from "@/components/ui/search-bar";
 import { CategoryCard } from "@/components/ui/category-card";
@@ -60,12 +61,7 @@ export default async function HomePage({
     unreadNotifications = count ?? 0;
   }
 
-  const { data: categories, error: categoriesError } = await supabase
-    .from("categories")
-    .select("*")
-    .eq("is_active", true)
-    .order("sort_order")
-    .returns<Category[]>();
+  const { data: categories, error: categoriesError } = await getActiveCategories();
 
   const activeCategory = categories?.find((c) => c.slug === category);
   const isBrowsing = !!q || !!activeCategory || (!!sort && sort !== "recommended");
@@ -73,12 +69,7 @@ export default async function HomePage({
   let recommended: Service[] | null = null;
   let recommendedError: unknown = null;
   if (!isBrowsing) {
-    const { data, error } = await supabase
-      .from("services")
-      .select("*")
-      .eq("is_active", true)
-      .in("slug", RECOMMENDED_SLUGS)
-      .returns<Service[]>();
+    const { data, error } = await getRecommendedServices(RECOMMENDED_SLUGS);
     recommendedError = error;
     recommended = data
       ? RECOMMENDED_SLUGS.map((slug) => data.find((s) => s.slug === slug)).filter((s): s is Service => !!s)
