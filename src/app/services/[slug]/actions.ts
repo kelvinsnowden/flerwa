@@ -16,6 +16,10 @@ export async function bookService(formData: FormData) {
   const scheduledFor = formData.get("scheduled_for") ? String(formData.get("scheduled_for")) : null;
   const instructions = String(formData.get("instructions") ?? "");
   const contactPhone = String(formData.get("contact_phone") ?? "");
+  // One fresh key per rendered form (see booking-form.tsx) — a double
+  // submit of the SAME form reuses it, so rpc_book_service can recognize
+  // and no-op the duplicate instead of creating a second transaction.
+  const idempotencyKey = formData.get("idempotency_key") ? String(formData.get("idempotency_key")) : null;
 
   if (!contactPhone) return { error: "A contact phone number is required." };
 
@@ -32,6 +36,7 @@ export async function bookService(formData: FormData) {
     p_scheduled_for: scheduledFor,
     p_instructions: instructions,
     p_contact_phone: contactPhone,
+    p_idempotency_key: idempotencyKey,
   });
 
   if (error) return { error: error.message };

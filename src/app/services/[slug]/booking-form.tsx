@@ -30,6 +30,11 @@ export function BookingForm({
   const [isPending, startTransition] = useTransition();
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
   const isScheduled = service.scheduling_mode === "scheduled";
+  // One key per mount, reused across every submit attempt of this render
+  // (double-click, retry after a slow response) so rpc_book_service can
+  // recognize a duplicate instead of creating a second transaction. A
+  // fresh page load/navigation always gets a new key.
+  const [idempotencyKey] = useState(() => crypto.randomUUID());
 
   return (
     <form
@@ -49,6 +54,7 @@ export function BookingForm({
       }}
     >
       <input type="hidden" name="service_id" value={service.id} />
+      <input type="hidden" name="idempotency_key" value={idempotencyKey} />
 
       {service.requires_location && (
         <label className="text-sm font-medium">
