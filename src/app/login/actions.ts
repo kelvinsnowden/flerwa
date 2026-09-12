@@ -24,7 +24,7 @@ export async function signup(formData: FormData) {
   if (password.length < 8) return { error: "Password must be at least 8 characters." };
 
   const supabase = await createClient();
-  const { error } = await supabase.auth.signUp({
+  const { data, error } = await supabase.auth.signUp({
     email,
     password,
     options: { data: { full_name: fullName } },
@@ -34,5 +34,16 @@ export async function signup(formData: FormData) {
   // trg_handle_new_user (server-side trigger) creates the profiles row with
   // role='customer' automatically — the client never sets a role. See
   // supabase/migrations/20260908134556_transactions_payments_trust.sql.
+
+  // A null session means email confirmation is required before this
+  // account can log in — Supabase created the user but did NOT start an
+  // authenticated session. Previously this silently redirected to the
+  // homepage still logged out, with zero indication anything happened;
+  // found by an actual signup during a live audit. Send them somewhere
+  // that says so instead of pretending nothing changed.
+  if (!data.session) {
+    redirect(`/signup/check-email?email=${encodeURIComponent(email)}`);
+  }
+
   redirect(safeNext(formData.get("next")));
 }
