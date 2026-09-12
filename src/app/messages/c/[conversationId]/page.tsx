@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { Icon } from "@/components/ui/icon";
 import { Avatar } from "@/components/ui/avatar";
 import type { Message } from "@/lib/types";
-import { MessageThread } from "../../message-thread";
+import { MessageThread, THREAD_PAGE_SIZE } from "../../message-thread";
 
 export default async function ConversationThreadPage({
   params,
@@ -45,12 +45,21 @@ export default async function ConversationThreadPage({
   const otherName = isCustomer ? conv.providers?.display_name ?? "Professional" : conv.profiles?.full_name ?? "Customer";
   const otherPhotoUrl = isCustomer ? conv.providers?.profiles?.avatar_url ?? null : conv.profiles?.avatar_url ?? null;
 
-  const { data: messages } = await supabase
+  // Bounded to the most recent THREAD_PAGE_SIZE messages, not the thread's
+  // full history — see MARKETPLACE_SCALE_READINESS_AUDIT.md. Older
+  // messages are fetched on demand by MessageThread's "Load earlier"
+  // control (src/app/messages/message-thread.tsx), via the same RLS-scoped
+  // client query, so nothing is ever unreachable — just not loaded
+  // up front.
+  const { data: recentDesc } = await supabase
     .from("messages")
     .select("*")
     .eq("conversation_id", conversationId)
-    .order("created_at", { ascending: true })
+    .order("created_at", { ascending: false })
+    .limit(THREAD_PAGE_SIZE)
     .returns<Message[]>();
+  const messages = [...(recentDesc ?? [])].reverse();
+  const hasMoreOlder = (recentDesc ?? []).length === THREAD_PAGE_SIZE;
 
   return (
     <div className="mx-auto max-w-lg flex flex-col" style={{ minHeight: "calc(100dvh - 56px)" }}>
@@ -70,7 +79,8 @@ export default async function ConversationThreadPage({
       <MessageThread
         thread={{ conversationId }}
         currentUserId={user.id}
-        initialMessages={messages ?? []}
+        initialMessages={messages}
+        initialHasMoreOlder={hasMoreOlder}
       />
     </div>
   );

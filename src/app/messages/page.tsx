@@ -9,17 +9,21 @@ import type { Message } from "@/lib/types";
 interface TxnRow {
   id: string;
   customer_id: string;
+  last_message_at: string | null;
   services: { name: string } | null;
   providers: { display_name: string; user_id: string; profiles: { avatar_url: string | null } | null } | null;
   profiles: { full_name: string | null; avatar_url: string | null } | null;
+  messages: Message[];
 }
 
 interface ConvRow {
   id: string;
   customer_id: string;
+  last_message_at: string | null;
   services: { name: string } | null;
   providers: { display_name: string; user_id: string; profiles: { avatar_url: string | null } | null } | null;
   profiles: { full_name: string | null; avatar_url: string | null } | null;
+  messages: Message[];
 }
 
 interface ThreadEntry {
@@ -32,33 +36,58 @@ interface ThreadEntry {
   unread: number;
 }
 
-export default async function MessagesInboxPage() {
+// How many threads to show per type (transaction-scoped, conversation-
+// scoped) on the first load. "Load older conversations" grows this by the
+// same amount. Capped (see MAX_LIMIT below) so the URL itself can never be
+// used to force this back into an unbounded query.
+const PAGE_SIZE = 40;
+const MAX_LIMIT = 400;
+
+export default async function MessagesInboxPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ limit?: string }>;
+}) {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) redirect("/login?next=/messages");
 
-  const [txnMessagesRes, convMessagesRes] = await Promise.all([
+  const { limit: limitParam } = await searchParams;
+  const requested = parseInt(limitParam ?? "", 10);
+  const limit = Number.isFinite(requested) && requested > PAGE_SIZE ? Math.min(requested, MAX_LIMIT) : PAGE_SIZE;
+
+  // Bounded by thread count, not message history: each thread contributes
+  // exactly one (its latest) message row, however long its history is.
+  // See MARKETPLACE_SCALE_READINESS_AUDIT.md — the previous version of
+  // this page fetched every message the user had ever sent or received.
+  const [txnThreadsRes, convThreadsRes] = await Promise.all([
     supabase
-      .from("messages")
+      .from("service_transactions")
       .select(
-        "*, service_transactions(id, customer_id, services(name), providers(display_name, user_id, profiles:user_id(avatar_url)), profiles:customer_id(full_name, avatar_url))"
+        "id, customer_id, last_message_at, services(name), providers(display_name, user_id, profiles:user_id(avatar_url)), profiles:customer_id(full_name, avatar_url), messages(id, transaction_id, conversation_id, sender_id, body, created_at, read_at)"
       )
-      .not("transaction_id", "is", null)
-      .order("created_at", { ascending: false })
-      .returns<(Message & { service_transactions: TxnRow | null })[]>(),
+      .not("last_message_at", "is", null)
+      .order("last_message_at", { ascending: false })
+      .order("created_at", { foreignTable: "messages", ascending: false })
+      .limit(1, { foreignTable: "messages" })
+      .limit(limit)
+      .returns<TxnRow[]>(),
     supabase
-      .from("messages")
+      .from("conversations")
       .select(
-        "*, conversations(id, customer_id, services(name), providers(display_name, user_id, profiles:user_id(avatar_url)), profiles:customer_id(full_name, avatar_url))"
+        "id, customer_id, last_message_at, services(name), providers(display_name, user_id, profiles:user_id(avatar_url)), profiles:customer_id(full_name, avatar_url), messages(id, transaction_id, conversation_id, sender_id, body, created_at, read_at)"
       )
-      .not("conversation_id", "is", null)
-      .order("created_at", { ascending: false })
-      .returns<(Message & { conversations: ConvRow | null })[]>(),
+      .not("last_message_at", "is", null)
+      .order("last_message_at", { ascending: false })
+      .order("created_at", { foreignTable: "messages", ascending: false })
+      .limit(1, { foreignTable: "messages" })
+      .limit(limit)
+      .returns<ConvRow[]>(),
   ]);
 
-  if (txnMessagesRes.error || convMessagesRes.error) {
+  if (txnThreadsRes.error || convThreadsRes.error) {
     return (
       <div className="mx-auto max-w-lg px-4 py-8 pb-4">
         <h1 className="text-2xl font-bold mb-6">Messages</h1>
@@ -67,64 +96,87 @@ export default async function MessagesInboxPage() {
     );
   }
 
-  // Latest message + unread count per thread — RLS already scoped
-  // `messages` to only threads this user participates in, so grouping in
-  // application code (rather than a SQL aggregate) is fine at this scale.
-  const threads = new Map<string, ThreadEntry>();
+  const txnRows = txnThreadsRes.data ?? [];
+  const convRows = convThreadsRes.data ?? [];
+  const txnIds = txnRows.map((t) => t.id);
+  const convIds = convRows.map((c) => c.id);
 
-  for (const m of txnMessagesRes.data ?? []) {
-    const txn = m.service_transactions;
-    if (!txn) continue;
-    const key = `t:${txn.id}`;
-    const isUnread = m.read_at === null && m.sender_id !== user.id;
-    const existing = threads.get(key);
-    if (!existing) {
-      const isCustomer = txn.customer_id === user.id;
-      threads.set(key, {
-        key,
-        href: `/messages/${txn.id}`,
-        otherName: isCustomer ? txn.providers?.display_name ?? "Professional" : txn.profiles?.full_name ?? "Customer",
-        otherPhotoUrl: isCustomer ? txn.providers?.profiles?.avatar_url ?? null : txn.profiles?.avatar_url ?? null,
-        serviceLabel: txn.services?.name ?? "",
-        latest: m,
-        unread: isUnread ? 1 : 0,
-      });
-    } else if (isUnread) {
-      existing.unread += 1;
-    }
+  // Unread counts, scoped to only the threads shown on this page — bounded
+  // by (thread count on this page) x (that thread's unread backlog), never
+  // by total message history.
+  const [txnUnreadRes, convUnreadRes] = await Promise.all([
+    txnIds.length > 0
+      ? supabase
+          .from("messages")
+          .select("transaction_id")
+          .in("transaction_id", txnIds)
+          .is("read_at", null)
+          .neq("sender_id", user.id)
+      : Promise.resolve({ data: [] as { transaction_id: string | null }[] }),
+    convIds.length > 0
+      ? supabase
+          .from("messages")
+          .select("conversation_id")
+          .in("conversation_id", convIds)
+          .is("read_at", null)
+          .neq("sender_id", user.id)
+      : Promise.resolve({ data: [] as { conversation_id: string | null }[] }),
+  ]);
+
+  const txnUnreadCounts = new Map<string, number>();
+  for (const row of txnUnreadRes.data ?? []) {
+    if (!row.transaction_id) continue;
+    txnUnreadCounts.set(row.transaction_id, (txnUnreadCounts.get(row.transaction_id) ?? 0) + 1);
+  }
+  const convUnreadCounts = new Map<string, number>();
+  for (const row of convUnreadRes.data ?? []) {
+    if (!row.conversation_id) continue;
+    convUnreadCounts.set(row.conversation_id, (convUnreadCounts.get(row.conversation_id) ?? 0) + 1);
   }
 
-  for (const m of convMessagesRes.data ?? []) {
-    const conv = m.conversations;
-    if (!conv) continue;
-    const key = `c:${conv.id}`;
-    const isUnread = m.read_at === null && m.sender_id !== user.id;
-    const existing = threads.get(key);
-    if (!existing) {
-      const isCustomer = conv.customer_id === user.id;
-      threads.set(key, {
-        key,
-        href: `/messages/c/${conv.id}`,
-        otherName: isCustomer ? conv.providers?.display_name ?? "Professional" : conv.profiles?.full_name ?? "Customer",
-        otherPhotoUrl: isCustomer ? conv.providers?.profiles?.avatar_url ?? null : conv.profiles?.avatar_url ?? null,
-        serviceLabel: conv.services?.name ?? "General inquiry",
-        latest: m,
-        unread: isUnread ? 1 : 0,
-      });
-    } else if (isUnread) {
-      existing.unread += 1;
-    }
+  const threads: ThreadEntry[] = [];
+
+  for (const txn of txnRows) {
+    const latest = txn.messages[0];
+    if (!latest) continue;
+    const isCustomer = txn.customer_id === user.id;
+    threads.push({
+      key: `t:${txn.id}`,
+      href: `/messages/${txn.id}`,
+      otherName: isCustomer ? txn.providers?.display_name ?? "Professional" : txn.profiles?.full_name ?? "Customer",
+      otherPhotoUrl: isCustomer ? txn.providers?.profiles?.avatar_url ?? null : txn.profiles?.avatar_url ?? null,
+      serviceLabel: txn.services?.name ?? "",
+      latest,
+      unread: txnUnreadCounts.get(txn.id) ?? 0,
+    });
   }
 
-  const threadList = Array.from(threads.values()).sort(
-    (a, b) => new Date(b.latest.created_at).getTime() - new Date(a.latest.created_at).getTime()
-  );
+  for (const conv of convRows) {
+    const latest = conv.messages[0];
+    if (!latest) continue;
+    const isCustomer = conv.customer_id === user.id;
+    threads.push({
+      key: `c:${conv.id}`,
+      href: `/messages/c/${conv.id}`,
+      otherName: isCustomer ? conv.providers?.display_name ?? "Professional" : conv.profiles?.full_name ?? "Customer",
+      otherPhotoUrl: isCustomer ? conv.providers?.profiles?.avatar_url ?? null : conv.profiles?.avatar_url ?? null,
+      serviceLabel: conv.services?.name ?? "General inquiry",
+      latest,
+      unread: convUnreadCounts.get(conv.id) ?? 0,
+    });
+  }
+
+  threads.sort((a, b) => new Date(b.latest.created_at).getTime() - new Date(a.latest.created_at).getTime());
+
+  // Only offer "load older" while at least one side actually filled its
+  // page — otherwise every thread that exists is already on screen.
+  const canLoadMore = limit < MAX_LIMIT && (txnRows.length === limit || convRows.length === limit);
 
   return (
     <div className="mx-auto max-w-lg px-4 py-8 pb-4">
       <h1 className="text-2xl font-bold mb-6">Messages</h1>
 
-      {threadList.length === 0 && (
+      {threads.length === 0 && (
         <EmptyState
           illustration="/images/empty-states/empty-messages.svg"
           title="No conversations yet"
@@ -133,7 +185,7 @@ export default async function MessagesInboxPage() {
       )}
 
       <div className="flex flex-col gap-2">
-        {threadList.map(({ key, href, otherName, otherPhotoUrl, serviceLabel, latest, unread }) => (
+        {threads.map(({ key, href, otherName, otherPhotoUrl, serviceLabel, latest, unread }) => (
           <Link
             key={key}
             href={href}
@@ -164,6 +216,16 @@ export default async function MessagesInboxPage() {
           </Link>
         ))}
       </div>
+
+      {canLoadMore && (
+        <Link
+          href={`/messages?limit=${limit + PAGE_SIZE}`}
+          className="mt-4 block text-center text-sm font-semibold py-2"
+          style={{ color: "var(--trust)" }}
+        >
+          Load older conversations
+        </Link>
+      )}
     </div>
   );
 }

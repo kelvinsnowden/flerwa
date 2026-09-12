@@ -8,16 +8,26 @@ import { sendMessage, markThreadRead } from "./actions";
 
 type ThreadRef = { transactionId: string } | { conversationId: string };
 
+// How many messages the server page loads up front (see the two
+// [transactionId]/[conversationId] page.tsx files) — kept here so both
+// sides of the "how many messages is a full page" contract stay in sync,
+// and reused below as the page size for "load earlier" too.
+export const THREAD_PAGE_SIZE = 60;
+
 export function MessageThread({
   thread,
   currentUserId,
   initialMessages,
+  initialHasMoreOlder,
 }: {
   thread: ThreadRef;
   currentUserId: string;
   initialMessages: Message[];
+  initialHasMoreOlder: boolean;
 }) {
   const [messages, setMessages] = useState<Message[]>(initialMessages);
+  const [hasMoreOlder, setHasMoreOlder] = useState(initialHasMoreOlder);
+  const [loadingOlder, setLoadingOlder] = useState(false);
   const [draft, setDraft] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -25,6 +35,32 @@ export function MessageThread({
 
   const column = "transactionId" in thread ? "transaction_id" : "conversation_id";
   const id = "transactionId" in thread ? thread.transactionId : thread.conversationId;
+
+  // Cursor pagination for history older than what the server page loaded —
+  // the same RLS policy that scoped the server-side fetch scopes this
+  // client-side one, so this can only ever reach messages the signed-in
+  // user was already allowed to read.
+  async function loadOlder() {
+    if (messages.length === 0 || loadingOlder) return;
+    setLoadingOlder(true);
+    const supabase = createClient();
+    const { data, error: fetchError } = await supabase
+      .from("messages")
+      .select("*")
+      .eq(column, id)
+      .lt("created_at", messages[0].created_at)
+      .order("created_at", { ascending: false })
+      .limit(THREAD_PAGE_SIZE)
+      .returns<Message[]>();
+    setLoadingOlder(false);
+    if (fetchError || !data) return;
+    setHasMoreOlder(data.length === THREAD_PAGE_SIZE);
+    setMessages((prev) => {
+      const existing = new Set(prev.map((m) => m.id));
+      const older = data.filter((m) => !existing.has(m.id)).reverse();
+      return [...older, ...prev];
+    });
+  }
 
   // Real-time: any message inserted on this thread (by either side) is
   // pushed straight into the postgres_changes stream — no polling. Falls
@@ -50,9 +86,15 @@ export function MessageThread({
     };
   }, [column, id]);
 
+  // Scroll to the newest message only when one actually arrives at the
+  // end (a send, or a realtime insert) — not when "Load earlier" prepends
+  // older history, which should keep the reader's place instead of
+  // yanking them back down to the bottom.
+  const lastMessageId = messages.length > 0 ? messages[messages.length - 1].id : null;
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ block: "end" });
-  }, [messages.length]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lastMessageId]);
 
   useEffect(() => {
     if (messages.some((m) => m.sender_id !== currentUserId && !m.read_at)) {
@@ -83,6 +125,17 @@ export function MessageThread({
           <p className="text-sm text-[var(--muted)] text-center mt-8">
             Say hello — messages here are only visible to the two of you.
           </p>
+        )}
+        {hasMoreOlder && (
+          <button
+            type="button"
+            onClick={loadOlder}
+            disabled={loadingOlder}
+            className="self-center text-xs font-semibold py-1.5 px-3 rounded-full"
+            style={{ color: "var(--trust)", background: "var(--surface)" }}
+          >
+            {loadingOlder ? "Loading…" : "Load earlier messages"}
+          </button>
         )}
         {messages.map((m) => {
           const mine = m.sender_id === currentUserId;
