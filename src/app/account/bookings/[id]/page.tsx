@@ -8,6 +8,8 @@ import { EvidenceGallery } from "./evidence-gallery";
 import { ApproveOrReviseControls, ReviewForm } from "./booking-actions";
 import { DisputeLink } from "./dispute-link";
 import { CancelBooking } from "./cancel-booking";
+import { PayNowButton } from "./pay-now-button";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { ErrorNotice } from "@/components/error-notice";
 import { StatusTimeline } from "@/components/ui/status-timeline";
 import { StateBadge } from "@/components/ui/state-badge";
@@ -80,20 +82,26 @@ export default async function BookingDetailPage({
   }
   if (!booking) notFound();
 
-  const [{ count: revisionCount }, { data: existingReview }, { data: payment, error: paymentError }] = await Promise.all([
-    supabase
-      .from("transaction_events")
-      .select("id", { count: "exact", head: true })
-      .eq("transaction_id", id)
-      .eq("event_type", "revision_requested"),
-    supabase
-      .from("reviews")
-      .select("id")
-      .eq("transaction_id", id)
-      .eq("reviewer_id", user.id)
-      .maybeSingle(),
-    supabase.from("payments").select("state, external_reference").eq("transaction_id", id).maybeSingle(),
-  ]);
+  const [{ count: revisionCount }, { data: existingReview }, { data: payment, error: paymentError }, { data: activePaymentProvider }] =
+    await Promise.all([
+      supabase
+        .from("transaction_events")
+        .select("id", { count: "exact", head: true })
+        .eq("transaction_id", id)
+        .eq("event_type", "revision_requested"),
+      supabase
+        .from("reviews")
+        .select("id")
+        .eq("transaction_id", id)
+        .eq("reviewer_id", user.id)
+        .maybeSingle(),
+      supabase.from("payments").select("state, external_reference").eq("transaction_id", id).maybeSingle(),
+      // Admin client: payment_providers has no client-read policy for a
+      // plain customer session (admin-only SELECT), and whether an
+      // automated "Pay with M-Pesa" button can even be offered isn't
+      // sensitive information worth adding a public policy for.
+      createAdminClient().from("payment_providers").select("key").eq("is_active", true).eq("kind", "aggregator").maybeSingle(),
+    ]);
 
   const canApproveOrRevise = booking.state === "evidence_submitted";
   const canDisputeElsewhere = DISPUTABLE_ELSEWHERE_STATES.includes(booking.state);
@@ -175,8 +183,17 @@ export default async function BookingDetailPage({
       )}
 
       {(!payment || payment.state === "unpaid") && booking.state === "requested" && (
-        <div className="mt-4 rounded-lg border p-4 text-sm badge-warn inline-block">
-          We&apos;ll be in touch on {booking.contact_phone} shortly to confirm payment details.
+        <div className="mt-4 rounded-lg border p-4 text-sm">
+          {activePaymentProvider?.key === "intasend" ? (
+            <>
+              <p className="badge-warn inline-block">Payment pending</p>
+              <PayNowButton transactionId={booking.id} />
+            </>
+          ) : (
+            <p className="badge-warn inline-block">
+              We&apos;ll be in touch on {booking.contact_phone} shortly to confirm payment details.
+            </p>
+          )}
         </div>
       )}
 

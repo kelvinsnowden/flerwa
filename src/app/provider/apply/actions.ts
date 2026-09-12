@@ -3,7 +3,9 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { resolveLocationId } from "@/lib/resolve-location";
+import { verifyKenyaNationalId } from "@/lib/verification/adapters/kora";
 
 function slugify(name: string) {
   return (
@@ -161,11 +163,58 @@ export async function saveServiceArea(locationIds: string[], isAcceptingWork: bo
 
 // Step 5 — submit. The seller does not appear verified merely for
 // submitting — rpc_submit_for_verification only ever moves
-// pending -> submitted, never further.
-export async function submitForVerification() {
+// pending -> submitted, never further. National ID number + consent are
+// saved here too (self-editable, not trust-guarded — see the migration
+// comment). If an automated verification vendor is active and both are
+// present, this also runs the real check synchronously and records the
+// result for the admin queue — it never publishes or verifies the
+// provider by itself; see docs/16-payment-verification-integrations.md.
+export async function submitForVerification(nationalIdNumber: string, identityConsent: boolean) {
   const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Please log in first." };
+
+  const { data: provider } = await supabase.from("providers").select("id").eq("user_id", user.id).maybeSingle();
+  if (!provider) return { error: "Finish step 1 first." };
+
+  const { error: saveError } = await supabase
+    .from("providers")
+    .update({
+      national_id_number: nationalIdNumber.trim() || null,
+      identity_verification_consent: identityConsent,
+    })
+    .eq("id", provider.id);
+  if (saveError) return { error: saveError.message };
+
   const { error } = await supabase.rpc("rpc_submit_for_verification");
   if (error) return { error: error.message };
+
+  if (nationalIdNumber.trim() && identityConsent) {
+    const admin = createAdminClient();
+    const { data: activeVerifier } = await admin
+      .from("verification_providers")
+      .select("key")
+      .eq("is_active", true)
+      .neq("key", "manual")
+      .maybeSingle();
+
+    if (activeVerifier?.key === "kora") {
+      const result = await verifyKenyaNationalId(nationalIdNumber.trim());
+      // Recorded either way — a failure to reach Kora is itself useful
+      // information for the admin queue, not silently dropped.
+      await admin.rpc("rpc_record_identity_check", {
+        p_provider_key: "kora",
+        p_provider_id: provider.id,
+        p_check_type: "id_document",
+        p_external_reference: result.reference ?? "",
+        p_status: result.ok ? (result.status ?? "manual_review") : "manual_review",
+        p_raw_result: result.ok ? (result.raw ?? {}) : { error: result.error },
+      });
+    }
+  }
+
   revalidatePath("/provider");
   revalidatePath("/provider/apply");
   redirect("/provider");

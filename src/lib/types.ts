@@ -145,6 +145,9 @@ export interface Provider {
   created_at: string;
   /** Optional, seller-authored short CTA line shown on their storefront. */
   storefront_tagline: string | null;
+  /** Raw input for a KYC vendor check, not a trust claim itself — see rpc_record_identity_check. */
+  national_id_number: string | null;
+  identity_verification_consent: boolean;
 }
 
 export interface AvailabilityRule {

@@ -502,3 +502,68 @@ existing `/admin/payments` and `/admin/verifications` pages. `npm run
 build` compiled both new routes and both new webhook endpoints with no
 errors, and every piece of actual logic (the RPCs) was independently
 verified live against the database as detailed above.
+
+## Closing the two stated gaps (fifth follow-up, same day)
+
+Per instruction to keep building without pausing to ask — the two gaps
+the fourth follow-up explicitly flagged as unfinished are now closed:
+
+**Real webhook signature verification**, replacing both fail-closed
+stubs, grounded in vendor docs found after the previous pass:
+`developers.intasend.com/docs/webhooks` describes a "challenge" string
+(not HMAC) set once in their dashboard and echoed back on every call;
+`developers.korapay.com/docs/webhooks` describes `x-korapay-signature`
+as an HMAC-SHA256 hex digest of the payload's `data` object. Both
+adapters now implement the real check (constant-time compares — string
+equality for IntaSend's challenge, HMAC digest for Kora's signature) and
+sanity-checked the crypto in isolation (`node -e`: equal/unequal/
+different-length compares behave correctly; HMAC digest is 64 hex chars
+and deterministic). Both still fail closed if their respective secret
+env var isn't set, which — honestly — it isn't; there's still no real
+vendor account.
+
+**The outbound half**, previously the explicitly stated missing piece:
+`createIntasendCollection()` (M-Pesa STK push, `api_ref` = our
+transaction id so the webhook can round-trip it) is wired into a real
+"Pay with M-Pesa" button on the customer's booking page, only rendered
+when an aggregator is actually the active payment provider, re-validated
+server-side (caller owns the booking, amount is the server-computed
+total, never client input). `verifyKenyaNationalId()` (Kenya National ID
+check) is wired into the provider apply wizard's submit step: a new,
+clearly-optional "Identity verification" panel collects a National ID
+number and explicit consent, and — only if Kora is the active
+verification provider and both are present — calls Kora synchronously
+and records the result via the existing `rpc_record_identity_check`,
+still never auto-verifying (same human-gated rule as before).
+
+**New schema**
+(`supabase/migrations/*_provider_identity_verification_input_fields.sql`):
+`providers.national_id_number` and
+`providers.identity_verification_consent` — plain, self-editable columns
+(not trust claims, so not covered by `trg_guard_provider_trust_fields`;
+confirmed live via a role-simulated self-update in a rolled-back
+transaction, exactly as the check trigger's own source code says it
+should behave).
+
+**What genuinely remains unconfirmed**, stated rather than assumed:
+Kora's exact Authorization header scheme for the identity endpoints
+specifically (implemented as `Bearer <secret key>`, the universal
+pattern among Kora's own payments API and every peer aggregator, but not
+found written down for the identity product by name); and whether
+IntaSend's webhook `net_amount` or `value` field is the correct one to
+compare against `total_amount_minor` (both appear in their docs — using
+the wrong one fails the amount-match guard safely rather than
+overpaying/underpaying, so it's a "confirm against a real payload" item,
+not a security gap). Neither can be resolved without a real vendor
+account, which remains outside what this session can provision.
+
+Verified this pass: `npx tsc --noEmit` and `npm run build` both clean
+after every change; the new provider self-update RLS behavior verified
+live (role-simulated, rolled back, zero residue); the crypto verified in
+isolation. Live browser QA of the new "Pay with M-Pesa" button and the
+wizard's new identity panel was not performed, same standing-admin/real-
+session limitation as the rest of this project's admin-and-payment-
+adjacent surfaces — both are small, direct extensions of already-live
+UI patterns (the existing `ConfirmPaymentForm`/wizard-step patterns),
+and their actual logic (the RPCs and adapter functions they call) is
+independently verified above.

@@ -108,6 +108,70 @@ so the system decides for them. If the founder wants to relax this later
 deliberate product/legal decision to make explicitly, not something to
 wire in quietly.
 
+## Second pass: real signature verification + the outbound half
+
+A follow-up pass replaced the fail-closed signature stubs with real
+verification, grounded in each vendor's docs found after the first pass:
+
+- **IntaSend**: not HMAC — a "challenge" string set once in their
+  dashboard and echoed back on every webhook call
+  (developers.intasend.com/docs/webhooks). `verifyWebhookSignature` now
+  does a constant-time string compare against `INTASEND_WEBHOOK_CHALLENGE`.
+  Still fails closed (`false`) if that env var isn't set — which it isn't,
+  by default.
+- **Kora**: `x-korapay-signature` header, HMAC-SHA256 of the JSON-
+  stringified `data` object, hex digest
+  (developers.korapay.com/docs/webhooks). `verifyWebhookSignature` now
+  computes and constant-time-compares this for real. Still fails closed
+  if `KORA_SECRET_KEY` isn't set.
+
+Both were sanity-checked in isolation (Node one-liners: equal/unequal/
+different-length string compares, HMAC digest length and determinism) —
+not against a live vendor account, since none exists, but the algorithms
+themselves are now real, not placeholders.
+
+**The outbound half** (previously the biggest stated gap) is now built:
+
+- `createIntasendCollection()` (`src/lib/payments/adapters/intasend.ts`)
+  — `POST /api/v1/payment/mpesa-stk-push/` with `api_ref` set to our
+  transaction id, so the inbound webhook can round-trip it back. Wired
+  into a real "Pay with M-Pesa" button on `/account/bookings/[id]`
+  (`pay-now-button.tsx` + `initiatePayment` in that route's `actions.ts`)
+  — it only appears when an aggregator is actually active, re-validates
+  server-side that the caller owns the booking and the amount is the
+  server-computed total (never client-supplied), and shows a generic
+  customer-facing message on failure while logging the precise reason
+  server-side.
+- `verifyKenyaNationalId()` (`src/lib/verification/adapters/kora.ts`) —
+  `POST /identities/ke/national-id`. Wired into `submitForVerification`
+  (provider apply wizard, step 5): a new "Identity verification
+  (optional)" panel collects a National ID number and explicit consent
+  (`providers.national_id_number`, `providers.identity_verification_consent`
+  — new nullable/self-editable columns, NOT covered by
+  `trg_guard_provider_trust_fields`, verified live via role-simulated
+  update). If Kora is the active verification provider and both fields
+  are present, the action calls Kora synchronously and records the
+  result via `rpc_record_identity_check` — same human-gated rule as
+  before, this never auto-verifies.
+
+Both outbound calls fail with a clear, logged reason (missing env var,
+vendor HTTP error) rather than a silent success — checked by inspecting
+the code path, since no real account exists to actually trigger a
+success response. `.env.example` documents every new var
+(`INTASEND_ENV`, `INTASEND_SECRET_KEY`, `INTASEND_PUBLIC_KEY`,
+`INTASEND_WEBHOOK_CHALLENGE`, `KORA_SECRET_KEY`), all unset by default.
+
+**What's still genuinely unconfirmed**, stated rather than assumed: the
+exact Authorization header scheme for Kora's identity endpoints
+specifically (implemented as `Bearer <secret key>`, the pattern Kora's
+payments API and every peer aggregator uses, but not found written down
+for the identity product itself); and whether IntaSend's `net_amount` or
+`value` field is the one to compare against `total_amount_minor` in the
+amount-match guard (both appear in their docs; using the wrong one would
+make every real payment fail the guard, not succeed one it shouldn't —
+the failure mode is safe, just noisy, so this is a "fix once you see a
+real payload" item, not a security gap).
+
 ## Reconciliation
 
 `/admin/integrations` lists the most recent `payment_provider_events`

@@ -20,6 +20,8 @@ interface ProviderRow {
   provider_categories: { category_id: string; attributes: Record<string, string> }[];
   provider_services: { service_id: string; price_minor: number | null }[];
   provider_service_areas: { location_id: string }[];
+  national_id_number: string | null;
+  identity_verification_consent: boolean;
 }
 
 const STEPS = ["About you", "What you offer", "Services & pricing", "Area & availability", "Review & submit"];
@@ -75,6 +77,12 @@ export function Wizard({
     provider?.provider_service_areas.map((a) => a.location_id) ?? []
   );
   const [isAcceptingWork, setIsAcceptingWork] = useState(provider?.is_accepting_work ?? true);
+
+  // Step 5 — identity verification input, only meaningful once an
+  // automated KYC vendor is active; see /admin/integrations and
+  // docs/16-payment-verification-integrations.md.
+  const [nationalIdNumber, setNationalIdNumber] = useState(provider?.national_id_number ?? "");
+  const [identityConsent, setIdentityConsent] = useState(provider?.identity_verification_consent ?? false);
 
   const eligibleServices = services.filter((s) => selectedCategoryIds.includes(s.category_id));
 
@@ -387,6 +395,36 @@ export function Wizard({
             <span className="badge-warn inline-flex">Not yet submitted</span>
           </div>
 
+          <div className="rounded-[var(--radius-sm)] border border-[var(--border)] p-3">
+            <p className="text-sm font-medium mb-2">Identity verification (optional)</p>
+            <p className="text-xs text-[var(--muted)] mb-2">
+              If enabled, we may use this to automatically check your National ID. This never
+              publishes your profile by itself — an admin still reviews and approves every
+              verification.
+            </p>
+            <label className="text-sm font-medium">
+              National ID number
+              <input
+                value={nationalIdNumber}
+                onChange={(e) => setNationalIdNumber(e.target.value)}
+                placeholder="e.g. 25219766"
+                className="mt-1"
+              />
+            </label>
+            <label className="flex items-start gap-2 text-xs mt-2">
+              <input
+                type="checkbox"
+                checked={identityConsent}
+                onChange={(e) => setIdentityConsent(e.target.checked)}
+                className="mt-0.5"
+              />
+              <span>
+                I consent to Trusted Services verifying my National ID number against official
+                records for identity verification purposes.
+              </span>
+            </label>
+          </div>
+
           <p className="text-xs text-[var(--muted)]">
             We&apos;ll review your information before your services become available to customers. You can keep
             editing anything above until you submit.
@@ -402,7 +440,7 @@ export function Wizard({
               disabled={isPending}
               onClick={() =>
                 startTransition(async () => {
-                  const res = await submitForVerification();
+                  const res = await submitForVerification(nationalIdNumber, identityConsent);
                   if (res?.error) setError(res.error);
                 })
               }
