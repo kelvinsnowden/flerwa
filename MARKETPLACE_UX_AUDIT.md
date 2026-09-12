@@ -225,3 +225,113 @@ live project (`famdxoardiibonghxepl`) — not just written to the repo.
 4. Re-frame "Bring your own customer" explicitly as a seller-side CTA.
 5. Figma — once a file URL is shared, re-run the comparison for real
    (see `FIGMA_AUDIT.md`).
+
+## 12. Live page-by-page audit against production (new pass)
+
+Requested explicitly as a page-by-page pass, not a code review: created
+two real accounts (customer + provider, both cleaned up to harmless
+unpublished/unverified state afterward — same convention as the
+pre-existing `qa-*` fixture rows) and clicked through signup, onboarding,
+home, search, category browse, service detail, the full 5-step seller
+apply wizard, Post-a-Task, account, bookings, and messages on
+`https://flerwa-xsbu.vercel.app`, plus direct database checks for what
+real UI can't show (actual provider/service counts).
+
+### Fixed this pass (both live, both verified)
+
+1. **`/messages` hard-errored for every user, always.**
+   `conversations.customer_id` referenced `auth.users(id)`; the inbox
+   page's `profiles:customer_id(...)` embed needs a real FK to `profiles`
+   to resolve — the exact bug class already fixed once for
+   `providers.user_id`/`service_transactions.customer_id`, just missed
+   when `conversations` was added later. Fixed by repointing the FK
+   (zero orphans; `profiles.id == auth.users.id` for every row). Verified
+   live: the inbox now shows its real empty state instead of "We
+   couldn't load your conversations right now."
+2. **Signup gave zero feedback when email confirmation is required.** A
+   brand-new account silently landed on the homepage, still logged out,
+   with no sign anything had happened. Added `/signup/check-email` and a
+   `signup()` branch that redirects there when Supabase returns no
+   session.
+
+### The central finding: the platform cannot yet represent "any service provider"
+
+This is the direct answer to "would this work for logo design, printing,
+baking" — checked by actually trying to onboard as a logo designer:
+
+- Step 3 of the seller apply wizard ("Services & pricing") only offers
+  services that already exist in the `services` table, one per category.
+  **"Business & Creator Services" has exactly one: "Content Creator."**
+  A logo designer, printer, or baker has nothing correct to select —
+  the storefront/booking path is a fixed, admin-curated catalog of 15
+  services total, not an open marketplace.
+- The real escape valve already exists and works: **Post-a-Task**
+  (`/tasks/new`) is free-text ("What do you need done?") + category +
+  budget, and a provider registered in that category can quote on it via
+  `/provider/requests` — this genuinely can carry "I need a logo
+  designed" end to end. But it's surfaced as a secondary, easy-to-miss
+  link ("Can't find the service you need?") on the customer side, and
+  **nothing in the seller apply wizard tells a provider whose real work
+  isn't in the catalog that this path exists for them too.** A logo
+  designer hitting the empty step-3 checkbox list has no reason to
+  believe the platform can use them at all.
+- **Recommendation, not yet built (a product decision, not just a bug):**
+  either (a) let a provider propose a new service into an admin-review
+  queue — keeps the trust/checklist model intact, matches the existing
+  admin-gated verification pattern, or (b) surface Post-a-Task/quotes as
+  a first-class, equally-prominent path for sellers during apply, not an
+  afterthought. (a) is more work but preserves the structured-evidence
+  trust model that's this product's whole thesis; (b) is small and could
+  ship immediately. Flagging both rather than picking one, since it's a
+  real trust-vs-openness tradeoff for the founder to decide, not a
+  default I should pick silently.
+
+### Zero real supply, confirmed at the database level
+
+Every single `services` row has **0 published providers** — checked
+directly (`select count(*) filter (where is_published) ...` across all
+15 services, all zero). The only `providers` rows that exist are 4
+unpublished QA fixtures. This means **no customer can complete a
+storefront booking on production today, for any service** — not a page
+bug, a real content/supply gap. This matches and sharpens the earlier
+MVP conversation in this session: the platform's technical machinery
+works (verified end-to-end via role-simulated DB tests throughout this
+project), but there is no live supply yet for it to move.
+
+### Other findings, real but lower severity
+
+- **Category taxonomy is narrow and trades/property-flavored.** The 5
+  top-level categories ("Verification & Representation," "Business &
+  Creator Services," "Home & Property," "Personal," "Errands & Tasks")
+  and copy throughout (wizard headline placeholder: "e.g. Verified
+  Plumber · Nairobi") implicitly frame the platform around inspection/
+  trades work. Nothing is broken, but a creative-services or retail-
+  adjacent provider (designer, printer, baker) has to actively
+  reinterpret generic labels to see themselves in it.
+- **Search has no contextual escape hatch.** Searching for something
+  genuinely absent (tried "logo design") correctly shows an honest "No
+  services match" empty state, but the fix (Post-a-Task) is the same
+  generic footer link shown on every page — it doesn't carry the
+  customer's actual query into the task form, so they retype it.
+- **Onboarding's buyer/seller/both gate is inconsistently enforced.** A
+  signed-in user can browse and use the home page fully without ever
+  visiting `/onboarding`; only some routes (`/account`, `/provider/apply`)
+  force it. Not broken, just inconsistent — a user's path through the
+  app can differ depending which link they clicked first.
+- **A one-time "Please log in first" false rejection** was seen once on
+  the apply wizard's step 2 despite a confirmed-valid session (retrying
+  immediately succeeded). Only reproduced once — noted, not chased
+  further, possibly a transient hiccup rather than a real defect; worth
+  watching for if it recurs.
+
+### What this pass deliberately did not do
+
+Did not seed fabricated "real" providers or services for logo design/
+printing/baking to make the catalog look populated — that would violate
+this project's own standing rule against fabricating data, and a founder
+decision about how open vs. curated the catalog should be shouldn't be
+pre-empted by inventing rows. Did not chase the single-occurrence "please
+log in first" wizard error further given it didn't reproduce. Did not
+build the "propose a new service" or "surface Post-a-Task to sellers"
+fix — flagged above as a product decision pending the founder's call on
+curated-vs-open.
