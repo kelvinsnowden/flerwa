@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 export async function submitQuote(requestId: string, amountKes: string, message: string) {
   const supabase = await createClient();
@@ -9,6 +10,9 @@ export async function submitQuote(requestId: string, amountKes: string, message:
   if (!Number.isFinite(amountMinor) || amountMinor <= 0) {
     return { error: "Enter a valid quote amount." };
   }
+
+  const { allowed } = await checkRateLimit("submit_quote", { max: 20, windowSeconds: 3600 });
+  if (!allowed) return { error: "You're submitting quotes too quickly — please wait a bit and try again." };
 
   const { error } = await supabase.rpc("rpc_submit_quote", {
     p_request_id: requestId,

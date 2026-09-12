@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { safeNext } from "@/lib/safe-redirect";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 export async function login(formData: FormData) {
   const email = String(formData.get("email") ?? "");
@@ -22,6 +23,9 @@ export async function signup(formData: FormData) {
   const fullName = String(formData.get("full_name") ?? "");
   if (!email || !password) return { error: "Email and password are required." };
   if (password.length < 8) return { error: "Password must be at least 8 characters." };
+
+  const { allowed } = await checkRateLimit("signup", { max: 5, windowSeconds: 3600 });
+  if (!allowed) return { error: "Too many signups from this connection recently — please try again later." };
 
   const supabase = await createClient();
   const { data, error } = await supabase.auth.signUp({

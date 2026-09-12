@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { resolveLocationId } from "@/lib/resolve-location";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 export async function postTask(formData: FormData) {
   const supabase = await createClient();
@@ -10,6 +11,9 @@ export async function postTask(formData: FormData) {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return { error: "Please log in to post a task." };
+
+  const { allowed } = await checkRateLimit("post_task", { max: 5, windowSeconds: 3600 });
+  if (!allowed) return { error: "You've posted several tasks recently — please wait a bit before posting another." };
 
   const categoryId = String(formData.get("category_id") ?? "");
   const rawLocation = String(formData.get("location_id") ?? "");

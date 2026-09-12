@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 type ThreadRef = { transactionId: string } | { conversationId: string };
 
@@ -21,6 +22,9 @@ export async function sendMessage(ref: ThreadRef, body: string) {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return { error: "Not signed in." };
+
+  const { allowed } = await checkRateLimit("send_message", { max: 30, windowSeconds: 60 });
+  if (!allowed) return { error: "You're sending messages too quickly — please slow down." };
 
   const { column, value, path } = threadColumn(ref);
 

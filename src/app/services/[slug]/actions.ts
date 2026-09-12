@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { resolveLocationId } from "@/lib/resolve-location";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 export async function bookService(formData: FormData) {
   const supabase = await createClient();
@@ -10,6 +11,9 @@ export async function bookService(formData: FormData) {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return { error: "Please log in to book a service." };
+
+  const { allowed } = await checkRateLimit("book_service", { max: 10, windowSeconds: 600 });
+  if (!allowed) return { error: "You're booking too quickly — please wait a few minutes and try again." };
 
   const serviceId = String(formData.get("service_id") ?? "");
   const providerId = formData.get("provider_id") ? String(formData.get("provider_id")) : null;
