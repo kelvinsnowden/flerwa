@@ -282,3 +282,50 @@ export interface SavedProvider {
   provider_id: string;
   created_at: string;
 }
+
+export interface PaymentProvider {
+  key: string;
+  display_name: string;
+  kind: "manual" | "aggregator";
+  is_active: boolean;
+  config: Record<string, unknown>;
+  connected_by: string | null;
+  connected_at: string | null;
+  created_at: string;
+}
+
+export interface VerificationProvider {
+  key: string;
+  display_name: string;
+  is_active: boolean;
+  config: Record<string, unknown>;
+  connected_by: string | null;
+  connected_at: string | null;
+  created_at: string;
+}
+
+export interface PaymentProviderEvent {
+  id: string;
+  provider_key: string;
+  transaction_id: string | null;
+  event_type: string;
+  external_reference: string | null;
+  amount_minor: number | null;
+  currency: string | null;
+  signature_verified: boolean;
+  raw_payload: Record<string, unknown>;
+  processed: boolean;
+  processing_error: string | null;
+  created_at: string;
+}
+
+export interface IdentityVerificationCheck {
+  id: string;
+  provider_key: string;
+  provider_id: string;
+  check_type: string;
+  external_reference: string | null;
+  status: "pending" | "passed" | "failed" | "manual_review";
+  raw_result: Record<string, unknown>;
+  created_at: string;
+}

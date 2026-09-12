@@ -8,6 +8,7 @@ interface Props {
   provider: Provider & {
     docs: { id: string; kind: string; url: string | null; status: string }[];
     provider_categories: { category_id: string; is_cleared: boolean; categories: { name: string } }[];
+    checks: { provider_key: string; check_type: string; status: string; created_at: string }[];
   };
   categories: { id: string; name: string }[];
 }
@@ -53,6 +54,27 @@ export function VerificationCard({ provider, categories }: Props) {
       )}
       {provider.docs.length === 0 && (
         <p className="text-xs text-[var(--muted)] mt-2">No documents submitted yet.</p>
+      )}
+
+      {provider.checks.length > 0 && (
+        <div className="mt-3">
+          <p className="text-xs font-medium mb-1">Automated checks</p>
+          <div className="flex flex-wrap gap-2">
+            {provider.checks.map((check, i) => (
+              <span
+                key={i}
+                className={check.status === "passed" ? "badge-trust text-xs" : "badge-warn text-xs"}
+                title={new Date(check.created_at).toLocaleString()}
+              >
+                {check.provider_key}: {check.check_type} — {check.status}
+              </span>
+            ))}
+          </div>
+          <p className="text-[10px] text-[var(--muted)] mt-1">
+            Informational only — this never changes verification status by itself; the
+            decision below is still yours.
+          </p>
+        </div>
       )}
 
       <div className="mt-3">

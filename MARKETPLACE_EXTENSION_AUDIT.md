@@ -395,3 +395,110 @@ No backend/schema changes in this pass — layout and information
 hierarchy only, reusing the same real data (reliability, reviews,
 portfolio, FAQ, availability, service areas) the storefront already
 fetched.
+
+## Generic payment/verification provider integration seam (fourth follow-up)
+
+Business context for this pass: the founder plans to launch on IntaSend
+(payments) and Kora (identity/KYC), but asked for the *generic*
+architecture — "what's needed to connect... such platforms" — not code
+hardcoded to those two vendors, plus "a well thought out backend that
+will manage this whole operation." This generalizes the existing
+"manual" payment/verification flows into a registry-driven, pluggable
+seam, following the same provider-abstraction pattern this project
+already uses for the SMS vendor behind phone OTP.
+
+**Schema** (`supabase/migrations/*_payment_verification_provider_registry.sql`):
+`payment_providers` and `verification_providers` registries (exactly one
+row `is_active` per table, enforced by a partial unique index, not just
+app logic), seeded with `manual` active in both — nothing about current
+behaviour changed by this migration. `payment_provider_events` and
+`identity_verification_checks` are append-style audit tables: every
+inbound webhook is recorded whether or not it was acted on, so nothing
+is ever silently dropped — the reconciliation surface
+`docs/07-payments.md` calls for. RLS: admin-read-only on all four; no
+client write policy on any of them (writes are RPC-only, same pattern as
+`payments` itself).
+
+**RPCs**
+(`supabase/migrations/*_provider_agnostic_funding_and_verification_rpcs.sql`):
+extracted `rpc_confirm_manual_payment`'s existing funding logic into a
+shared internal helper, `_fund_transaction`, so the human admin path and
+a new automated path share one set of invariants — same ledger entries,
+same guarded state transition, same 60-day escrow clock. Added
+`rpc_ingest_payment_event` (service-role-only — verified via
+`has_function_privilege`, exactly like `SECURITY.md` §8's own discipline,
+that `anon` and `authenticated` get **no** grant at all, only
+`service_role` does), which funds a transaction only when every guard
+passes — the active provider matches, the transaction is still fundable,
+the amount and currency match what's owed, and the signature verified —
+and otherwise records why it didn't, for manual reconciliation. Added
+`rpc_record_identity_check` (same service-role-only grant), which
+records a vendor's KYC result but **deliberately never** changes
+`providers.verification_status` itself — see "Why verification stays
+human-gated" in `docs/16-payment-verification-integrations.md`. Added
+`rpc_set_active_payment_provider` / `rpc_set_active_verification_provider`
+(admin-gated, verified a non-admin call is rejected) — the whole
+mechanism behind "flip a DB flag, not a deploy."
+
+**Verified live**, via the same role-simulated SQL method as the rest of
+this project, using fixtures created and torn down inside a single
+uncommitted transaction (confirmed clean afterward — the live registry
+shows only `manual` active and `intasend`/`kora` present as
+available-but-inactive, nothing else):
+
+| Check | Result |
+|---|---|
+| Grant surface: `anon`/`authenticated` cannot execute `rpc_ingest_payment_event` or `rpc_record_identity_check`; `service_role` can | PASS |
+| A correctly-signed, correctly-amounted webhook event funds the transaction — payment row, 3 balanced ledger entries, transaction state → `funded` | PASS |
+| An amount mismatch is refused and recorded with a specific `processing_error`; transaction stays `requested`, no payment row created | PASS |
+| An unsigned/unverified webhook is refused regardless of matching amount | PASS |
+| An identity check is recorded but `providers.verification_status` is provably unchanged afterward | PASS |
+| A non-admin cannot call `rpc_set_active_payment_provider` | PASS |
+
+**Application layer**: `src/lib/payments/provider.ts` +
+`src/lib/verification/provider.ts` define the adapter interface; one
+concrete adapter each (`src/lib/payments/adapters/intasend.ts`,
+`src/lib/verification/adapters/kora.ts`) ground the field mapping in
+each vendor's *published* docs (IntaSend's Payment Collection Events
+docs; Kora's Kenya KYC and identity-verification docs) — but neither
+implements real signature verification, on purpose:
+`verifyWebhookSignature` fails closed (`return false`) rather than
+fabricate a scheme never tested against a real vendor account. That
+means every event from either adapter today would be recorded as
+`processing_error: "Webhook signature did not verify."`, never silently
+trusted — the honest, safe default until someone with a real account
+implements the real check. `src/app/api/webhooks/payments/route.ts` and
+`.../verification/route.ts` are the generic dispatchers: look up whoever
+the DB says is active, hand off to that vendor's adapter, call the
+service-role RPC — no per-vendor branching outside the adapter files.
+
+**Admin UI** (`src/app/admin/integrations/`): lists both registries with
+an "activate" action per row, plus a recent-events reconciliation view
+with an unprocessed-count callout. `/admin/verifications`' existing
+`VerificationCard` now shows any automated check results inline
+("kora: id_document — passed"), explicitly labelled informational —
+the Approve/Reject decision is unchanged, still the admin's alone.
+
+**What this pass did not do**, stated rather than hidden: it did not
+implement real webhook signature verification for either vendor (needs
+a real account to test against); it did not build the "create a
+collection request" half of a payment integration (initiating a charge
+with IntaSend, attaching our transaction id as their `api_ref`) — only
+the inbound webhook side; and it did not confirm whether Kora's identity
+product pushes webhooks at all, versus the request/query model their
+docs describe (flagged prominently in the adapter file itself). All
+three are real remaining work, documented in
+`docs/16-payment-verification-integrations.md`, not silently assumed
+solved.
+
+Live browser QA of `/admin/integrations` was not performed this pass —
+this project has no standing admin test account with real login
+credentials (every prior admin-side check in this project, per
+`SECURITY.md`, used direct role-simulated SQL rather than a live
+session), and creating one would mean a heavier-weight throwaway
+signup+promote+revert cycle for a page that is a thin, direct read of
+already-verified tables using the same card/list patterns as the
+existing `/admin/payments` and `/admin/verifications` pages. `npm run
+build` compiled both new routes and both new webhook endpoints with no
+errors, and every piece of actual logic (the RPCs) was independently
+verified live against the database as detailed above.

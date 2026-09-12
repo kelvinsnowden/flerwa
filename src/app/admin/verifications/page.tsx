@@ -29,6 +29,16 @@ export default async function AdminVerificationsPage() {
 
   const { data: categories } = await supabase.from("categories").select("id, name").eq("is_active", true);
 
+  // Automated KYC-vendor results, if any have come in via
+  // rpc_record_identity_check — surfaced alongside the manual documents
+  // below, never a substitute for the human decision. See
+  // docs/06-trust-architecture.md and docs/16-payment-verification-integrations.md.
+  const { data: identityChecks } = await supabase
+    .from("identity_verification_checks")
+    .select("provider_id, provider_key, check_type, status, created_at")
+    .in("provider_id", (providers ?? []).map((p) => p.id))
+    .order("created_at", { ascending: false });
+
   // Signed URLs for private KYC documents, generated server-side only.
   const withDocUrls = await Promise.all(
     (providers ?? []).map(async (p) => {
@@ -41,7 +51,8 @@ export default async function AdminVerificationsPage() {
           return { ...v, url: data?.signedUrl ?? null };
         })
       );
-      return { ...p, docs };
+      const checks = (identityChecks ?? []).filter((c) => c.provider_id === p.id);
+      return { ...p, docs, checks };
     })
   );
 
