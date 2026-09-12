@@ -335,3 +335,163 @@ log in first" wizard error further given it didn't reproduce. Did not
 build the "propose a new service" or "surface Post-a-Task to sellers"
 fix — flagged above as a product decision pending the founder's call on
 curated-vs-open.
+
+## 13. Resolution: Post-a-Task surfaced during provider onboarding
+
+Closes the "surface Post-a-Task to sellers" item from §12 — the founder
+chose Option B (surface the existing opportunity-discovery route, not
+build a provider-proposed-service workflow).
+
+### Original finding
+
+A provider whose real specialty isn't in the fixed `services` catalog
+(§12's logo-design/printing/baking example) hit a dead end at step 3 of
+the apply wizard ("Services & pricing") with no alternative offered —
+not because a route didn't exist, but because nothing in the wizard
+pointed at it.
+
+### Inspection, before any change
+
+- **Provider signup wizard**: `/provider/apply`
+  (`src/app/provider/apply/page.tsx` + `wizard.tsx`, a 5-step client
+  component). Step 3's service checkboxes come from `services` rows
+  passed down as a prop, pre-filtered in the component to
+  `eligibleServices` (services whose `category_id` is in the categories
+  chosen at step 2). Categories/services are loaded server-side in
+  `page.tsx` (`supabase.from("categories")...`,
+  `supabase.from("services")...`, both `.eq("is_active", true)`) — no
+  client-side fetch. When a chosen category has zero services at all,
+  step 3 already showed "No services exist yet in your chosen
+  categories" — but that check does nothing for a category (like
+  "Business & Creator Services," which has exactly one: "Content
+  Creator") that has services, just none that fit. `saveServices`
+  (`actions.ts`) blocks `Continue` with "Choose at least one service to
+  offer" if nothing is checked — a genuine mismatch is a hard stop with
+  no escape inside the wizard itself. Back navigation
+  (`setStep((s) => s - 1)`) works and re-shows prior selections, since
+  step 1/2 data is persisted server-side on each step's `Continue` and
+  re-hydrated into the `provider` prop on reload; only the *current*
+  step's in-progress, not-yet-submitted picks live in local React state
+  and would be lost by navigating away from the wizard entirely.
+
+- **Post-a-Task, both sides** — this is two different routes, and
+  picking the right one mattered:
+  - `/tasks/new` (`src/app/tasks/new/page.tsx`) is the **customer-side
+    creation form**: free-text need, a real category dropdown, location,
+    budget, contact phone. Requires auth (redirects to
+    `/login?next=/tasks/new`), does **not** require onboarding intent to
+    be set. This is where a *customer* posts "I need a logo designed" —
+    not where a *provider* would go.
+  - `/provider/requests` (`src/app/provider/requests/page.tsx`) is the
+    **provider-side browse-and-quote view** — "Open requests from
+    customers in your categories," scoped server-side to
+    `provider_categories` the signed-in provider already declared, with
+    a per-request link to `/provider/requests/[id]` to submit a quote
+    (`rpc_submit_quote` via `actions.ts`). Requires auth, and requires a
+    `providers` row to exist (`redirect("/provider/apply")` otherwise —
+    already satisfied by the time step 3 renders, since step 1 creates
+    that row) and at least one declared category (already satisfied by
+    step 3, since step 2's `Continue` calls `saveCategories` first). This
+    is the route the ticket's own suggested copy actually describes
+    ("explore customer tasks and respond to requests that match your
+    skills") — **not** `/tasks/new`. No existing reusable link component
+    for either; both were plain `Link`s inline elsewhere (home page
+    footer, `/account`).
+
+- **Conventions confirmed before writing anything**: `Icon` component
+  (`src/components/ui/icon.tsx`) already exports `"search"` and
+  `"chevron-right"`; `btn-secondary` is the established non-primary
+  button class used throughout this same wizard; `Link`/`Icon` were
+  already imported in `wizard.tsx`. No test suite exists in this project
+  (confirmed again — same as every other pass's finding).
+
+### What was built
+
+One file changed: `src/app/provider/apply/wizard.tsx`. A callout added
+inside step 3, after the existing service checkboxes and before the
+Back/Continue buttons — visually secondary (`var(--surface)` background,
+no border, smaller text than the step's real content), never disabled,
+never blocking `Continue`:
+
+> **Don't see your service listed?**
+> Your specialty might not be in our catalog yet. You can still find
+> work in the meantime by browsing open task requests from customers in
+> your categories and submitting a quote for ones that match your
+> skills.
+> **[Browse task requests →]**
+
+The link goes to the real, existing `/provider/requests` — not a new
+route — and opens in a new tab (`target="_blank" rel="noopener
+noreferrer"`) specifically so a provider can look without losing any
+unsaved step-3 picks or navigating away from the wizard at all. Copy was
+deliberately written to never say "add," "list," or "create" a service —
+it describes finding existing customer requests and quoting on them,
+matching what `/provider/requests` actually does. No database schema
+change, no new route, no new component, no change to verification,
+publishing, or the catalog-based path itself.
+
+### Limitations, stated plainly
+
+- This does **not** add a new service to the catalog. A provider whose
+  specialty still isn't listed after this change still can't create a
+  storefront listing for it — they can only find and quote on tasks
+  customers post in their declared category.
+- It does **not** grant automatic eligibility for every task — the
+  destination page already scopes results to the provider's own
+  declared categories, same as before this change.
+- It does **not** publish a provider or change verification status —
+  entirely unrelated to `rpc_set_verification_status`/`is_published`.
+- The broader supply-side gap from §12 (zero published providers,
+  narrow category taxonomy) is **not** solved by this change and isn't
+  claimed to be — this closes one specific navigation/discoverability
+  gap in onboarding, nothing more.
+
+### Verification performed
+
+- `npx tsc --noEmit` — clean.
+- No `lint` script exists in `package.json` (confirmed by reading it) —
+  skipped per instruction, not silently assumed.
+- `npm run build` — clean; `/provider/apply` compiles with no new
+  routes, no new errors.
+- **Live production verification** (not local — this sandbox has no way
+  to run a browser against a local dev server, same limitation as every
+  other browser-based check in this project): pushed, waited for Vercel
+  to redeploy, then reused an existing, already-documented harmless test
+  provider account from §12 (`ux-audit-logo-designer-nslb` —
+  `verification_status: pending`, `is_published: false`) rather than
+  create new fixture data. Confirmed via a real Kernel browser session
+  against `https://flerwa-xsbu.vercel.app`:
+  - The callout renders on step 3 exactly as written, alongside the
+    unchanged "Content Creator" checkbox.
+  - Clicking "Browse task requests" opens a **new tab** at
+    `/provider/requests`, which showed a real, pre-existing open task
+    request in the provider's own category ("I need videos created," in
+    Business & Creator Services) — not fabricated for this check, just
+    what was already there.
+  - The original wizard tab was completely unaffected — same URL, same
+    step, same state — confirming the new-tab approach genuinely
+    preserves onboarding state.
+  - The existing catalog checkbox still works (checking "Content
+    Creator" reveals its price input, unchanged).
+  - `Back` from step 3 still returns to step 2 with the prior category
+    selection intact.
+  - At 390px: no horizontal overflow (`scrollWidth` 375 ≤ `innerWidth`
+    390), the CTA's bounding box fully inside the viewport.
+  - At 1280px: no horizontal overflow (`scrollWidth` 1265 ≤ `innerWidth`
+    1280), callout and CTA correctly confined to the wizard's existing
+    centered column, no overlap with anything else on the page.
+  - The link is a real `<a href="/provider/requests" target="_blank">`,
+    reachable and focusable via keyboard, with an unambiguous accessible
+    name ("Browse task requests").
+  - Checked the reused test provider's row afterward: `service_count: 0`,
+    `verification_status: pending`, `is_published: false` — unchanged by
+    this verification pass, confirming no new residue was created.
+
+### Follow-up still open
+
+A future **provider-proposed-service** workflow (Option A from §12) is
+still the only way to let a provider genuinely add a *new* catalog
+service rather than just find existing customer demand in their
+category — this pass deliberately implements the smaller, already-
+approved Option B and does not attempt that larger, admin-review-queue
+feature.
