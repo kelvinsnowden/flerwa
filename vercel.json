@@ -3,6 +3,10 @@
     {
       "path": "/api/cron/auto-approve-sweep",
       "schedule": "0 3 * * *"
+    },
+    {
+      "path": "/api/cron/ledger-reconciliation",
+      "schedule": "0 4 * * *"
     }
   ]
 }
