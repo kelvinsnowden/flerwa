@@ -233,6 +233,11 @@ export default async function BookingDetailPage({
 
       {canCancel && <CancelBooking transactionId={booking.id} />}
 
+      <Link href={`/support?booking=${booking.id}`} className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-[var(--muted)]">
+        <Icon name="help-circle" size={16} />
+        Need help with this booking?
+      </Link>
+
       {canReview && booking.providers && (
         <div className="mt-6 card p-4">
           <ReviewForm

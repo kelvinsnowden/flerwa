@@ -68,6 +68,13 @@ export default async function AccountPage() {
           </span>
           <Icon name="chevron-right" size={18} className="text-[var(--muted)]" />
         </Link>
+        <Link href="/support" className="card p-4 flex items-center justify-between hover:border-[var(--trust)] transition-colors">
+          <span className="flex items-center gap-2 font-medium">
+            <Icon name="help-circle" size={18} className="text-[var(--trust)]" />
+            Get help
+          </span>
+          <Icon name="chevron-right" size={18} className="text-[var(--muted)]" />
+        </Link>
         {profile?.role === "admin" && (
           <Link href="/admin" className="card p-4 flex items-center justify-between hover:border-[var(--trust)] transition-colors">
             <span className="flex items-center gap-2 font-medium">

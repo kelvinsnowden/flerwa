@@ -18,3 +18,11 @@ export async function setActiveVerificationProvider(key: string) {
   revalidatePath("/admin/integrations");
   return { success: true };
 }
+
+export async function setActiveNotificationChannel(key: string) {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("rpc_set_active_notification_channel", { p_key: key });
+  if (error) return { error: error.message };
+  revalidatePath("/admin/integrations");
+  return { success: true };
+}
