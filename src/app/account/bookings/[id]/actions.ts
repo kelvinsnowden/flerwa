@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
 import { createIntasendCollection } from "@/lib/payments/adapters/intasend";
+import { createPesapalOrder } from "@/lib/payments/adapters/pesapal";
 
 export async function approveBooking(transactionId: string) {
   const supabase = await createClient();
@@ -72,20 +73,30 @@ export async function initiatePayment(transactionId: string) {
     .eq("kind", "aggregator")
     .maybeSingle();
   if (!activeProvider) return { error: "No automated payment method is available — pay via the M-Pesa details we send you." };
-  if (activeProvider.key !== "intasend") {
-    return { error: `Provider '${activeProvider.key}' is active but has no outbound integration wired up yet.` };
+
+  if (activeProvider.key === "intasend") {
+    const result = await createIntasendCollection(transactionId, txn.total_amount_minor, txn.currency, txn.contact_phone);
+    if (!result.ok) {
+      // The adapter's error is a precise internal reason (missing env var,
+      // vendor HTTP error) — useful in logs, not something to show a
+      // customer mid-checkout.
+      console.error("initiatePayment: createIntasendCollection failed", result.error);
+      return { error: "We couldn't start the payment prompt. Please try again shortly, or wait for our team to reach out." };
+    }
+    return { success: true as const };
   }
 
-  const result = await createIntasendCollection(transactionId, txn.total_amount_minor, txn.currency, txn.contact_phone);
-  if (!result.ok) {
-    // The adapter's error is a precise internal reason (missing env var,
-    // vendor HTTP error) — useful in logs, not something to show a
-    // customer mid-checkout.
-    console.error("initiatePayment: createIntasendCollection failed", result.error);
-    return { error: "We couldn't start the payment prompt. Please try again shortly, or wait for our team to reach out." };
+  if (activeProvider.key === "pesapal") {
+    const { data: profile } = await supabase.from("profiles").select("email").eq("id", user.id).maybeSingle();
+    const result = await createPesapalOrder(transactionId, txn.total_amount_minor, txn.currency, profile?.email ?? null, txn.contact_phone);
+    if (!result.ok || !result.redirectUrl) {
+      console.error("initiatePayment: createPesapalOrder failed", result.error);
+      return { error: "We couldn't start checkout. Please try again shortly, or wait for our team to reach out." };
+    }
+    return { success: true as const, redirectUrl: result.redirectUrl };
   }
 
-  return { success: true as const };
+  return { error: `Provider '${activeProvider.key}' is active but has no outbound integration wired up yet.` };
 }
 
 export async function requestRevision(transactionId: string, reason: string) {

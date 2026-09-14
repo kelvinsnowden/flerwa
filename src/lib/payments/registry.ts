@@ -1,6 +1,7 @@
 import "server-only";
 import type { PaymentProviderAdapter } from "./provider";
 import { intasendAdapter } from "./adapters/intasend";
+import { pesapalAdapter } from "./adapters/pesapal";
 
 /**
  * Every aggregator this codebase knows how to speak to, keyed exactly like
@@ -11,4 +12,5 @@ import { intasendAdapter } from "./adapters/intasend";
  */
 export const paymentAdapters: Record<string, PaymentProviderAdapter> = {
   intasend: intasendAdapter,
+  pesapal: pesapalAdapter,
 };

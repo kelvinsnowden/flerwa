@@ -38,7 +38,21 @@ export interface PaymentProviderAdapter {
    * working" — see rpc_ingest_payment_event's own guard, which refuses to
    * fund a transaction when this comes back false.
    */
-  verifyWebhookSignature(rawBody: string, headers: Headers): boolean;
-  /** Only called after verifyWebhookSignature returns true. */
-  parseWebhookEvent(rawBody: string): ParsedPaymentEvent;
+  verifyWebhookSignature(rawBody: string, headers: Headers): boolean | Promise<boolean>;
+  /**
+   * Called regardless of what verifyWebhookSignature returned (the route
+   * still records an unverified event for reconciliation) — never used to
+   * decide trust itself. `signatureVerified` above is what
+   * rpc_ingest_payment_event actually gates funding on.
+   *
+   * Return type is `| Promise<...>` because not every vendor's
+   * authenticity check is "hash this payload against a shared secret":
+   * Pesapal's IPN carries no signature at all — the only way to know an
+   * inbound tracking id is real is to call back Pesapal's own API with
+   * our own OAuth credentials and read the authoritative status, which is
+   * inherently async. A vendor like IntaSend that can verify+parse
+   * synchronously just returns a plain value; `await` resolves that
+   * immediately either way.
+   */
+  parseWebhookEvent(rawBody: string, headers: Headers): ParsedPaymentEvent | Promise<ParsedPaymentEvent>;
 }

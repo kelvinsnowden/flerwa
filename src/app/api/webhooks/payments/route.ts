@@ -44,11 +44,11 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const signatureVerified = adapter.verifyWebhookSignature(rawBody, req.headers);
+  const signatureVerified = await adapter.verifyWebhookSignature(rawBody, req.headers);
 
   let parsed;
   try {
-    parsed = adapter.parseWebhookEvent(rawBody);
+    parsed = await adapter.parseWebhookEvent(rawBody, req.headers);
   } catch {
     // Even an unparseable payload from a "verified" sender shouldn't 500 —
     // record what we can and let an admin look at the raw payload.

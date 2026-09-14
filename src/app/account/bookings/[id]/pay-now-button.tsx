@@ -26,11 +26,12 @@ export function PayNowButton({ transactionId }: { transactionId: string }) {
           startTransition(async () => {
             const res = await initiatePayment(transactionId);
             if (res?.error) setError(res.error);
+            else if (res?.redirectUrl) window.location.href = res.redirectUrl;
             else setSent(true);
           })
         }
       >
-        {isPending ? "Sending prompt…" : "Pay with M-Pesa"}
+        {isPending ? "Starting checkout…" : "Pay now"}
       </button>
       {error && <p className="text-xs text-[var(--danger)] mt-1">{error}</p>}
     </div>

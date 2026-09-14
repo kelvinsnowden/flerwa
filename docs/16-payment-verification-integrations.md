@@ -172,6 +172,63 @@ make every real payment fail the guard, not succeed one it shouldn't —
 the failure mode is safe, just noisy, so this is a "fix once you see a
 real payload" item, not a security gap).
 
+## Third pass: Pesapal, a structurally different aggregator
+
+A follow-up pass added `src/lib/payments/adapters/pesapal.ts` — deliberately
+picked as the second real aggregator (rather than a second IntaSend-shaped
+one) because it forced the adapter interface to prove it actually
+generalizes, not just to two vendors that happen to look alike:
+
+- **IntaSend**: prompts the customer's phone directly (STK push); its
+  webhook pushes a payload carrying the actual result; authenticity is a
+  shared "challenge" string.
+- **Pesapal**: redirects the customer to a Pesapal-hosted checkout page
+  (they pick M-Pesa, card, bank there); its IPN callback carries only an
+  `OrderTrackingId` — no amount, no status, no signature of any kind. The
+  only way to know what actually happened is to call
+  `GetTransactionStatus` back on Pesapal's own API, authenticated with an
+  OAuth bearer token obtained from `PESAPAL_CONSUMER_KEY`/
+  `PESAPAL_CONSUMER_SECRET`. That authenticated call-back **is** this
+  adapter's signature verification: nobody can forge a `COMPLETED` status
+  without our consumer secret, no matter what they POST to our IPN URL,
+  and `rpc_ingest_payment_event`'s own transaction/amount-match guards
+  reject anything that doesn't correspond to a transaction we actually
+  created.
+
+This is inherently asynchronous (an HTTP round-trip to Pesapal, not a
+synchronous hash compare), so `PaymentProviderAdapter.verifyWebhookSignature`
+and `.parseWebhookEvent` were widened to
+`boolean | Promise<boolean>` / `ParsedPaymentEvent | Promise<ParsedPaymentEvent>`
+and the webhook route now `await`s both. IntaSend's adapter is unchanged —
+a plain synchronous return is still valid there, `await` on a non-promise
+value just resolves immediately.
+
+Pesapal also has no STK-push equivalent for the outbound half:
+`createPesapalOrder()` calls `SubmitOrderRequest` and returns a
+`redirect_url` the customer's browser is sent to, rather than triggering a
+phone prompt. `initiatePayment` (`src/app/account/bookings/[id]/actions.ts`)
+now branches on the active provider's key — IntaSend's STK-push path is
+unchanged, Pesapal's returns `{ redirectUrl }` and `PayNowButton` navigates
+the browser there via `window.location.href`. `transactionId` is sent as
+Pesapal's `merchant_reference` at order-submission time so the IPN round-trip
+can recover it — but note `parseWebhookEvent` reads `merchant_reference`
+back from the **authoritative status response**, never from the
+unauthenticated raw IPN body, since the raw body is attacker-reachable
+input and the status call is not.
+
+Requires `PESAPAL_CONSUMER_KEY`, `PESAPAL_CONSUMER_SECRET`, `PESAPAL_IPN_ID`
+(from the one-time `RegisterIPN` call, done once against Pesapal's API, not
+at runtime) and `PESAPAL_CALLBACK_URL` — all unset by default, so both the
+inbound and outbound paths fail with a clear, logged "not configured"
+reason rather than a silent success, same discipline as IntaSend. None of
+this was tested against a live Pesapal account; confirm field names
+(`payment_status_description`, `merchant_reference`, `amount`, `currency`)
+against Pesapal's current docs (developers.pesapal.com) before activating.
+
+Seeded into `payment_providers` as available-but-not-active (same pattern
+as the IntaSend seed) — flipping it active on `/admin/integrations` still
+requires the real env vars above to be set first.
+
 ## Reconciliation
 
 `/admin/integrations` lists the most recent `payment_provider_events`
