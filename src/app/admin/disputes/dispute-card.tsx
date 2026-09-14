@@ -33,7 +33,14 @@ export function DisputeCard({ dispute, admins }: Props) {
   if (resolved) {
     return (
       <div className="card p-4">
-        <p className="badge-trust inline-flex">Resolved</p>
+        <p className="badge-info inline-flex mb-1">Submitted for approval</p>
+        <p className="text-sm text-[var(--muted)]">
+          A different trust &amp; safety or finance admin needs to approve this from{" "}
+          <a href="/admin/approvals" className="underline">
+            /admin/approvals
+          </a>{" "}
+          before any funds actually move (dual control — GOV-P4).
+        </p>
       </div>
     );
   }
@@ -143,7 +150,7 @@ export function DisputeCard({ dispute, admins }: Props) {
           })
         }
       >
-        {isPending ? "Resolving…" : "Resolve dispute"}
+        {isPending ? "Submitting…" : "Propose resolution"}
       </button>
     </div>
   );

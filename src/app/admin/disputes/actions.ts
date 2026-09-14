@@ -10,7 +10,10 @@ export async function resolveDispute(
   resolution: string
 ) {
   const supabase = await createClient();
-  const { error } = await supabase.rpc("rpc_resolve_dispute", {
+  // GOV-P4 (dual control): proposes the refund/payout split; a DIFFERENT
+  // trust & safety or finance admin must approve it from /admin/approvals
+  // before any ledger entry is actually posted.
+  const { data, error } = await supabase.rpc("rpc_resolve_dispute", {
     p_dispute_id: disputeId,
     p_provider_minor: providerMinor,
     p_customer_refund_minor: customerRefundMinor,
@@ -19,7 +22,8 @@ export async function resolveDispute(
   if (error) return { error: error.message };
   revalidatePath("/admin/disputes");
   revalidatePath("/admin");
-  return { success: true };
+  revalidatePath("/admin/approvals");
+  return { success: true, pending: true as const, approvalId: data as string };
 }
 
 export async function assignDispute(disputeId: string, assigneeId: string | null) {

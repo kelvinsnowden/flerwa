@@ -8,8 +8,13 @@ export function PauseControl({ categoryId, isActive }: { categoryId: string; isA
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [open, setOpen] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
 
   const action = isActive ? "Pause" : "Resume";
+
+  if (submitted) {
+    return <p className="text-xs text-[var(--muted)]">Submitted — needs a second admin&apos;s approval at /admin/approvals.</p>;
+  }
 
   if (!open) {
     return (
@@ -25,6 +30,7 @@ export function PauseControl({ categoryId, isActive }: { categoryId: string; isA
 
   return (
     <div className="flex flex-col gap-2 items-end">
+      <p className="text-xs text-[var(--muted)] w-56">Requires a second admin&apos;s approval (dual control) — this proposes it, it doesn&apos;t take effect immediately.</p>
       <textarea
         value={reason}
         onChange={(e) => setReason(e.target.value)}
@@ -45,15 +51,12 @@ export function PauseControl({ categoryId, isActive }: { categoryId: string; isA
               setError(null);
               const result = await setCategoryActive(categoryId, !isActive, reason.trim());
               if (result.error) setError(result.error);
-              else {
-                setReason("");
-                setOpen(false);
-              }
+              else setSubmitted(true);
             })
           }
           className={isActive ? "text-xs px-3 py-1 rounded bg-[var(--danger)] text-white disabled:opacity-50" : "text-xs btn-primary px-3 py-1 rounded disabled:opacity-50"}
         >
-          {isPending ? "Working…" : `Confirm ${action.toLowerCase()}`}
+          {isPending ? "Submitting…" : `Propose ${action.toLowerCase()}`}
         </button>
       </div>
     </div>
