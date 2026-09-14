@@ -58,10 +58,16 @@ per-function only where they'd clearly change the intended reviewer.
 | OPS-A13 | Date-range / category / status filters on the dashboard | Missing (dashboard has zero filters today) | — | — | Admin | Low | N/A | No | N/A | A | — |
 | OPS-A14 | "Requires attention" unified queue (single view aggregating A7–A10) | Missing | — | — | Admin | Med | N/A | No | N/A | **A** | — |
 
-**Finding:** the dashboard today is 6 static numbers with no drill-down and
-no filters — exactly the "decorative numbers" anti-pattern this task warns
-against. None of the 6 existing tiles link anywhere; a click on "Open
-disputes" should go to `/admin/disputes` pre-filtered, and doesn't.
+**Finding, partially addressed this pass:** the dashboard's 4 count tiles
+now link to their queue — verified each destination already applies the
+matching filter server-side (`/admin/verifications` and `/admin/disputes`
+already default to the pending/open subset; `/admin/transactions` now
+accepts a `state` param, including comma-separated multi-state for
+"Completed jobs" so the drill-down count matches the tile's own query
+exactly, not an approximation). Still missing: date-range/category filters
+on the dashboard itself (OPS-A13) and the unified "requires attention"
+queue (OPS-A14/A7-A10) — those need new data (SLA/overdue-action tracking)
+that doesn't exist yet, not just a UI change.
 
 ---
 
@@ -70,10 +76,10 @@ disputes" should go to `/admin/disputes` pre-filtered, and doesn't.
 | ID | Function | Status | Route/Component | RPC/API | Role | Risk | Audit | Dual approval | Reversible | Priority | Decision blocker |
 |---|---|---|---|---|---|---|---|---|---|---|---|
 | BK-B1 | List all transactions | Implemented and verified | `/admin/transactions` | direct query, `.limit(100)` | Admin | Low | N/A | No | N/A | — | — |
-| BK-B2 | Booking detail/timeline page (single transaction, full history) | Missing — the list links to the *customer-facing* `/account/bookings/[id]` page, which is scoped by RLS to the booking's own participants, not an admin detail view | — | — | Admin | Med | N/A | No | N/A | **A** | — |
-| BK-B3 | Search by booking ID / customer / provider / phone / payment ref / status / date | Missing (no filters or search on the list at all) | — | — | Admin | Low | N/A | No | N/A | **A** | — |
-| BK-B4 | State-transition history view | Partially implemented — `transaction_events` (append-only, confirmed via table comment) has the data; no admin UI reads it | — | `transaction_events` table | Admin | Low | N/A | No | N/A | **A** | — |
-| BK-B5 | Pagination | Missing — hard `.limit(100)`, nothing beyond row 100 is reachable | — | — | Admin | Low | N/A | No | N/A | **A** | — |
+| BK-B2 | Booking detail/timeline page (single transaction, full history) | **Implemented and verified this pass** — new `/admin/bookings/[id]`: customer/provider/scope/financials, payments, ledger entries (with a live balance check per booking), disputes, evidence, review, state-transition history, and admin interventions on this booking, all in one view | `/admin/bookings/[id]` (new) | direct reads across 9 tables, all confirmed admin-readable via RLS before writing this | Admin | Low (read) | N/A | No | N/A | — | — |
+| BK-B3 | Search by booking ID / phone / status | **Implemented and verified this pass** — exact booking-ID match, phone substring match, state filter (single or comma-separated multi-state, e.g. from a dashboard drill-down); customer-name/provider-name/payment-reference/location/risk-level search **not** implemented this pass (would need either new indexes or a dedicated search RPC — deferred, not silently dropped) | `/admin/transactions` | direct query with `.eq`/`.ilike`/`.in` | Admin | Low | N/A | No | N/A | — | — |
+| BK-B4 | State-transition history view | **Implemented and verified this pass** — rendered on the new booking-detail page, `from_state → to_state` per event with actor role and timestamp | `/admin/bookings/[id]` | `transaction_events` table | Admin | Low | N/A | No | N/A | — | — |
+| BK-B5 | Pagination | **Implemented and verified this pass** — `/admin/transactions` now paginates (50/page) instead of a hard `.limit(100)` cutoff | `/admin/transactions` | `.range()` + `count: "exact"` | Admin | Low | N/A | No | N/A | — | — |
 | BK-B6 | Place booking under review / pause progression | Missing — no "hold" state exists in `txn_state` | — | — | Admin | Med | Yes | No | Yes | B | needs a state-machine addition, not a UI-only fix |
 | BK-B7 | Cancel booking (admin-initiated) | Missing (customer-initiated `rpc_cancel_booking` exists; no admin equivalent) | — | — | Admin | High | Yes | Consider for funded txns | Partial (refund logic if funded) | B | TXN-005 fee-tiering still founder-blocked |
 | BK-B8 | Initiate refund (admin, outside dispute) | Missing — only path to refund today is `rpc_resolve_dispute` (requires an open dispute) or `rpc_cancel_booking` (customer-only, pre-check-in) | — | — | Admin | High | Yes | **Yes**, above a threshold | No (money moves) | B | PAY-009/PAY-004 — refund policy + dual-control threshold unresolved |
@@ -81,13 +87,21 @@ disputes" should go to `/admin/disputes` pre-filtered, and doesn't.
 | BK-B10 | Assign case owner / change priority | Missing | — | — | Admin | Low | Yes | No | Yes | C | — |
 | BK-B11 | Escalate to supervisor | Missing (no supervisor role exists — see §P) | — | — | Admin | Low | Yes | No | Yes | C | needs role model first |
 | BK-B12 | Export booking record | Missing | — | — | Admin | Med (PII) | Yes | No | N/A | D | — |
-| BK-B13 | View messages/evidence/revisions/review linked to a booking, in one place | Partially implemented — each exists in its own table (`messages`, `transaction_evidence`, `transaction_checklist_results`, `reviews`) but no single admin view assembles them | — | — | Admin | Low | N/A | No | N/A | **A** | — |
+| BK-B13 | View evidence/review linked to a booking, in one place | **Implemented and verified this pass** on the new detail page (BK-B2). **Not included:** `messages` (deliberately — admin read access to private customer/provider conversation content is a real privacy call, not a default; see §L) and `transaction_checklist_results` (lower-value structured checklist state, deferred) | `/admin/bookings/[id]` | — | Admin | Low | N/A | No | N/A | — | — |
 
-**Finding:** this is the single largest gap relative to the task's own
-framing — "an operations team should be able to run the marketplace without
-developer intervention" is not true today for the most basic case (*"show
-me everything about booking X"*), because there is no admin booking-detail
-page at all. `/admin/transactions` is a flat, unfiltered 100-row list.
+**Finding, addressed this pass:** this was the single largest gap relative
+to the task's own framing — "an operations team should be able to run the
+marketplace without developer intervention" was not true for the most
+basic case (*"show me everything about booking X"*). Verified against
+real production data (transaction `33333333-aaaa-...`, 1 real
+`transaction_events` row, 0 payments/ledger/evidence/admin-actions rows —
+both the populated and empty-state render paths were exercised against
+actual rows, not just reasoned about) before considering this closed.
+**Not done this pass:** search by customer/provider name, payment
+reference, location, or risk level (BK-B3's remaining scope); the "requires
+attention" unified queue (OPS-A14); booking-level actions (hold, cancel,
+refund, notes — all of §B's action rows, C-priority and beyond, since they
+change state and need the dual-control/policy groundwork from §P first).
 
 ---
 
@@ -366,18 +380,18 @@ to an already-large capability-matrix pass.
 
 ## Implementation phases (as executed / recommended)
 
-**Phase A — Critical operational visibility.** This pass implemented the
-smallest, highest-leverage Phase A items that were both safe and fully
-within reach without new schema decisions: the **audit-log viewer**
-(AUD-N2), and closing the audit-trail gap on **both** admin-privileged
-actions found to be missing one — `rpc_confirm_manual_payment` (PAY-C1, the
-single highest-stakes existing action in the app) and provider publish/
-unpublish (PROV-E3). Everything else marked **A** above
-— booking detail/timeline, transaction search/pagination, a unified
-"requires attention" queue, ledger-entries browser, provider list/detail —
-is real, scoped, unblocked Phase A work **not done this pass**, given the
-size of this single request; see "Recommended next step" in the final
-report.
+**Phase A — Critical operational visibility.** Across this and the
+immediately following pass, this implemented: the **audit-log viewer**
+(AUD-N2); closing the audit-trail gap on both admin-privileged actions
+missing one (PAY-C1, PROV-E3); the **booking detail/timeline page**
+(BK-B2/B4/B13) assembling 9 tables' worth of history into one admin view;
+**search, filter, and pagination** on the transactions list (BK-B3/B5); and
+**working drill-down links** from the dashboard tiles to their correctly-
+filtered queues (§A finding). Still real, scoped, unblocked Phase A work
+**not done**: a provider list/detail page (§E), a ledger-entries browser
+independent of a specific booking (PAY-C9), customer search (§D), and the
+"requires attention" unified queue (OPS-A14, which needs new SLA/overdue
+tracking fields, not just UI).
 
 **Phase B — Safe operational actions.** Category emergency pause (EMG-R1)
 is the standout candidate: schema already exists, RLS already enforces it,

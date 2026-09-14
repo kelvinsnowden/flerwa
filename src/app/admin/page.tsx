@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { formatMoney } from "@/lib/money";
 
@@ -37,10 +38,10 @@ export default async function AdminOverviewPage() {
     <div>
       <h1 className="text-xl font-bold mb-6">Overview</h1>
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <Stat label="Pending verifications" value={pendingVerifications ?? 0} urgent={(pendingVerifications ?? 0) > 0} />
-        <Stat label="Payments to confirm" value={pendingPayments ?? 0} urgent={(pendingPayments ?? 0) > 0} />
-        <Stat label="Open disputes" value={openDisputes ?? 0} urgent={(openDisputes ?? 0) > 0} />
-        <Stat label="Completed jobs" value={settledCount ?? 0} />
+        <Stat href="/admin/verifications" label="Pending verifications" value={pendingVerifications ?? 0} urgent={(pendingVerifications ?? 0) > 0} />
+        <Stat href="/admin/transactions?state=requested" label="Payments to confirm" value={pendingPayments ?? 0} urgent={(pendingPayments ?? 0) > 0} />
+        <Stat href="/admin/disputes" label="Open disputes" value={openDisputes ?? 0} urgent={(openDisputes ?? 0) > 0} />
+        <Stat href="/admin/transactions?state=settled,reviewed,closed" label="Completed jobs" value={settledCount ?? 0} />
       </div>
       <p className="mt-6 text-sm text-[var(--muted)]">
         GMV (settled, service amount only, excludes materials pass-through):{" "}
@@ -80,11 +81,11 @@ export default async function AdminOverviewPage() {
   );
 }
 
-function Stat({ label, value, urgent }: { label: string; value: number; urgent?: boolean }) {
+function Stat({ href, label, value, urgent }: { href: string; label: string; value: number; urgent?: boolean }) {
   return (
-    <div className="card p-4">
+    <Link href={href} className="card p-4 block hover:opacity-80">
       <p className={`text-2xl font-bold ${urgent ? "text-[var(--danger)]" : ""}`}>{value}</p>
       <p className="text-xs text-[var(--muted)] mt-1">{label}</p>
-    </div>
+    </Link>
   );
 }
