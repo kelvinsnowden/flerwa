@@ -5,6 +5,7 @@ import type { ServiceTransaction, TxnState } from "@/lib/types";
 import { ErrorNotice } from "@/components/error-notice";
 import { EmptyState } from "@/components/ui/empty-state";
 import { BookingCard } from "@/components/ui/booking-card";
+import { RecurringSeriesCard } from "./recurring-series-card";
 
 type Filter = "all" | "upcoming" | "in_progress" | "completed";
 
@@ -40,18 +41,45 @@ export default async function BookingsPage({
   } = await supabase.auth.getUser();
   if (!user) redirect("/login?next=/account/bookings");
 
-  const { data: bookings, error } = await supabase
-    .from("service_transactions")
-    .select("*, services(name), providers(display_name)")
-    .eq("customer_id", user.id)
-    .order("requested_at", { ascending: false })
-    .returns<(ServiceTransaction & { services: { name: string } | null; providers: { display_name: string } | null })[]>();
+  const [{ data: bookings, error }, { data: recurringSeries }] = await Promise.all([
+    supabase
+      .from("service_transactions")
+      .select("*, services(name), providers(display_name)")
+      .eq("customer_id", user.id)
+      .order("requested_at", { ascending: false })
+      .returns<(ServiceTransaction & { services: { name: string } | null; providers: { display_name: string } | null })[]>(),
+    supabase
+      .from("recurring_series")
+      .select("id, frequency, next_occurrence_date, services(name), providers(display_name)")
+      .eq("customer_id", user.id)
+      .eq("is_active", true)
+      .order("created_at", { ascending: false })
+      .returns<{ id: string; frequency: string; next_occurrence_date: string; services: { name: string } | null; providers: { display_name: string } | null }[]>(),
+  ]);
 
   const filtered = filter === "all" ? bookings : bookings?.filter((b) => FILTER_STATES[filter].includes(b.state));
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-8 pb-4">
       <h1 className="text-2xl font-bold mb-4">My bookings</h1>
+
+      {!!recurringSeries?.length && (
+        <div className="mb-6">
+          <h2 className="text-sm font-semibold mb-2">Recurring services</h2>
+          <div className="flex flex-col gap-2">
+            {recurringSeries.map((s) => (
+              <RecurringSeriesCard
+                key={s.id}
+                id={s.id}
+                serviceName={s.services?.name ?? "Service"}
+                providerName={s.providers?.display_name ?? "Professional"}
+                frequency={s.frequency}
+                nextOccurrenceDate={s.next_occurrence_date}
+              />
+            ))}
+          </div>
+        </div>
+      )}
 
       {!error && !!bookings?.length && (
         <div className="flex gap-2 overflow-x-auto pb-1 mb-4">

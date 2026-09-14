@@ -48,6 +48,51 @@ export async function bookService(formData: FormData) {
   redirect(`/account/bookings/${data}?created=1`);
 }
 
+// Starts a standing recurring arrangement (docs/07-payments.md §3) —
+// creates recurring_series plus its first occurrence as an ordinary,
+// individually-funded service_transactions row. Requires an explicit
+// provider (no auto-match): a recurring arrangement is inherently with
+// one specific professional, unlike a one-off booking.
+export async function startRecurringSeries(formData: FormData) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Please log in to book a service." };
+
+  const { allowed } = await checkRateLimit("book_service", { max: 10, windowSeconds: 600 });
+  if (!allowed) return { error: "You're booking too quickly — please wait a few minutes and try again." };
+
+  const serviceId = String(formData.get("service_id") ?? "");
+  const providerId = formData.get("provider_id") ? String(formData.get("provider_id")) : null;
+  const frequency = String(formData.get("frequency") ?? "");
+  const firstOccurrenceDate = String(formData.get("first_occurrence_date") ?? "");
+  const instructions = String(formData.get("instructions") ?? "");
+  const contactPhone = String(formData.get("contact_phone") ?? "");
+
+  if (!providerId) return { error: "Choose a professional for this recurring arrangement." };
+  if (!contactPhone) return { error: "A contact phone number is required." };
+  if (!firstOccurrenceDate) return { error: "Choose a date for the first occurrence." };
+
+  const rawLocation = formData.get("location_id") ? String(formData.get("location_id")) : null;
+  const { id: locationId, error: locationError } = await resolveLocationId(supabase, rawLocation);
+  if (locationError) return { error: locationError };
+
+  const { error } = await supabase.rpc("rpc_start_recurring_series", {
+    p_service_id: serviceId,
+    p_provider_id: providerId,
+    p_location_id: locationId,
+    p_frequency: frequency,
+    p_first_occurrence_date: firstOccurrenceDate,
+    p_instructions: instructions,
+    p_contact_phone: contactPhone,
+  });
+
+  if (error) return { error: error.message };
+
+  redirect(`/account/bookings?recurring_started=1`);
+}
+
 // Read-only: mirrors the exact rules/blocked/booked checks rpc_book_service
 // itself enforces at write time, so what the customer sees here is
 // consistent with what booking will actually accept. rpc_book_service still

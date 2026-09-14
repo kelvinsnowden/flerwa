@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import type { Service, Location, Provider, ReliabilityScore } from "@/lib/types";
 import { Avatar } from "@/components/ui/avatar";
 import { Combobox } from "@/components/ui/combobox";
-import { bookService } from "./actions";
+import { bookService, startRecurringSeries } from "./actions";
 import { SlotPicker } from "./slot-picker";
 
 export function BookingForm({
@@ -29,7 +29,9 @@ export function BookingForm({
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
+  const [selectedProviderId, setSelectedProviderId] = useState(preselectedProviderId ?? "");
   const isScheduled = service.scheduling_mode === "scheduled";
+  const isRecurring = service.pricing_model === "recurring";
   // One key per mount, reused across every submit attempt of this render
   // (double-click, retry after a slow response) so rpc_book_service can
   // recognize a duplicate instead of creating a second transaction. A
@@ -42,7 +44,7 @@ export function BookingForm({
       action={(formData) => {
         setError(null);
         startTransition(async () => {
-          const result = await bookService(formData);
+          const result = isRecurring ? await startRecurringSeries(formData) : await bookService(formData);
           if (result?.error) {
             if (result.error === "Please log in to book a service.") {
               router.push(`/login?next=/services/${service.slug}`);
@@ -97,8 +99,15 @@ export function BookingForm({
       ) : (
         <label className="text-sm font-medium">
           Professional
-          <select name="provider_id" className="mt-1" defaultValue="">
-            <option value="">Let us match you with a verified professional</option>
+          <select
+            name="provider_id"
+            className="mt-1"
+            value={selectedProviderId}
+            onChange={(e) => setSelectedProviderId(e.target.value)}
+          >
+            <option value="">
+              {isRecurring ? "Choose a professional for this standing arrangement" : "Let us match you with a verified professional"}
+            </option>
             {providers.map((p) => {
               const rel = p.reliability_scores?.[0];
               return (
@@ -111,11 +120,12 @@ export function BookingForm({
           </select>
           {providers.length === 0 && (
             <span className="mt-1 block text-xs text-[var(--muted)]">
-              No professionals are published in this category yet — your booking
-              will be assigned by our team once confirmed.
+              {isRecurring
+                ? "No professionals are published in this category yet — a recurring arrangement needs a specific professional, so check back soon."
+                : "No professionals are published in this category yet — your booking will be assigned by our team once confirmed."}
             </span>
           )}
-          {providers.length > 0 && (
+          {providers.length > 0 && !isRecurring && (
             <a href="#providers" className="mt-1 block text-xs font-semibold" style={{ color: "var(--trust)" }}>
               Choose a specific professional →
             </a>
@@ -123,7 +133,22 @@ export function BookingForm({
         </label>
       )}
 
-      {isScheduled && preselectedProviderId ? (
+      {isRecurring ? (
+        <div className="flex flex-col gap-4">
+          <label className="text-sm font-medium">
+            How often
+            <select name="frequency" className="mt-1" defaultValue="monthly">
+              <option value="weekly">Every week</option>
+              <option value="biweekly">Every 2 weeks</option>
+              <option value="monthly">Every month</option>
+            </select>
+          </label>
+          <label className="text-sm font-medium">
+            First occurrence
+            <input type="date" name="first_occurrence_date" required min={new Date().toISOString().slice(0, 10)} className="mt-1" />
+          </label>
+        </div>
+      ) : isScheduled && preselectedProviderId ? (
         <div>
           <span className="text-sm font-medium">Choose a time</span>
           <div className="mt-1">
@@ -169,17 +194,35 @@ export function BookingForm({
 
       <div className="rounded-lg bg-[var(--surface)] p-3 text-xs text-[var(--muted)] flex flex-col gap-1">
         <p className="font-semibold text-[var(--foreground)]">What happens next</p>
-        <p>1. We confirm your booking and reach out to arrange M-Pesa payment.</p>
-        <p>2. Your payment is held until the service is done and you approve it.</p>
-        <p>3. Your professional is assigned or confirmed and the service gets scheduled.</p>
+        {isRecurring ? (
+          <>
+            <p>1. We create your first occurrence now and reach out to arrange M-Pesa payment for it.</p>
+            <p>2. Each future occurrence is created a few days before it&apos;s due — you fund and approve it individually, same as any booking.</p>
+            <p>3. Stop any time from your bookings page — nothing is ever pre-charged for occurrences you haven&apos;t seen yet.</p>
+          </>
+        ) : (
+          <>
+            <p>1. We confirm your booking and reach out to arrange M-Pesa payment.</p>
+            <p>2. Your payment is held until the service is done and you approve it.</p>
+            <p>3. Your professional is assigned or confirmed and the service gets scheduled.</p>
+          </>
+        )}
       </div>
 
       <button
         type="submit"
-        disabled={isPending || (isScheduled && (!preselectedProviderId || !selectedSlot))}
+        disabled={isPending || (isScheduled && (!preselectedProviderId || !selectedSlot)) || (isRecurring && !selectedProviderId)}
         className="btn-primary"
       >
-        {isPending ? "Booking…" : isScheduled && !selectedSlot ? "Choose a time to continue" : "Book this service"}
+        {isPending
+          ? isRecurring
+            ? "Setting up…"
+            : "Booking…"
+          : isScheduled && !selectedSlot
+            ? "Choose a time to continue"
+            : isRecurring
+              ? "Start recurring service"
+              : "Book this service"}
       </button>
     </form>
   );
