@@ -1549,6 +1549,87 @@ general load testing. **Severity:** P2. **Status:** Not started.
 
 ## DECISIONS_REQUIRING_FOUNDER_OR_BUSINESS_APPROVAL
 
+### RESOLVED 2026-09-14 — founder decisions (all 16 pending items answered)
+
+All items below (the original 12-item list further down this section, plus
+GOV-P1–P4 from `MARKETPLACE_ADMIN_CAPABILITY_MATRIX.md`, plus the two new
+findings this pass) were brought to the founder as explicit questions and
+answered directly. Recorded verbatim/paraphrased here as the founder's own
+decision — the original numbered list below is left intact underneath as
+historical context (options considered, recommended defaults, risk
+analysis) but is **superseded by this block** wherever the two disagree.
+
+1. **Admin roles (GOV-P1–P4):** Build the full role/permission matrix now
+   — not deferred, not a lightweight single-role add. Scope: granular
+   roles, a role-assignment UI, per-action permissions beyond `is_admin()`,
+   and dual control (see #4 below). This is the largest single item in
+   this list — was previously sequenced last (Phase C) in the capability
+   matrix's own plan; founder has now moved it earlier.
+2. **Payment aggregator:** **Pesapal** (not IntaSend, which had the
+   scaffolded adapter — a new adapter needs to be written for Pesapal
+   following the same `PaymentProviderAdapter` interface/pattern).
+3. **Email vendor for the support system:** **Mailgun** (not Resend, which
+   already has a working, unit-tested adapter — a new
+   `EmailProviderAdapter` implementation needs to be written for Mailgun
+   following the exact same interface; the interface itself was
+   deliberately built provider-agnostic for exactly this situation).
+4. **Refund/payout/ban/pause authorization:** **Two-person approval for
+   everything**, no single-admin threshold. This is a stricter posture
+   than the register's own recommended default (single admin under a
+   threshold) — every privileged financial/moderation RPC will need a
+   propose/approve (or equivalent dual-sign) pattern, not just an
+   `is_admin()` check.
+5. **Launch vertical/corridor:** Follow `docs/09`'s recommendation as-is.
+6. **Platform fee model:** **Build the full differentiated-by-vertical
+   model now** (not deferred) — needs a fee-schedule table keyed by
+   category and pair-history per `docs/10`, not a hardcoded constant.
+7. **Verification tiers:** Adopt `docs/06`'s Tier 0–3 table verbatim.
+8. **Legal budget:** Founder's own position (paraphrased): *"As long as a
+   third party is holding the documents and the money, the docs/14
+   estimate (KSh 1.2–2.0M) is out of touch"* — i.e., using a licensed
+   third-party aggregator (Pesapal, per #2) to actually hold funds/manage
+   KYC materially reduces the platform's own PSP-status and
+   money-transmission exposure relative to what docs/14 assumed, so that
+   budget is considered overscoped. **No replacement figure given yet.**
+   Flagging honestly: this is a legal judgment call, not an engineering
+   one — the reduced-scope assumption should still be confirmed with an
+   actual lawyer before any LEGAL-00x item is treated as closed on this
+   basis; nothing here should be read as legal advice or a substitute for
+   that confirmation.
+9. **Staging environment:** Approved — set up a second Supabase project +
+   preview deployment now.
+10. **Support hours/on-call:** Define severity tiers (P0/P1/P2 etc.) now;
+    owner-per-tier still TBD (no dedicated support hire yet).
+11. **Recurring-service bookings + milestone payments:** **Build both
+    now** (not deferred) — two separate, real schema commitments: booking
+    series/scheduling rules/per-occurrence state, and partial-release
+    payments tied to defined milestones instead of one lump sum.
+12. **SMS/WhatsApp support channel:** Not yet — stay email-only (Mailgun,
+    per #3) until that's proven end-to-end first.
+13. **Dual-coverage (second-inspector) sampling:** Not yet — deferred
+    entirely until a real Tier 3 transaction exists to protect.
+14. **Data retention periods:** Founder wants **longer retention (roughly
+    1–7 years, for compliance/dispute purposes)** rather than short
+    (~30–90 day) retention. Exact figure within that range not yet
+    pinned down; a real deletion job still needs to be built once it is.
+15. **ODPC registration:** **Not registered yet** — this is a real,
+    confirmed open action item, not just an unknown. Likely belongs
+    inside whatever legal engagement scope replaces the docs/14 estimate
+    (#8).
+16. **Production QA/test fixture data:** Leave everything as-is for now
+    (including the ambiguous `"kelvin Muthomi kimathi"` row) — no purge.
+    Revisit before any real user sees the admin dashboard, provider
+    lists, or any trusted analytics/metrics query, since this data will
+    otherwise appear indistinguishable from real activity.
+
+**What this block does not do:** none of the engineering implied by
+decisions 1, 2, 3, 6, and 11 has been built yet — this is the record of
+*what was decided*, not a changelog of work done. See the founder's own
+next input for how these should be sequenced; attempting all five in
+parallel is not recommended given their combined size.
+
+---
+
 Every decision below blocks at least one register item above (cross-referenced).
 Format: Decision · Why it matters · Options · Recommended default · Risks ·
 Information needed · Owner · Deadline/dependency.
