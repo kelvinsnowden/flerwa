@@ -56,8 +56,8 @@ export default async function ProviderDashboardPage() {
   const pastJobs = jobs?.filter((j) => ["settled", "reviewed", "closed"].includes(j.state)) ?? [];
   const pendingEarnings = activeJobs
     .filter((j) => j.state === "funded" || j.state === "checked_in" || j.state === "in_progress" || j.state === "evidence_submitted")
-    .reduce((sum, j) => sum + j.service_amount_minor, 0);
-  const totalEarned = pastJobs.reduce((sum, j) => sum + j.service_amount_minor, 0);
+    .reduce((sum, j) => sum + (j.service_amount_minor - j.provider_fee_minor), 0);
+  const totalEarned = pastJobs.reduce((sum, j) => sum + (j.service_amount_minor - j.provider_fee_minor), 0);
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-8 pb-4">

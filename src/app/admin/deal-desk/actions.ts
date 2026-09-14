@@ -25,17 +25,19 @@ export async function convertRequest(
   customerId: string,
   categoryId: string,
   fulfilmentMode: string,
-  amountKes: number,
-  platformFeeKes: number
+  amountKes: number
 ) {
   const supabase = await createClient();
+  // Platform fee is no longer admin-entered — it's resolved server-side
+  // from fee_schedules using the ratified Deal Desk rate (0% customer /
+  // 5% provider, docs/10-business-model.md), same as every other booking
+  // path. See _resolve_fee_pcts in the differentiated-fee-schedule migration.
   const { data, error } = await supabase.rpc("rpc_convert_deal_desk_request", {
     p_request_id: requestId,
     p_customer_id: customerId,
     p_category_id: categoryId,
     p_fulfilment_mode: fulfilmentMode,
     p_amount_minor: Math.round(amountKes * 100),
-    p_platform_fee_minor: Math.round(platformFeeKes * 100),
   });
   if (error) return { error: error.message };
   revalidatePath("/admin/deal-desk");

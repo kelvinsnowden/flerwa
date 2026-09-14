@@ -31,7 +31,7 @@ Verified follow-up is a known, stated risk, not a claim of completeness.
 | PAY-004 | No dual-control on `rpc_confirm_manual_payment` | Payments | P0 | Not started |
 | PAY-005 | No prorated-payment path for partial completion | Payments | P1 | Not started |
 | PAY-006 | Ledger self-consistency is never asserted by a job | Payments | P0 | **Verified** |
-| PAY-007 | Flat 12% fee in code does not match `docs/10`'s vertical model | Payments | P1 | Not started |
+| PAY-007 | Flat 12% fee in code does not match `docs/10`'s vertical model | Payments | P1 | **Resolved 2026-09-14** |
 | PAY-008 | No overpayment/underpayment handling path | Payments | P1 | Not started |
 | PAY-009 | No refund RPC independent of dispute resolution | Payments | P1 | **Investigation closed — see below** |
 | PAY-010 | No payout-detail-change hold (`docs/07`'s 24h re-verification rule) | Payments/Security | P1 | Not started |
@@ -461,6 +461,8 @@ materially more work than the other headers.
 - **Implementation tasks (if approved):** *DB:* new `fee_schedules` table (category_id, customer_fee_pct, provider_fee_pct, effective_from). Track repeat-pair counts (a query against `service_transactions` grouped by customer+provider, or a denormalized counter). *Backend:* `rpc_book_service` and `rpc_convert_deal_desk_request` read from the schedule instead of a constant.
 - **Owner:** Product/founder decision, then backend.
 - **Complexity:** Medium–Large.
+- **Resolution (2026-09-14):** Per the founder's decision (RESOLVED 2026-09-14, item 6/decision 2 — "build the full differentiated-by-vertical model now"), implemented in
+  `supabase/migrations/20260914150000_differentiated_fee_schedule.sql`: a `fee_schedules` table (scope: vertical/deal_desk/repeat_2nd/repeat_3rd_plus/recurring, seeded verbatim from `docs/10`) and a `_resolve_fee_pcts` resolver, wired into all THREE live call sites that hardcoded the flat 12% — `rpc_book_service`, `rpc_convert_deal_desk_request` (the admin's freeform fee input removed — now the ratified 0%/5% Deal Desk rate), and `rpc_accept_quote` (found via grep, not one of the two the original problem statement named). A new `provider_fee_minor` column (deducted from the provider's payout at release, added to `platform_revenue`) makes the provider-side deduction — previously always 0% regardless of vertical — real. `docs/10`'s "never a hidden provider fee" principle is reflected in the provider job-detail page and dashboard earnings totals (both previously showed the gross amount as "you'll receive," which would have been actively misleading once a nonzero provider fee could apply). Verified live via role-simulated/rolled-back transactions: correct % for each vertical (remote_principal 12/8, business_services 12/0, home_services 8/10), correct repeat-pair escalation (2nd job → 6/6, 3rd+ → 5/5) after inserting synthetic prior completed transactions, deal_desk origin correctly overriding vertical, a category with no matching schedule row correctly raising rather than silently defaulting, and `_release_transaction`'s ledger staying balanced (debit = credit sum) with the provider fee correctly flowing to `platform_revenue`. Deliberately NOT touched: `_execute_refund` (dispute resolution) — that remains an admin's discretionary split, independent of the fee model, as before. The `recurring` schedule row is seeded but unreachable until the recurring-series feature (separately tracked) ships.
 - **Status:** Not started. Requires business decision.
 
 ---

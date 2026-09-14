@@ -128,7 +128,12 @@ export default async function AdminBookingDetailPage({ params }: { params: Promi
           <dl className="text-sm space-y-1">
             <Row label="Service amount" value={formatMoney(txn.service_amount_minor, txn.currency)} />
             <Row label="Materials" value={formatMoney(txn.materials_amount_minor, txn.currency)} />
-            <Row label="Platform fee" value={formatMoney(txn.platform_fee_minor, txn.currency)} />
+            <Row label="Customer fee" value={formatMoney(txn.platform_fee_minor, txn.currency)} />
+            <Row label="Provider fee (deducted from payout)" value={formatMoney(txn.provider_fee_minor, txn.currency)} />
+            <Row
+              label="Provider payout"
+              value={formatMoney(txn.service_amount_minor - txn.provider_fee_minor, txn.currency)}
+            />
             <Row label="Total" value={<strong>{formatMoney(txn.total_amount_minor, txn.currency)}</strong>} />
           </dl>
         </div>

@@ -32,7 +32,6 @@ export function DealDeskCard({ request, categories }: Props) {
   const [categoryId, setCategoryId] = useState(categories[0]?.id ?? "");
   const [fulfilmentMode, setFulfilmentMode] = useState(FULFILMENT_MODES[0].value);
   const [amountKes, setAmountKes] = useState(request.proposedAmountMinor ? String(request.proposedAmountMinor / 100) : "");
-  const [feeKes, setFeeKes] = useState("0");
   const [error, setError] = useState<string | null>(null);
   const [outcome, setOutcome] = useState<{ transactionId: string } | "declined" | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -123,16 +122,13 @@ export function DealDeskCard({ request, categories }: Props) {
                 ))}
               </select>
             </label>
-            <div className="flex gap-2">
-              <label className="text-xs font-medium flex-1">
-                Amount (KSh)
-                <input type="number" min="1" step="1" value={amountKes} onChange={(e) => setAmountKes(e.target.value)} className="mt-1" />
-              </label>
-              <label className="text-xs font-medium flex-1">
-                Platform fee (KSh)
-                <input type="number" min="0" step="1" value={feeKes} onChange={(e) => setFeeKes(e.target.value)} className="mt-1" />
-              </label>
-            </div>
+            <label className="text-xs font-medium">
+              Amount (KSh)
+              <input type="number" min="1" step="1" value={amountKes} onChange={(e) => setAmountKes(e.target.value)} className="mt-1" />
+            </label>
+            <p className="text-xs text-[var(--muted-2)]">
+              Deal Desk rate applies automatically: 0% customer fee, 5% provider fee (docs/10-business-model.md).
+            </p>
           </>
         )}
       </div>
@@ -147,14 +143,7 @@ export function DealDeskCard({ request, categories }: Props) {
             onClick={() =>
               startTransition(async () => {
                 setError(null);
-                const res = await convertRequest(
-                  request.id,
-                  customer.id,
-                  categoryId,
-                  fulfilmentMode,
-                  Number(amountKes),
-                  Number(feeKes) || 0
-                );
+                const res = await convertRequest(request.id, customer.id, categoryId, fulfilmentMode, Number(amountKes));
                 if (res.error) setError(res.error);
                 else if (res.transactionId) setOutcome({ transactionId: res.transactionId });
               })

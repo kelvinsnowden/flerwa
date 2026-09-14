@@ -109,8 +109,18 @@ export default async function ProviderJobDetailPage({
           </span>
         </div>
         <div className="flex justify-between">
-          <span className="text-[var(--muted)]">You&apos;ll receive</span>
+          <span className="text-[var(--muted)]">Job value</span>
           <span className="font-medium">{formatMoney(job.service_amount_minor, job.currency)}</span>
+        </div>
+        {job.provider_fee_minor > 0 && (
+          <div className="flex justify-between">
+            <span className="text-[var(--muted)]">Platform fee</span>
+            <span className="font-medium">−{formatMoney(job.provider_fee_minor, job.currency)}</span>
+          </div>
+        )}
+        <div className="flex justify-between">
+          <span className="text-[var(--muted)]">You&apos;ll receive</span>
+          <span className="font-medium">{formatMoney(job.service_amount_minor - job.provider_fee_minor, job.currency)}</span>
         </div>
         {job.customer_instructions && (
           <div className="pt-2 border-t">

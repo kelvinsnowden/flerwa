@@ -191,6 +191,7 @@ export interface ServiceTransaction {
   service_amount_minor: number;
   materials_amount_minor: number;
   platform_fee_minor: number;
+  provider_fee_minor: number;
   total_amount_minor: number;
   customer_instructions: string | null;
   scheduled_for: string | null;
