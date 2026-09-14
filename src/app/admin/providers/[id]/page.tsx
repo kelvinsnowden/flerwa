@@ -4,6 +4,8 @@ import { createClient } from "@/lib/supabase/server";
 import { formatMoney } from "@/lib/money";
 import { TXN_STATE_LABELS, type TxnState } from "@/lib/types";
 import { ErrorNotice } from "@/components/error-notice";
+import { SuspendControl } from "@/components/admin/suspend-control";
+import { setProviderSuspended } from "../actions";
 
 /**
  * MARKETPLACE_ADMIN_CAPABILITY_MATRIX.md PROV-E5: no admin view assembled
@@ -89,6 +91,9 @@ export default async function AdminProviderDetailPage({ params }: { params: Prom
         <div className="flex gap-2">
           <span className="text-sm font-semibold px-3 py-1 rounded-full bg-[var(--surface)]">{provider.verification_status}</span>
           {provider.is_published && <span className="text-sm px-3 py-1 rounded-full bg-[var(--surface)]">Published</span>}
+          {provider.is_suspended && (
+            <span className="text-sm font-semibold px-3 py-1 rounded-full bg-[var(--danger-tint)] text-[var(--danger)]">Suspended</span>
+          )}
         </div>
       </div>
 
@@ -116,6 +121,10 @@ export default async function AdminProviderDetailPage({ params }: { params: Prom
             <p className="text-sm text-[var(--muted)]">No score computed yet.</p>
           )}
         </div>
+      </div>
+
+      <div className="mb-6">
+        <SuspendControl entityId={id} isSuspended={provider.is_suspended} action={setProviderSuspended} />
       </div>
 
       <Section title="Category clearances" empty={!categoryClearances?.length}>

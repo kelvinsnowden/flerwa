@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { formatMoney } from "@/lib/money";
 import { TXN_STATE_LABELS, type TxnState } from "@/lib/types";
 import { ErrorNotice } from "@/components/error-notice";
+import { AddNoteForm } from "./add-note-form";
 
 /**
  * MARKETPLACE_ADMIN_CAPABILITY_MATRIX.md BK-B2/B3/B4/B13: the single
@@ -39,6 +40,7 @@ export default async function AdminBookingDetailPage({ params }: { params: Promi
     { data: evidence },
     { data: review },
     { data: adminActions },
+    { data: notes },
   ] = await Promise.all([
     supabase.from("profiles").select("id, full_name, phone").eq("id", txn.customer_id).maybeSingle(),
     txn.provider_id
@@ -60,6 +62,7 @@ export default async function AdminBookingDetailPage({ params }: { params: Promi
       .eq("target_table", "service_transactions")
       .eq("target_id", id)
       .order("created_at", { ascending: false }),
+    supabase.from("booking_notes").select("id, admin_id, note, created_at").eq("transaction_id", id).order("created_at", { ascending: false }),
   ]);
 
   const providerOwnerId = provider?.user_id;
@@ -67,7 +70,7 @@ export default async function AdminBookingDetailPage({ params }: { params: Promi
     ? await supabase.from("profiles").select("full_name").eq("id", providerOwnerId).maybeSingle()
     : { data: null };
 
-  const adminIds = [...new Set((adminActions ?? []).map((a) => a.admin_id))];
+  const adminIds = [...new Set([...(adminActions ?? []).map((a) => a.admin_id), ...(notes ?? []).map((n) => n.admin_id)])];
   const { data: admins } = adminIds.length
     ? await supabase.from("profiles").select("id, full_name").in("id", adminIds)
     : { data: [] as { id: string; full_name: string | null }[] };
@@ -186,6 +189,25 @@ export default async function AdminBookingDetailPage({ params }: { params: Promi
           </RowCard>
         </Section>
       )}
+
+      <div className="mb-6">
+        <h2 className="text-sm font-semibold mb-2">Internal notes</h2>
+        <AddNoteForm transactionId={id} />
+        {!notes?.length ? (
+          <p className="text-sm text-[var(--muted)]">No notes yet.</p>
+        ) : (
+          <div className="space-y-2">
+            {notes.map((n) => (
+              <RowCard key={n.id}>
+                {n.note}
+                <span className="block text-xs text-[var(--muted)] mt-1">
+                  {adminNameById.get(n.admin_id) ?? n.admin_id.slice(0, 8)} · {new Date(n.created_at).toLocaleString("en-KE")}
+                </span>
+              </RowCard>
+            ))}
+          </div>
+        )}
+      </div>
 
       <Section title="State-transition history" empty={!events?.length}>
         {events?.map((e) => (

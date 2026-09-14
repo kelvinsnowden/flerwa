@@ -83,7 +83,7 @@ that doesn't exist yet, not just a UI change.
 | BK-B6 | Place booking under review / pause progression | Missing — no "hold" state exists in `txn_state` | — | — | Admin | Med | Yes | No | Yes | B | needs a state-machine addition, not a UI-only fix |
 | BK-B7 | Cancel booking (admin-initiated) | Missing (customer-initiated `rpc_cancel_booking` exists; no admin equivalent) | — | — | Admin | High | Yes | Consider for funded txns | Partial (refund logic if funded) | B | TXN-005 fee-tiering still founder-blocked |
 | BK-B8 | Initiate refund (admin, outside dispute) | Missing — only path to refund today is `rpc_resolve_dispute` (requires an open dispute) or `rpc_cancel_booking` (customer-only, pre-check-in) | — | — | Admin | High | Yes | **Yes**, above a threshold | No (money moves) | B | PAY-009/PAY-004 — refund policy + dual-control threshold unresolved |
-| BK-B9 | Add internal admin notes to a booking | Missing (no `admin_notes` column/table exists on `service_transactions`) | — | — | Admin | Low | Yes | No | Yes | B | — |
+| BK-B9 | Add internal admin notes to a booking | **Implemented and verified this pass** — new `booking_notes` table (append-only: SELECT/INSERT policies only, no UPDATE/DELETE — a wrong note gets superseded, not edited, matching `transaction_events`/`ledger_entries`'s own append-only pattern), a note form and list on the booking detail page. Admin-only in both directions — never visible to the customer or provider | `/admin/bookings/[id]` | `booking_notes` table (direct RLS, no RPC needed — no guard-worthy bypass risk for a plain admin-only note) | Admin | Low | N/A (the note itself is the record) | No | Yes | — | — |
 | BK-B10 | Assign case owner / change priority | Missing | — | — | Admin | Low | Yes | No | Yes | C | — |
 | BK-B11 | Escalate to supervisor | Missing (no supervisor role exists — see §P) | — | — | Admin | Low | Yes | No | Yes | C | needs role model first |
 | BK-B12 | Export booking record | Missing | — | — | Admin | Med (PII) | Yes | No | N/A | D | — |
@@ -169,7 +169,7 @@ decision (D7/D8, LEGAL-004/007) or the role model (D9, §P).
 | PROV-E3 | Publish/unpublish provider | **Implemented and verified this pass** — was a direct `providers` table update with no audit trail; converted to `rpc_admin_set_provider_published`, which now logs to `admin_actions` | `/admin/verifications` | `rpc_admin_set_provider_published` (new this pass) | Admin | Med | Yes (fixed this pass) | Yes | — | — |
 | PROV-E4 | Provider search / general profile view | **Implemented and verified this pass** — new `/admin/providers`: search by name, filter by verification status, paginated, reliability score/dispute count surfaced inline | `/admin/providers` (new) | direct reads, RLS-confirmed admin-readable | Admin | Low | N/A | N/A | — | — |
 | PROV-E5 | Provider detail (earnings, completion rate, cancellation rate, disputes) | **Implemented and verified this pass** — new `/admin/providers/[id]`: owner, full reliability breakdown, category clearances, verification records, last 20 bookings, disputes across those bookings, admin interventions. Verified against 5 real providers (mixed populated/empty states — score exists for 1 of 5, category rows for 2 of 5, verification rows 0 of 5) | `/admin/providers/[id]` (new) | direct reads across 6 tables | Admin | Low (read) | N/A | N/A | — | — |
-| PROV-E6 | Suspend / reinstate provider | Missing (no suspension mechanism for providers distinct from `verification_status`) | — | — | Admin | High | Yes | Yes | B | — |
+| PROV-E6 | Suspend / reinstate provider | **Implemented and verified this pass** — same shape as CUST-D3/D4: new `providers.is_suspended` column, extended the existing consolidated trust-guard trigger (`trg_guard_provider_trust_fields`) to also protect it, new `rpc_admin_set_provider_suspended`. **Verified live, rollback-safe:** a raw direct bypass of the RPC (`UPDATE providers SET is_suspended`, run as `postgres`/superuser) was rejected by the trigger with its exact expected error — real trigger-level defense-in-depth, not just RLS (contrast with EMG-R1/categories, which has no such trigger and was flagged as an honest gap for that reason) | `/admin/providers/[id]`, badge on `/admin/providers` list | `rpc_admin_set_provider_suspended` (new) | Admin | High | Yes | Yes | — | — |
 | PROV-E7 | Restrict service category access post-verification | Partially implemented (E2 exists as an approve mechanism; no explicit "revoke" UI flow beyond re-toggling the same checkbox) | `/admin/verifications` | `rpc_set_category_clearance` | Admin | Med | Yes | Yes | B | — |
 | PROV-E8 | Location/corridor access control | Missing (no concept of provider service-area restriction beyond `provider_service_areas`, which is self-managed) | — | — | Admin | Low | N/A | N/A | C | — |
 | PROV-E9 | Provider notes | Missing | — | — | Admin | Low | Yes | Yes | B | — |
@@ -413,12 +413,16 @@ remains open is exclusively the "requires attention" unified queue
 (OPS-A14), which needs new SLA/overdue-tracking schema fields, not just a
 UI — a real Phase A/B boundary item, not a same-session add-on.
 
-**Phase B — Safe operational actions.** Category emergency pause (EMG-R1)
-— the standout candidate this document identified — and customer suspend/
-reinstate (CUST-D3/D4) are both now implemented. Provider suspend/
-reinstate (PROV-E6, the same pattern applied to the other side of the
-marketplace), admin booking notes (BK-B9), and case assignment are the
-next tier.
+**Phase B — Safe operational actions.** Category emergency pause (EMG-R1),
+customer suspend/reinstate (CUST-D3/D4), provider suspend/reinstate
+(PROV-E6, the same pattern applied to the other side of the marketplace —
+this one got real trigger-level defense-in-depth, verified live, unlike
+the RLS-only category pause), and admin booking notes (BK-B9) are all now
+implemented. Case assignment and reassignment (DIS-I4) is the next
+reasonable candidate — small, safe, no policy to invent — but needs a
+`disputes.assigned_to` field and touches dispute case-management UI
+directly, a slightly larger unit of work than the four single-field
+toggles done in this pass.
 
 **Phase C — Governance and safety.** Correctly sequenced last, not first:
 granular roles (GOV-P1–P4) and dual control (PAY-004) are large, and every

@@ -26,7 +26,7 @@ export default async function AdminProvidersPage({
 
   let query = supabase
     .from("providers")
-    .select("id, display_name, verification_status, is_published, is_accepting_work, created_at", { count: "exact" })
+    .select("id, display_name, verification_status, is_published, is_accepting_work, is_suspended, created_at", { count: "exact" })
     .order("created_at", { ascending: false })
     .range(from, to);
 
@@ -101,6 +101,11 @@ export default async function AdminProvidersPage({
                         <Link href={`/admin/providers/${p.id}`} className="font-medium hover:underline">
                           {p.display_name}
                         </Link>
+                        {p.is_suspended && (
+                          <span className="ml-2 text-xs font-semibold px-2 py-0.5 rounded-full bg-[var(--danger-tint)] text-[var(--danger)]">
+                            Suspended
+                          </span>
+                        )}
                       </td>
                       <td className="py-2 pr-4">{p.verification_status}</td>
                       <td className="py-2 pr-4">{p.is_published ? "Yes" : "No"}</td>

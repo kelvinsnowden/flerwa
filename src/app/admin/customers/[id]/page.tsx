@@ -4,7 +4,8 @@ import { createClient } from "@/lib/supabase/server";
 import { formatMoney } from "@/lib/money";
 import { TXN_STATE_LABELS, type TxnState } from "@/lib/types";
 import { ErrorNotice } from "@/components/error-notice";
-import { SuspendControl } from "./suspend-control";
+import { SuspendControl } from "@/components/admin/suspend-control";
+import { setCustomerSuspended } from "../actions";
 
 /**
  * MARKETPLACE_ADMIN_CAPABILITY_MATRIX.md CUST-D2: booking/payment/dispute/
@@ -76,7 +77,7 @@ export default async function AdminCustomerDetailPage({ params }: { params: Prom
             <Row label="Joined" value={new Date(customer.created_at).toLocaleDateString("en-KE")} />
           </dl>
         </div>
-        <SuspendControl profileId={id} isSuspended={customer.is_suspended} />
+        <SuspendControl entityId={id} isSuspended={customer.is_suspended} action={setCustomerSuspended} />
       </div>
 
       <Section title="Recent bookings" empty={!bookings?.length}>
