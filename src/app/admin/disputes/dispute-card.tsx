@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { formatMoney } from "@/lib/money";
-import { resolveDispute } from "./actions";
+import { resolveDispute, assignDispute } from "./actions";
 
 interface Props {
   dispute: {
@@ -15,10 +15,14 @@ interface Props {
     serviceName: string;
     providerName: string;
     customerName: string;
+    assignedTo: string | null;
   };
+  admins: { id: string; full_name: string | null }[];
 }
 
-export function DisputeCard({ dispute }: Props) {
+export function DisputeCard({ dispute, admins }: Props) {
+  const [assignError, setAssignError] = useState<string | null>(null);
+  const [isAssigning, startAssign] = useTransition();
   const [split, setSplit] = useState<"provider" | "customer" | "custom">("provider");
   const [customProviderKes, setCustomProviderKes] = useState(String(dispute.serviceAmountMinor / 100 / 2));
   const [resolution, setResolution] = useState("");
@@ -60,6 +64,33 @@ export function DisputeCard({ dispute }: Props) {
       <p className="text-xs text-[var(--muted-2)] mt-1">
         Opened {new Date(dispute.createdAt).toLocaleString("en-KE")}
       </p>
+
+      <div className="mt-3 flex items-center gap-2">
+        <label className="text-xs font-medium" htmlFor={`assignee-${dispute.id}`}>
+          Assigned to
+        </label>
+        <select
+          id={`assignee-${dispute.id}`}
+          defaultValue={dispute.assignedTo ?? ""}
+          disabled={isAssigning}
+          onChange={(e) =>
+            startAssign(async () => {
+              setAssignError(null);
+              const res = await assignDispute(dispute.id, e.target.value || null);
+              if (res?.error) setAssignError(res.error);
+            })
+          }
+          className="text-xs border rounded px-2 py-1"
+        >
+          <option value="">Unassigned</option>
+          {admins.map((a) => (
+            <option key={a.id} value={a.id}>
+              {a.full_name ?? a.id.slice(0, 8)}
+            </option>
+          ))}
+        </select>
+        {assignError && <span className="text-xs text-[var(--danger)]">{assignError}</span>}
+      </div>
 
       <div className="mt-3">
         <p className="text-xs font-medium mb-1">Resolution split</p>

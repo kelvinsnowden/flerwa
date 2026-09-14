@@ -10,6 +10,7 @@ interface DisputeRow {
   description: string | null;
   state: string;
   created_at: string;
+  assigned_to: string | null;
   service_transactions: {
     id: string;
     service_amount_minor: number;
@@ -41,6 +42,8 @@ export default async function AdminDisputesPage() {
     );
   }
 
+  const { data: admins } = await supabase.from("profiles").select("id, full_name").eq("role", "admin");
+
   return (
     <div>
       <h1 className="text-xl font-bold mb-6">Disputes</h1>
@@ -59,7 +62,9 @@ export default async function AdminDisputesPage() {
               serviceName: d.service_transactions?.services?.name ?? "Service",
               providerName: d.service_transactions?.providers?.display_name ?? "Professional",
               customerName: d.service_transactions?.profiles?.full_name ?? "Customer",
+              assignedTo: d.assigned_to,
             }}
+            admins={admins ?? []}
           />
         ))}
       </div>

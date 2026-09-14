@@ -21,3 +21,14 @@ export async function resolveDispute(
   revalidatePath("/admin");
   return { success: true };
 }
+
+export async function assignDispute(disputeId: string, assigneeId: string | null) {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("rpc_admin_assign_dispute", {
+    p_dispute_id: disputeId,
+    p_assignee_id: assigneeId,
+  });
+  if (error) return { error: error.message };
+  revalidatePath("/admin/disputes");
+  return { success: true };
+}

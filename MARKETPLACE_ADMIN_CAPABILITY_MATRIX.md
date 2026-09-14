@@ -228,7 +228,7 @@ no new schema or RPC.
 | DIS-I1 | Dispute queue (open disputes) | Implemented and verified | `/admin/disputes` | direct query | Admin | Med | N/A (view) | No | N/A | — | — |
 | DIS-I2 | Resolve dispute (split provider/customer amounts) | Implemented and verified | `/admin/disputes` | `rpc_resolve_dispute` (logs, confirmed; row-locked `for update`, confirmed lock audit) | Admin | High | Yes | No (recommended, not enforced) | No (money moves) | — | PAY-004 dual-control policy |
 | DIS-I3 | Case priority / severity / SLA deadline | Missing — `disputes` has no deadline field (TXN-004, register) | — | — | Admin | Med | Yes | N/A | Yes | B | TXN-004 |
-| DIS-I4 | Case assignment / reassignment | Missing (no assignee field) | — | — | Admin | Low | Yes | N/A | Yes | B | — |
+| DIS-I4 | Case assignment / reassignment | **Implemented this pass** — new `disputes.assigned_to` column, `rpc_admin_assign_dispute` (validates the assignee is actually an admin), a dropdown on each dispute card. Grants verified correct (`authenticated`/`postgres`/`service_role`, no `anon`). **Honest limitation:** production has zero real disputes right now (`select * from disputes` returned 0 rows) and exactly one real admin account, so only the empty-state path and the RPC's own validation logic could be checked — the populated-card assignment flow was not exercised against a real row, unlike every other feature this session verified against actual data | `/admin/disputes` | `rpc_admin_assign_dispute` (new) | Admin | Low | Yes | N/A | Yes | — | — |
 | DIS-I5 | Internal notes vs. customer-visible notes distinction | Missing | — | — | Admin | Low | Yes | N/A | Yes | B | — |
 | DIS-I6 | Response templates | Missing | — | — | Admin | Low | N/A | N/A | D | — |
 | DIS-I7 | Appeal workflow | Missing | — | — | Admin | Med | Yes | N/A | C | — |
@@ -418,11 +418,10 @@ customer suspend/reinstate (CUST-D3/D4), provider suspend/reinstate
 (PROV-E6, the same pattern applied to the other side of the marketplace —
 this one got real trigger-level defense-in-depth, verified live, unlike
 the RLS-only category pause), and admin booking notes (BK-B9) are all now
-implemented. Case assignment and reassignment (DIS-I4) is the next
-reasonable candidate — small, safe, no policy to invent — but needs a
-`disputes.assigned_to` field and touches dispute case-management UI
-directly, a slightly larger unit of work than the four single-field
-toggles done in this pass.
+implemented. A further pass added case assignment (DIS-I4) — an assignee
+dropdown per dispute, validated against real admin accounts. Not
+exercised against a populated dispute row, since production currently has
+zero real disputes (an honest limitation, not skipped verification).
 
 **Phase C — Governance and safety.** Correctly sequenced last, not first:
 granular roles (GOV-P1–P4) and dual control (PAY-004) are large, and every
