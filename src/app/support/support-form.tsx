@@ -65,6 +65,20 @@ export function SupportForm({
       {relatedTransactionId && (
         <input type="hidden" name="related_transaction_id" value={relatedTransactionId} />
       )}
+      {/* Honeypot: invisible to a real visitor (off-screen, never focusable
+          via tab order, no label a screen reader would announce) but a
+          plain scripted bot filling every input on the page will fill it.
+          submitSupportRequest silently no-ops when this is non-empty —
+          found missing during the Phase 2 production-readiness audit. */}
+      <input
+        type="text"
+        name="website"
+        tabIndex={-1}
+        autoComplete="off"
+        aria-hidden="true"
+        style={{ position: "absolute", left: "-9999px", width: 1, height: 1, opacity: 0 }}
+      />
+
       {relatedTransactionLabel && (
         <p className="rounded-md bg-[var(--surface)] px-3 py-2 text-xs text-[var(--muted)]">
           Attached to booking: <span className="font-medium text-[var(--fg)]">{relatedTransactionLabel}</span>

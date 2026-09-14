@@ -9,6 +9,15 @@ const MAX_ATTACHMENT_BYTES = 15 * 1024 * 1024;
 const ALLOWED_ATTACHMENT_TYPES = ["image/jpeg", "image/png", "image/webp", "application/pdf"];
 
 export async function submitSupportRequest(formData: FormData) {
+  // Honeypot (support-form.tsx's own comment explains why "website" is
+  // never visible to or fillable by a real visitor). Pretend success
+  // rather than returning an error — a real error teaches a scripted
+  // bot which signal to stop tripping, an honest-looking fake success
+  // does not. Found missing during the Phase 2 production-readiness audit.
+  if (String(formData.get("website") ?? "").trim()) {
+    return { success: true as const, referenceNumber: "SUP-000000", conversationId: "" };
+  }
+
   const supabase = await createClient();
   const {
     data: { user },
@@ -49,16 +58,36 @@ export async function submitSupportRequest(formData: FormData) {
       p_related_transaction_id: relatedTransactionId,
     })
     .single();
-  if (error) return { error: error.message };
+  if (error) {
+    // Only Postgres error code P0001 is one of the RPC's own deliberate,
+    // customer-safe `raise exception` messages (e.g. "Subject is
+    // required.") — anything else is an infrastructure failure (network,
+    // connection, unexpected schema error) whose raw text can leak
+    // internal details and must never reach an anonymous, unauthenticated
+    // caller verbatim (found via live testing: a network-layer failure in
+    // this exact code path surfaced its full raw error text on the
+    // customer-facing page before this fix).
+    console.error(JSON.stringify({ event: "support_request_submit_failed", error: error.message, code: error.code }));
+    return { error: error.code === "P0001" ? error.message : "Something went wrong on our end — please try again in a moment." };
+  }
 
   const result = data as { conversation_id: string; reference_number: string };
 
   // Attachment upload + auto-ack are best-effort: a failure here must
   // never make the ticket itself appear to have failed — the customer's
-  // message is already safely recorded by the RPC above.
-  const admin = createAdminClient();
+  // message is already safely recorded by the RPC above. createAdminClient()
+  // itself throws synchronously when SUPABASE_SERVICE_ROLE_KEY is unset or
+  // misconfigured — caught here rather than left to crash the whole action,
+  // which previously surfaced as a hard error to the customer even though
+  // their ticket had already been created (found via live testing).
+  let admin: ReturnType<typeof createAdminClient> | null = null;
+  try {
+    admin = createAdminClient();
+  } catch (err) {
+    console.error(JSON.stringify({ event: "support_admin_client_unavailable", error: err instanceof Error ? err.message : String(err) }));
+  }
 
-  if (attachment instanceof File && attachment.size > 0) {
+  if (admin && attachment instanceof File && attachment.size > 0) {
     const { data: firstMessage } = await admin
       .from("support_messages")
       .select("id")
@@ -91,7 +120,7 @@ export async function submitSupportRequest(formData: FormData) {
     ? await supabase.from("profiles").select("email").eq("id", user.id).maybeSingle()
     : { data: null };
   const confirmationEmail = profile?.email ?? email;
-  if (confirmationEmail) {
+  if (admin && confirmationEmail) {
     await sendSupportAutoAck(admin, {
       referenceNumber: result.reference_number,
       subject,

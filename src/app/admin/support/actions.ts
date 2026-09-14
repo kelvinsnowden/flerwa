@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { sendSupportAgentReplyEmail } from "@/lib/notifications/send-support-email";
 
 async function requireAdmin() {
@@ -47,7 +48,24 @@ export async function replyToConversation(conversationId: string, body: string) 
     .maybeSingle();
 
   if (conversation && messageId) {
-    const sendResult = await sendSupportAgentReplyEmail(supabase, {
+    // Stamping email_message_id on the just-sent message requires bypassing
+    // RLS: support_messages intentionally has no UPDATE policy for anyone
+    // (every write is supposed to go through a SECURITY DEFINER RPC — see
+    // the schema migration's own header comment), so passing the caller's
+    // plain authenticated session here silently no-ops the UPDATE and the
+    // Message-ID threading anchor is never actually persisted (confirmed
+    // live during the Phase 2 production-readiness audit). The admin
+    // client bypasses RLS for this narrow, already is_admin()-gated write;
+    // if it's unavailable the reply still sends, just without a stamped
+    // anchor — degrading to subject-tag-only matching, not failing.
+    let admin: ReturnType<typeof createAdminClient> | null = null;
+    try {
+      admin = createAdminClient();
+    } catch (err) {
+      console.error(JSON.stringify({ event: "support_admin_client_unavailable", error: err instanceof Error ? err.message : String(err) }));
+    }
+
+    const sendResult = await sendSupportAgentReplyEmail(admin ?? supabase, {
       messageId: messageId as string,
       conversationId,
       referenceNumber: conversation.reference_number,

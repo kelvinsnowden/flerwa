@@ -76,16 +76,47 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  // Idempotency: webhook vendors document at-least-once delivery (retries
+  // on timeout/5xx are expected, not exceptional), and a validly-signed
+  // payload can also be legitimately redelivered within the signature's
+  // freshness window. Neither case should create a duplicate message or
+  // a duplicate conversation (confirmed missing entirely during the Phase
+  // 2 production-readiness audit — this route had zero idempotency
+  // handling until this fix). The vendor's own message id is the
+  // idempotency key: if a message with this exact email_message_id was
+  // already recorded, this exact inbound email was already processed.
+  if (parsed.messageId) {
+    const { data: existing } = await supabase
+      .from("support_messages")
+      .select("conversation_id")
+      .eq("email_message_id", parsed.messageId)
+      .maybeSingle();
+    if (existing) {
+      return NextResponse.json({ received: true, duplicate: true, conversation_id: existing.conversation_id });
+    }
+  }
+
   const referenceMatch = parsed.subject.match(/\[(SUP-[A-Z0-9]{6})\]/);
   let conversationId: string | null = null;
+
+  // Whoever holds a valid webhook secret can forge an inbound event with
+  // any subject/headers they like — matching on the reference tag or
+  // Message-ID alone would let them inject a message into a DIFFERENT
+  // customer's conversation just by guessing or observing a live
+  // reference number. Requiring the inbound sender's address to match
+  // the conversation's own stored customer_email closes that (found
+  // during the Phase 2 production-readiness audit; low severity on its
+  // own since it needs the webhook secret, but cheap to close).
+  const emailMatches = (conversationCustomerEmail: string) =>
+    conversationCustomerEmail.toLowerCase() === parsed.fromEmail.toLowerCase();
 
   if (referenceMatch) {
     const { data: conv } = await supabase
       .from("support_conversations")
-      .select("id")
+      .select("id, customer_email")
       .eq("reference_number", referenceMatch[1])
       .maybeSingle();
-    conversationId = conv?.id ?? null;
+    if (conv && emailMatches(conv.customer_email)) conversationId = conv.id;
   }
 
   if (!conversationId && (parsed.inReplyTo || parsed.references.length)) {
@@ -93,10 +124,10 @@ export async function POST(req: NextRequest) {
     for (const candidate of candidates) {
       const { data: msg } = await supabase
         .from("support_messages")
-        .select("conversation_id")
+        .select("conversation_id, support_conversations(customer_email)")
         .eq("email_message_id", candidate)
-        .maybeSingle();
-      if (msg) {
+        .maybeSingle<{ conversation_id: string; support_conversations: { customer_email: string } | null }>();
+      if (msg && msg.support_conversations && emailMatches(msg.support_conversations.customer_email)) {
         conversationId = msg.conversation_id;
         break;
       }
@@ -119,7 +150,14 @@ export async function POST(req: NextRequest) {
       })
       .select("id")
       .single();
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) {
+      // 23505 = unique_violation on support_messages_email_message_id_unique
+      // -- a concurrent delivery of the same email won the race between
+      // this request's own pre-check above and its insert. Not an error:
+      // the message is safely recorded by whichever request landed first.
+      if (error.code === "23505") return NextResponse.json({ received: true, duplicate: true, conversation_id: conversationId });
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
     messageId = inserted.id;
 
     await supabase
