@@ -60,7 +60,7 @@ export default async function AdminOverviewPage() {
         )}
       </div>
 
-      <div className="mt-4 card p-4">
+      <Link href="/admin/ledger" className="mt-4 card p-4 block hover:opacity-80">
         <p className="text-xs font-semibold text-[var(--muted)] mb-1">Ledger reconciliation (scheduled daily, 04:00 UTC)</p>
         {!lastReconciliation ? (
           <p className="text-sm text-[var(--danger)]">Never run — check that CRON_SECRET is set and the Vercel Cron job is registered.</p>
@@ -76,7 +76,7 @@ export default async function AdminOverviewPage() {
               : "ledger balanced"}
           </p>
         )}
-      </div>
+      </Link>
     </div>
   );
 }

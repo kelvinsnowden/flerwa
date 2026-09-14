@@ -117,7 +117,7 @@ change state and need the dual-control/policy groundwork from §P first).
 | PAY-C6 | Refund (partial) | Missing — no partial-refund path exists anywhere (PAY-005) | — | — | Admin | High | Yes | Yes | No | C | PAY-005 proration policy |
 | PAY-C7 | Payment reversal | Missing | — | — | Admin | High | Yes | Yes | No | C | undefined policy |
 | PAY-C8 | Ledger balance / reconciliation status | **Implemented and verified** (PAY-006, this continuation) | `/admin` status card | `rpc_check_ledger_balance`, `rpc_run_ledger_reconciliation`, daily cron + email alert | Admin (view) | Low (read) | N/A | No | N/A | — | — |
-| PAY-C9 | Full ledger-entries browser (search by transaction_group/account_type) | Missing — data exists (`ledger_entries`, append-only, confirmed) but no UI | — | `ledger_entries` table | Admin | Med | N/A | No | N/A | **A** | — |
+| PAY-C9 | Full ledger-entries browser (search by transaction_group/account_type) | **Implemented and verified this pass** — new `/admin/ledger`: filter by exact transaction_group or account_type, paginated, links back to the owning booking. Also surfaces a **live** imbalance check (new `rpc_admin_check_ledger_balance`, an `is_admin()`-gated wrapper around PAY-006's cron-only `rpc_check_ledger_balance` — that one is deliberately grant-restricted to `postgres`/`service_role` only, so rather than widen it or start using the service-role client from an interactive page, a thin admin-gated wrapper was added instead, matching every other admin RPC's pattern). Verified against the 4 real `ledger_entries` rows (one genuinely balanced transaction_group: 630000 debit = 30000+200000+400000 credits) | `/admin/ledger` (new) | `ledger_entries` table (browse), `rpc_admin_check_ledger_balance` (new, live check) | Admin | Med (read) | N/A | No | N/A | — | — |
 | PAY-C10 | Financial exports (daily reconciliation report, CSV) | Missing | — | — | Admin (finance role, once it exists) | Med | Yes | No | N/A | D | — |
 | PAY-C11 | Orphaned payment/booking detection | Missing | — | — | Admin | High | Yes | No | N/A | B | — |
 | PAY-C12 | Payment-provider activation (switch active aggregator) | **Implemented and verified this pass** — now gated on an explicit legal-signoff attestation before any `kind='aggregator'` provider can go live | `/admin/integrations` | `rpc_set_active_payment_provider`, `rpc_confirm_payment_provider_legal_signoff` (new this pass) | Admin | Critical | Yes | Recommended, not enforced in code | Yes (can switch back) | — | LEGAL-001/002/005/006/008 |
@@ -136,19 +136,27 @@ admin-gated RPC in the entire schema that didn't log. Fixed via migration
 
 | ID | Function | Status | Route/Component | RPC/API | Role | Risk | Audit | Reversible | Priority | Decision blocker |
 |---|---|---|---|---|---|---|---|---|---|---|
-| CUST-D1 | Customer search | Missing | — | — | Admin | Med (PII) | N/A | N/A | **A** | — |
-| CUST-D2 | Customer profile (booking/payment/dispute/review history) | Missing | — | — | Admin | Med | N/A | N/A | **A** | — |
-| CUST-D3 | Account suspension | Missing — `profiles.role` exists but no `is_suspended`/restriction field or RPC | — | — | Admin | High | Yes | Yes | B | — |
-| CUST-D4 | Account restoration | Missing (depends on D3) | — | — | Admin | Med | Yes | Yes | B | — |
+| CUST-D1 | Customer search | **Implemented and verified this pass** — `/admin/customers`: search by name/phone, suspended-only filter, pagination | `/admin/customers` (new) | direct query, RLS-confirmed admin-readable | Admin | Med (PII) | N/A | N/A | — | — |
+| CUST-D2 | Customer profile (booking/dispute/review history) | **Implemented and verified this pass** — `/admin/customers/[id]`: contact info, last 20 bookings, disputes across those bookings, reviews given, admin interventions. Verified against 10 real customer profiles (mixed booking counts, 0 reviews across all — both paths exercised) | `/admin/customers/[id]` (new) | direct reads across 5 tables | Admin | Med | N/A | N/A | — | — |
+| CUST-D3 | Account suspension | **Correction + implemented this pass:** the matrix's original claim was wrong — `profiles.is_suspended` and a guard trigger (`trg_profiles_guard_role`, migration `20260910062301`) already existed, but **nothing in the entire codebase ever called them** (confirmed via grep — a capability that exists in schema but is unreachable from any surface). New `rpc_set_customer_suspended` wraps the existing guarded column with the missing audit-log entry (same class of gap as PROV-E3/PAY-C1). Blocks suspending an admin account. **Verified by test, live, rollback-safe:** a raw direct `UPDATE profiles SET is_suspended` (bypassing the RPC, run as postgres/superuser so RLS was not the thing being tested) was rejected by the pre-existing guard trigger with its exact expected error — confirming the RPC is genuinely the only path in, not merely the intended one. The `is_admin()`-gated RPC logic itself could not be exercised live (no real session/JWT from this tool, same limitation as every other admin RPC this session) | `/admin/customers/[id]` (new) | `rpc_set_customer_suspended` (new) | Admin | High | Yes | Yes | — | — |
+| CUST-D4 | Account restoration | **Implemented and verified this pass** — same RPC, `p_suspended = false`; the reinstate button on the detail page requires a reason exactly like suspend does | `/admin/customers/[id]` | `rpc_set_customer_suspended` | Admin | Med | Yes | Yes | — | — |
 | CUST-D5 | Risk indicators / fraud flags | Missing (no risk table exists — see §J) | — | — | Admin | Med | Yes | N/A | C | needs §J schema first |
 | CUST-D6 | Internal notes | Missing | — | — | Admin | Low | Yes | Yes | B | — |
 | CUST-D7 | Data export request (privacy) | Missing | — | — | Admin | High (legal) | Yes | N/A | C | LEGAL-007 retention periods |
 | CUST-D8 | Account deletion workflow | Missing | — | — | Admin | High (legal) | Yes | **No** | C | LEGAL-004/007 — conflicts with financial/audit retention if built naively |
 | CUST-D9 | Field-level sensitive-data masking (phone, ID number) for non-privileged admins | Missing — every admin sees every field today, since there is only one admin role | — | — | — | Med | N/A | N/A | C | needs §P role model first |
 
-**Finding:** there is genuinely no customer-management surface at all. Every
-customer-related admin need today is served by direct database access,
-which is exactly the state this task asks to eliminate.
+**Finding, addressed this pass:** there was genuinely no customer-
+management surface at all — every customer-related admin need was served
+by direct database access. Also uncovered a real correction to this
+matrix's own earlier entry: `is_suspended` and its guard trigger already
+existed in the schema (from an earlier trust-guard consolidation pass) but
+were unreachable from any code path — a dead capability, not a missing
+one. Closed both the visibility gap (D1/D2) and the dead-capability gap
+(D3/D4) in the same pass, since a customer detail page without any account
+action would have been an odd half-finish. Still missing: risk indicators
+(D5, needs §J), internal notes (D6), and everything requiring a legal
+decision (D7/D8, LEGAL-004/007) or the role model (D9, §P).
 
 ---
 
@@ -357,7 +365,7 @@ task's own instruction not to guess retention/privacy policy.
 
 | ID | Function | Status | Route/Component | RPC/API | Role | Risk | Audit | Reversible | Priority | Decision blocker |
 |---|---|---|---|---|---|---|---|---|---|---|
-| EMG-R1 | Category pause toggle | Missing UI — `categories.is_active` column + RLS enforcement already exist (confirmed), just no admin control surface | — | `categories.is_active` | Admin | High | Yes | Yes | **B (cheapest win in this whole section)** | — |
+| EMG-R1 | Category pause toggle | **Implemented and verified this pass** — new `/admin/categories`: every category with service count, pause/resume control requiring a reason. New `rpc_admin_set_category_active` wraps the existing `is_active` column + RLS (`categories admin write`/`categories readable`) for the audit entry a raw update wouldn't produce. **Honest gap versus the profiles-suspension RPC done earlier this session:** `categories` has no trigger-level guard the way `profiles`/`service_transactions` do — its only protection is RLS's `is_admin()` check, so no live "raw update rejected" test was attempted here (unlike CUST-D3's), since this session's DB connection runs as `postgres` and bypasses RLS, which would make such a test misleading rather than informative, not a real result. Verified instead: grants correct (`authenticated`/`postgres`/`service_role`, no `anon`), and all 5 real categories confirmed unchanged (`is_active = true`) after the migration | `/admin/categories` (new) | `rpc_admin_set_category_active` (new) | Admin | High | Yes | Yes | — | — |
 | EMG-R2 | Geographic corridor pause | Missing (no corridor/region concept beyond `locations`) | — | — | — | High | — | — | C | — |
 | EMG-R3 | Pause new bookings platform-wide | Missing | — | — | — | Critical | — | — | C | needs a global switch design + founder sign-off on when it's used |
 | EMG-R4 | Pause provider onboarding | Missing | — | — | — | Med | — | — | C | — |
@@ -387,20 +395,30 @@ missing one (PAY-C1, PROV-E3); the **booking detail/timeline page**
 (BK-B2/B4/B13) assembling 9 tables' worth of history into one admin view;
 **search, filter, and pagination** on the transactions list (BK-B3/B5); and
 **working drill-down links** from the dashboard tiles to their correctly-
-filtered queues (§A finding). A subsequent pass added the **provider list and detail pages**
+filtered queues (§A finding). Subsequent passes added the **provider list and detail pages**
 (PROV-E4/E5) — search/filter/pagination on `/admin/providers`, and a
 detail view assembling owner, reliability, category clearances,
 verification records, recent bookings, disputes, and admin interventions,
-verified against 5 real providers. Still real, scoped, unblocked Phase A
-work **not done**: a ledger-entries browser independent of a specific
-booking (PAY-C9), customer search (§D), and the "requires attention"
-unified queue (OPS-A14, which needs new SLA/overdue tracking fields, not
-just UI).
+verified against 5 real providers — and the **customer list and detail
+pages** (CUST-D1/D2), which along the way surfaced and closed a real
+dead-capability gap (CUST-D3/D4: `is_suspended` existed in schema with a
+guard trigger but was unreachable from any code path; verified live that
+the trigger genuinely blocks a raw bypass of the new RPC). Still real,
+scoped, unblocked Phase A work **not done**: a ledger-entries browser
+A further pass closed **PAY-C9**: a `/admin/ledger` browser plus a live,
+on-demand version of PAY-006's imbalance check (previously only available
+as yesterday's cron result on the dashboard). This closes out the clearly-
+scoped, unblocked Phase A backlog identified in this document. What
+remains open is exclusively the "requires attention" unified queue
+(OPS-A14), which needs new SLA/overdue-tracking schema fields, not just a
+UI — a real Phase A/B boundary item, not a same-session add-on.
 
 **Phase B — Safe operational actions.** Category emergency pause (EMG-R1)
-is the standout candidate: schema already exists, RLS already enforces it,
-only a UI + audit-logged RPC wrapper is needed. Provider suspend/reinstate,
-admin booking notes, and case assignment are the next tier.
+— the standout candidate this document identified — and customer suspend/
+reinstate (CUST-D3/D4) are both now implemented. Provider suspend/
+reinstate (PROV-E6, the same pattern applied to the other side of the
+marketplace), admin booking notes (BK-B9), and case assignment are the
+next tier.
 
 **Phase C — Governance and safety.** Correctly sequenced last, not first:
 granular roles (GOV-P1–P4) and dual control (PAY-004) are large, and every
