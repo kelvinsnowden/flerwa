@@ -33,11 +33,15 @@ export async function setCategoryClearance(providerId: string, categoryId: strin
 
 export async function publishProvider(providerId: string, publish: boolean) {
   const supabase = await createClient();
-  // Direct update, not an RPC: allowed by the "providers self update" RLS
-  // policy for is_admin(), and is_published is not itself a trust claim
-  // (verification_status is the trust claim, gated by the RPC above) —
-  // see docs/06-trust-architecture.md's badge definitions.
-  const { error } = await supabase.from("providers").update({ is_published: publish }).eq("id", providerId);
+  // is_published is not itself a trust claim (verification_status is the
+  // trust claim, gated by the RPC above) — see docs/06-trust-architecture.md's
+  // badge definitions. Still routed through an RPC rather than a direct
+  // table update so this admin action is logged to admin_actions like every
+  // other one (MARKETPLACE_ADMIN_CAPABILITY_MATRIX.md PROV-E3).
+  const { error } = await supabase.rpc("rpc_admin_set_provider_published", {
+    p_provider_id: providerId,
+    p_publish: publish,
+  });
   if (error) return { error: error.message };
   revalidatePath("/admin/verifications");
   return { success: true };

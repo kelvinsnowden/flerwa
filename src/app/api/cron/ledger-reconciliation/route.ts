@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { sendOpsAlert } from "@/lib/alerts";
 
 /**
  * PAY-006 (MARKETPLACE_PAYMENTS_AND_RECONCILIATION_PLAN.md): asserts the
@@ -60,6 +61,13 @@ export async function GET(req: NextRequest) {
     if (runId) {
       await admin.from("scheduler_runs").update({ finished_at: finishedAt, success: false, error: error.message }).eq("id", runId);
     }
+    // A check that failed to run at all is just as dangerous as one that
+    // found a real imbalance — either way, nobody knows the ledger's state
+    // today. Alerting failure must never change the response we give Vercel.
+    await sendOpsAlert({
+      subject: "[flerwa] Ledger reconciliation FAILED TO RUN",
+      body: `The daily ledger reconciliation check did not complete.\n\nError: ${error.message}\n\nThe ledger's balance state is unknown until this is resolved.`,
+    });
     return NextResponse.json({ error: "Reconciliation check failed to run. See server logs." }, { status: 500 });
   }
 
@@ -72,6 +80,13 @@ export async function GET(req: NextRequest) {
       .from("scheduler_runs")
       .update({ finished_at: finishedAt, success: true, result })
       .eq("id", runId);
+  }
+
+  if (imbalanceCount > 0) {
+    await sendOpsAlert({
+      subject: `[flerwa] Ledger imbalance detected (${imbalanceCount} group${imbalanceCount === 1 ? "" : "s"})`,
+      body: `The daily ledger reconciliation check found ${imbalanceCount} imbalanced transaction_group(s).\n\nThis does not auto-repair anything — review scheduler_runs.result for job "ledger_reconciliation" (most recent row) and ledger_entries directly before taking any action.`,
+    });
   }
 
   return NextResponse.json({ ok: true, imbalance_count: imbalanceCount, result });

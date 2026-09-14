@@ -1620,3 +1620,157 @@ Information needed · Owner · Deadline/dependency.
     Why: blocks TSF-005, the strategy docs' own highest-rated anti-fraud
     control. Owner: Founder. Deadline: before the first Tier 3 (remote-
     principal/representation) transaction.
+
+---
+
+### SEC-001 — CI wired this pass
+
+- **Update:** `.github/workflows/ci.yml` added — runs `tsc --noEmit`, `npm
+  test` (vitest), and `npm run build` on every push/PR. **Verified by
+  test:** ran the exact same three commands locally under a scrubbed
+  environment (`env -i`, only placeholder `NEXT_PUBLIC_SUPABASE_URL`/
+  `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` set, matching what a real CI
+  runner has — no `.env.local`) to confirm the workflow will actually pass
+  once pushed, not just that it looks right. All three succeeded.
+- **Not done:** the workflow hasn't run on GitHub's infrastructure itself
+  yet (only locally simulated) — that will be confirmed the first time
+  this branch's commits reach GitHub. No branch-protection rule requires
+  it to pass yet — see below.
+- **Status:** In progress (CI added; branch protection still manual).
+
+---
+
+### PAY-006 — Ledger reconciliation alerting added this pass
+
+- **Update:** the daily reconciliation job previously only wrote to
+  `scheduler_runs`/`console.log` with no notification path — a real
+  imbalance or a job that failed to run would sit unseen unless someone
+  checked logs. `src/lib/alerts.ts` (`sendOpsAlert`) added and wired into
+  `/api/cron/ledger-reconciliation` for both failure modes (execution
+  error, and `imbalance_count > 0`). Gated entirely behind
+  `RESEND_API_KEY`/`ALERT_EMAIL_TO`/`ALERT_EMAIL_FROM` — logs and no-ops
+  cleanly if any are unset, and can never throw or block the response the
+  route gives Vercel (**Verified by test** — 5 unit tests in
+  `src/lib/alerts.test.ts`, including a mocked-network-failure case).
+- **Blocker, real and unresolved:** actually delivering an alert requires
+  a Resend account with a **verified sending domain** — this session's
+  connected Resend MCP account has zero domains configured
+  (`list-domains` returned none), and the tool's own `send-email` action
+  explicitly requires a human-supplied `from` address, so this cannot be
+  wired end-to-end from inside a session even with a domain. **Requires
+  founder action:** create/connect a Resend account, verify a sending
+  domain, set the three env vars in the real Vercel project. Until then
+  this is `Implemented but unverified in production` — the no-op path is
+  Verified by test; the actual-delivery path is not.
+- **Status:** Implemented but unverified in production (delivery path
+  blocked on external account setup).
+
+---
+
+### PAY-004 / LEGAL-001,002,005,006,008 — Payment-provider legal-signoff gate added this pass
+
+- **New control, additive migration applied live
+  (`20260913140512_payment_provider_legal_signoff_gate.sql`):**
+  `rpc_set_active_payment_provider` previously let any single admin
+  activate `intasend` (a real money-moving aggregator) with no check
+  beyond `is_admin()` — meaning it could be flipped live before any of
+  LEGAL-001/002/005/006/008 were resolved, by accident or otherwise. This
+  does **not** resolve any of those legal questions — that remains a
+  founder/legal decision, unchanged. It adds `payment_providers.
+  legal_signoff_confirmed_at/_by/_note` (all nullable, default null) and a
+  new `rpc_confirm_payment_provider_legal_signoff(key, note)` admin RPC
+  that must be called — with a non-empty note — before
+  `rpc_set_active_payment_provider` will activate any `kind = 'aggregator'`
+  provider; `kind = 'manual'` (the currently-active provider) is exempt.
+- **Verified this pass:** migration applied cleanly; `payment_providers`
+  state unchanged after (`manual` still `is_active=true`, `intasend` still
+  `false`, both new-column values `null` as expected); grants on both RPCs
+  confirmed identical in shape to every other admin RPC (`authenticated` +
+  `postgres` + `service_role`, no `anon`) via `information_schema.
+  routine_privileges`. **Not verified:** the `is_admin()`-gated logic
+  branch itself could not be exercised live from this session — `execute_
+  sql` runs outside any real user session, so `auth.uid()` is null and
+  every call hits "Only an admin..." before reaching the sign-off check;
+  exercising the actual gate requires a real authenticated admin session
+  (browser or a test harness with a real JWT), not attempted this pass.
+- **Status:** Implemented but unverified (schema/grants: Verified by test;
+  guard logic itself: Confirmed by code inspection only).
+
+---
+
+### New finding this pass — production database holds only QA/test fixture data, no purge plan exists
+
+- **Problem:** despite LIQ-006 stating "zero published providers on
+  production," the live database has real rows: 13 `profiles` (all with
+  matching real `auth.users` entries — confirmed via a join, so a purge
+  needs the Supabase Admin API, not a table `DELETE`), 5 `providers`, 6
+  `service_transactions`, 4 `ledger_entries`. All 13 profiles are
+  identifiable: 8 are literally named `"QA fixture (unpublished, do not
+  use)"` (created 2026-09-10, roles customer/admin), 4 more are named `"QA
+  Customer One"`, `"QA Seller One"`, `"QA Location Test"`, `"UX Audit
+  Tester"`, `"UX Audit Provider"` — all clearly artifacts of prior
+  sessions' live browser-based QA (Kernel click-throughs) against this
+  same production project, not synthetic inserts. **One row is ambiguous
+  and was not assumed either way:** `"kelvin Muthomi kimathi"` (created
+  2026-09-10 13:38) — could be the founder's own manual test account or a
+  real early signup; flagged for the founder to identify, not guessed at.
+- **Why it matters:** these transactions/ledger entries are real rows in
+  the exact tables `rpc_check_ledger_balance` (PAY-006) reconciles — they
+  don't cause a *false* imbalance (double-entry still holds for test data),
+  but they will appear in the admin dashboard, provider lists, and any
+  future analytics query as if they were real activity, and would need
+  deliberate exclusion or removal before real users see them or before any
+  metrics are trusted.
+- **What was deliberately not done:** no row was deleted or altered. This
+  session's standing instruction throughout — never delete or alter
+  production data without explicit authorization — applies squarely here;
+  a purge is also irreversible for the `auth.users` half of it.
+- **Recommended action:** founder reviews the exact list above (available
+  via the `profiles`/`service_transactions`/`ledger_entries`/`providers`
+  queries in this entry's evidence), confirms which rows are safe to
+  remove, and either purges before any real user/provider is onboarded, or
+  explicitly accepts them as known seed/demo content and documents that
+  decision so it isn't mistaken for a data-integrity bug later.
+- **Severity:** P2 (no financial or security risk today — zero real users
+  exist yet — but becomes confusing/embarrassing the moment a real admin
+  or provider looks at these lists).
+- **Status:** Not started. Requires founder review before execution (no
+  code change proposed here — this is a data decision, not a code gap).
+
+---
+
+### New finding this pass — no branch protection, no code-review gate exists
+
+- **Problem:** the entire repository has exactly one branch
+  (`claude/african-creator-marketplace-wy6d7s`, confirmed via `git branch
+  -a` and `list_branches` returning a single row) — everything, including
+  every financial/authorization change made across this whole remediation
+  program, has been pushed straight to it with no required status check
+  and no human review gate. No GitHub branch-protection API is exposed
+  through the tools available in this session, so this could not be
+  configured directly.
+- **Recommended action (founder, ~2 minutes in GitHub's UI):** Settings →
+  Branches → add a protection rule for this branch requiring the new `CI`
+  check (see SEC-001 above) to pass before merging, and optionally
+  requiring a pull-request review once there is more than one contributor.
+- **Severity:** P1 — process risk, not a code defect; compounds with every
+  future change until addressed.
+- **Status:** Not started. Requires founder action (tool access
+  unavailable).
+
+---
+
+### New finding this pass — standing AI-agent access to production has no defined end state
+
+- **Problem:** this and prior sessions have held direct, unscoped access
+  to the live Supabase project (schema changes, direct SQL, service-role-
+  equivalent queries) via MCP tooling, and attempted the same for Vercel.
+  No decision has been recorded on whether/when that access narrows once
+  initial buildout is done.
+- **Recommended action:** founder decides — e.g., rotate the Supabase
+  access token/API key used by this tooling once the current remediation
+  program is complete, or keep it but require explicit per-session scope
+  review. This is a credential/access-governance decision, not something
+  a session can resolve about its own access.
+- **Severity:** P2 (no incident occurred; this is a standing-risk note).
+- **Status:** Not started. Requires founder decision.
