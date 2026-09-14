@@ -159,8 +159,8 @@ which is exactly the state this task asks to eliminate.
 | PROV-E1 | Verification approve/reject | Implemented and verified | `/admin/verifications` | `rpc_set_verification_status` (logs to `admin_actions`, confirmed) | Admin | High | Yes | Yes (can re-set) | — | — |
 | PROV-E2 | Category clearance toggle | Implemented and verified | `/admin/verifications` | `rpc_set_category_clearance` (logs, confirmed) | Admin | Med | Yes | Yes | — | — |
 | PROV-E3 | Publish/unpublish provider | **Implemented and verified this pass** — was a direct `providers` table update with no audit trail; converted to `rpc_admin_set_provider_published`, which now logs to `admin_actions` | `/admin/verifications` | `rpc_admin_set_provider_published` (new this pass) | Admin | Med | Yes (fixed this pass) | Yes | — | — |
-| PROV-E4 | Provider search / general profile view | Missing — no `/admin/providers` list exists at all; the only providers visible in admin UI are those in the verification queue | — | — | Admin | Low | N/A | N/A | **A** | — |
-| PROV-E5 | Provider detail (earnings, completion rate, cancellation rate, disputes) | Missing | — | — | Admin | Med | N/A | N/A | **A** | — |
+| PROV-E4 | Provider search / general profile view | **Implemented and verified this pass** — new `/admin/providers`: search by name, filter by verification status, paginated, reliability score/dispute count surfaced inline | `/admin/providers` (new) | direct reads, RLS-confirmed admin-readable | Admin | Low | N/A | N/A | — | — |
+| PROV-E5 | Provider detail (earnings, completion rate, cancellation rate, disputes) | **Implemented and verified this pass** — new `/admin/providers/[id]`: owner, full reliability breakdown, category clearances, verification records, last 20 bookings, disputes across those bookings, admin interventions. Verified against 5 real providers (mixed populated/empty states — score exists for 1 of 5, category rows for 2 of 5, verification rows 0 of 5) | `/admin/providers/[id]` (new) | direct reads across 6 tables | Admin | Low (read) | N/A | N/A | — | — |
 | PROV-E6 | Suspend / reinstate provider | Missing (no suspension mechanism for providers distinct from `verification_status`) | — | — | Admin | High | Yes | Yes | B | — |
 | PROV-E7 | Restrict service category access post-verification | Partially implemented (E2 exists as an approve mechanism; no explicit "revoke" UI flow beyond re-toggling the same checkbox) | `/admin/verifications` | `rpc_set_category_clearance` | Admin | Med | Yes | Yes | B | — |
 | PROV-E8 | Location/corridor access control | Missing (no concept of provider service-area restriction beyond `provider_service_areas`, which is self-managed) | — | — | Admin | Low | N/A | N/A | C | — |
@@ -387,11 +387,15 @@ missing one (PAY-C1, PROV-E3); the **booking detail/timeline page**
 (BK-B2/B4/B13) assembling 9 tables' worth of history into one admin view;
 **search, filter, and pagination** on the transactions list (BK-B3/B5); and
 **working drill-down links** from the dashboard tiles to their correctly-
-filtered queues (§A finding). Still real, scoped, unblocked Phase A work
-**not done**: a provider list/detail page (§E), a ledger-entries browser
-independent of a specific booking (PAY-C9), customer search (§D), and the
-"requires attention" unified queue (OPS-A14, which needs new SLA/overdue
-tracking fields, not just UI).
+filtered queues (§A finding). A subsequent pass added the **provider list and detail pages**
+(PROV-E4/E5) — search/filter/pagination on `/admin/providers`, and a
+detail view assembling owner, reliability, category clearances,
+verification records, recent bookings, disputes, and admin interventions,
+verified against 5 real providers. Still real, scoped, unblocked Phase A
+work **not done**: a ledger-entries browser independent of a specific
+booking (PAY-C9), customer search (§D), and the "requires attention"
+unified queue (OPS-A14, which needs new SLA/overdue tracking fields, not
+just UI).
 
 **Phase B — Safe operational actions.** Category emergency pause (EMG-R1)
 is the standout candidate: schema already exists, RLS already enforces it,
