@@ -48,7 +48,7 @@ export default async function AdminOverviewPage() {
         <strong className="text-[var(--foreground)]">{formatMoney(gmvMinor)}</strong>
       </p>
 
-      <div className="mt-4 card p-4">
+      <Link href="/admin/system?job=auto_approve_sweep" className="mt-4 card p-4 block hover:opacity-80">
         <p className="text-xs font-semibold text-[var(--muted)] mb-1">Auto-approve sweep (scheduled daily, 03:00 UTC)</p>
         {!lastSweep ? (
           <p className="text-sm text-[var(--danger)]">Never run — check that CRON_SECRET is set and the Vercel Cron job is registered.</p>
@@ -58,7 +58,7 @@ export default async function AdminOverviewPage() {
             {lastSweep.success ? "succeeded" : `failed: ${lastSweep.error ?? "unknown error"}`}
           </p>
         )}
-      </div>
+      </Link>
 
       <Link href="/admin/ledger" className="mt-4 card p-4 block hover:opacity-80">
         <p className="text-xs font-semibold text-[var(--muted)] mb-1">Ledger reconciliation (scheduled daily, 04:00 UTC)</p>
