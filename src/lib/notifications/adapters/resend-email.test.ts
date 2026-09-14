@@ -29,7 +29,7 @@ describe("resendEmailAdapter.verifyInboundWebhook", () => {
   it("fails closed when RESEND_WEBHOOK_SECRET is not configured", () => {
     delete process.env.RESEND_WEBHOOK_SECRET;
     const headers = new Headers({ "svix-id": "id1", "svix-timestamp": String(Math.floor(Date.now() / 1000)), "svix-signature": "v1,bogus" });
-    expect(resendEmailAdapter.verifyInboundWebhook("{}", headers)).toBe(false);
+    expect(resendEmailAdapter.verifyInboundWebhook({ kind: "text", raw: "{}" }, headers)).toBe(false);
   });
 
   it("accepts a correctly signed payload", () => {
@@ -39,7 +39,7 @@ describe("resendEmailAdapter.verifyInboundWebhook", () => {
     const timestamp = String(Math.floor(Date.now() / 1000));
     const headers = new Headers({ "svix-id": id, "svix-timestamp": timestamp, "svix-signature": sign(secret, id, timestamp, body) });
 
-    expect(resendEmailAdapter.verifyInboundWebhook(body, headers)).toBe(true);
+    expect(resendEmailAdapter.verifyInboundWebhook({ kind: "text", raw: body }, headers)).toBe(true);
   });
 
   it("rejects a payload signed with the wrong secret", () => {
@@ -50,7 +50,7 @@ describe("resendEmailAdapter.verifyInboundWebhook", () => {
     const timestamp = String(Math.floor(Date.now() / 1000));
     const headers = new Headers({ "svix-id": id, "svix-timestamp": timestamp, "svix-signature": sign(wrongSecret, id, timestamp, body) });
 
-    expect(resendEmailAdapter.verifyInboundWebhook(body, headers)).toBe(false);
+    expect(resendEmailAdapter.verifyInboundWebhook({ kind: "text", raw: body }, headers)).toBe(false);
   });
 
   it("rejects a tampered body even with a validly-formed signature", () => {
@@ -61,7 +61,7 @@ describe("resendEmailAdapter.verifyInboundWebhook", () => {
     const timestamp = String(Math.floor(Date.now() / 1000));
     const headers = new Headers({ "svix-id": id, "svix-timestamp": timestamp, "svix-signature": sign(secret, id, timestamp, originalBody) });
 
-    expect(resendEmailAdapter.verifyInboundWebhook(tamperedBody, headers)).toBe(false);
+    expect(resendEmailAdapter.verifyInboundWebhook({ kind: "text", raw: tamperedBody }, headers)).toBe(false);
   });
 
   it("rejects a stale timestamp (replay protection)", () => {
@@ -71,13 +71,13 @@ describe("resendEmailAdapter.verifyInboundWebhook", () => {
     const staleTimestamp = String(Math.floor(Date.now() / 1000) - 600); // 10 minutes old
     const headers = new Headers({ "svix-id": id, "svix-timestamp": staleTimestamp, "svix-signature": sign(secret, id, staleTimestamp, body) });
 
-    expect(resendEmailAdapter.verifyInboundWebhook(body, headers)).toBe(false);
+    expect(resendEmailAdapter.verifyInboundWebhook({ kind: "text", raw: body }, headers)).toBe(false);
   });
 
   it("rejects when a required header is missing", () => {
     process.env.RESEND_WEBHOOK_SECRET = secret;
     const headers = new Headers({ "svix-timestamp": String(Math.floor(Date.now() / 1000)), "svix-signature": "v1,bogus" });
-    expect(resendEmailAdapter.verifyInboundWebhook("{}", headers)).toBe(false);
+    expect(resendEmailAdapter.verifyInboundWebhook({ kind: "text", raw: "{}" }, headers)).toBe(false);
   });
 });
 
@@ -87,17 +87,17 @@ describe("resendEmailAdapter.parseInboundEvent", () => {
       type: "email.received",
       data: { email_id: "email_123", from: "customer@example.com", to: ["support@ours.com"], subject: "[SUP-ABC123] Help" },
     });
-    const parsed = resendEmailAdapter.parseInboundEvent(body);
+    const parsed = resendEmailAdapter.parseInboundEvent({ kind: "text", raw: body });
     expect(parsed).toMatchObject({ fromEmail: "customer@example.com", subject: "[SUP-ABC123] Help", messageId: "email_123" });
   });
 
   it("returns null for an event type it doesn't act on", () => {
     const body = JSON.stringify({ type: "email.delivered", data: {} });
-    expect(resendEmailAdapter.parseInboundEvent(body)).toBeNull();
+    expect(resendEmailAdapter.parseInboundEvent({ kind: "text", raw: body })).toBeNull();
   });
 
   it("returns null for malformed JSON rather than throwing", () => {
-    expect(resendEmailAdapter.parseInboundEvent("not json")).toBeNull();
+    expect(resendEmailAdapter.parseInboundEvent({ kind: "text", raw: "not json" })).toBeNull();
   });
 });
 

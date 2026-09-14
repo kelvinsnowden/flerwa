@@ -1,5 +1,5 @@
 import crypto from "crypto";
-import type { EmailProviderAdapter, InboundAttachment, OutboundEmail, ParsedInboundEmail } from "../email-provider";
+import type { EmailProviderAdapter, InboundAttachment, InboundWebhookBody, OutboundEmail, ParsedInboundEmail } from "../email-provider";
 
 /**
  * Resend adapter — the first (not the only) EmailProviderAdapter
@@ -95,7 +95,13 @@ export const resendEmailAdapter: EmailProviderAdapter = {
     }
   },
 
-  verifyInboundWebhook(rawBody: string, headers: Headers): boolean {
+  verifyInboundWebhook(body: InboundWebhookBody, headers: Headers): boolean {
+    // Resend's webhooks are always JSON — a "form" body here would mean
+    // this route is misconfigured to point a different vendor's inbound
+    // route at Resend's adapter, not a real Resend delivery.
+    if (body.kind !== "text") return false;
+    const rawBody = body.raw;
+
     const secret = process.env.RESEND_WEBHOOK_SECRET;
     if (!secret || !secret.includes("_")) return false; // not configured — fail closed, don't guess
 
@@ -122,13 +128,15 @@ export const resendEmailAdapter: EmailProviderAdapter = {
       .some((sig) => timingSafeStringEqual(sig, expected));
   },
 
-  parseInboundEvent(rawBody: string): ParsedInboundEmail | null {
+  parseInboundEvent(body: InboundWebhookBody): ParsedInboundEmail | null {
+    if (body.kind !== "text") return null;
+
     let event: {
       type?: string;
       data?: { email_id?: string; from?: string; to?: string[]; subject?: string };
     };
     try {
-      event = JSON.parse(rawBody);
+      event = JSON.parse(body.raw);
     } catch {
       return null;
     }

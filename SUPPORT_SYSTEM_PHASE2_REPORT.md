@@ -242,3 +242,51 @@ brief's own "do not claim untested things work" instruction):**
    ("we reply by email, not live chat"), but it's worth confirming that
    copy still reads correctly once live chat ships in Phase 3, so the two
    modes don't contradict each other.
+
+## 11. Second real vendor: Mailgun (§4's abstraction proven, not just claimed)
+
+A follow-up pass added `src/lib/notifications/adapters/mailgun.ts` as the
+second `EmailProviderAdapter` implementation — deliberately picked because
+its inbound shape is structurally different from Resend's, the same reason
+Pesapal was picked as the second payment aggregator
+(`docs/16-payment-verification-integrations.md`):
+
+- Resend's inbound webhook is JSON, metadata-only, and needs a follow-up
+  API call (`fetchInboundBody`) for the body/attachments.
+- Mailgun's inbound Route webhook POSTs the entire parsed email — body,
+  headers, and real attachment bytes — as one `multipart/form-data`
+  request in a single delivery, with its signature fields
+  (`timestamp`/`token`/`signature`) living in the form body itself, not a
+  header.
+
+Forcing this through the same interface required widening
+`EmailProviderAdapter.verifyInboundWebhook`/`.parseInboundEvent` from
+`(rawBody: string, ...)` to `(body: InboundWebhookBody, ...)`
+(`src/lib/notifications/email-provider.ts`) — a tagged union of `{kind:
+"text", raw}` (Resend's shape, byte-for-byte, required for its HMAC to
+verify) and `{kind: "form", fields, files}` (Mailgun's shape, with
+attachments already read as real bytes via `Request.formData()` in the
+webhook route, never round-tripped through a string). Resend's adapter is
+functionally unchanged — it just asserts `body.kind === "text"` up front.
+`src/app/api/webhooks/support-inbound/route.ts` now decides which shape
+to build once, based on the request's `Content-Type` header, before
+either adapter sees it.
+
+Verified: `npx vitest run` — 12 new Mailgun tests (hand-computed
+HMAC-SHA256 signatures over `timestamp+token`, same rigor as the
+Resend/Svix tests: correct signature accepted, wrong key/tampered
+token/stale timestamp/missing field/wrong body-kind all rejected; a full
+inbound payload with an inline attachment parses correctly) plus the
+existing 11 Resend tests updated for the new body-shape parameter, all
+passing; `npx tsc --noEmit` and `npm run build` both clean. Seeded into
+`notification_channels` as available-but-not-active (same pattern as the
+Resend seed) — confirmed live: the row exists, Resend is still inactive
+(zero verified sending domains, unchanged from §7), nothing else changed.
+
+Requires `MAILGUN_API_KEY`, `MAILGUN_DOMAIN`, and
+`MAILGUN_WEBHOOK_SIGNING_KEY` (a different value from the API key — see
+mailgun.ts's own header comment) — all unset by default, so both the
+inbound and outbound paths fail with a clear, logged "not configured"
+reason rather than a silent success. Not tested against a live Mailgun
+account; confirm field names (`stripped-text`, `Message-Id`,
+`attachment-N`) against Mailgun's current docs before activating.

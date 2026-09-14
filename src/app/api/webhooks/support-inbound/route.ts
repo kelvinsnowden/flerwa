@@ -1,6 +1,36 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { emailAdapters } from "@/lib/notifications/registry";
+import type { InboundWebhookBody } from "@/lib/notifications/email-provider";
+
+/**
+ * Reads the request body once, shaped for whichever vendor is actually
+ * sending it: form-encoded vendors (Mailgun's inbound routes) get their
+ * fields AND real attachment bytes via Request.formData() — parsing that
+ * as text would corrupt binary attachment content — while everyone else
+ * (Resend's JSON webhook) gets the exact raw text, required for HMAC
+ * signature verification to match byte-for-byte.
+ */
+async function readInboundBody(req: NextRequest): Promise<InboundWebhookBody> {
+  const contentType = req.headers.get("content-type") ?? "";
+  if (!contentType.includes("multipart/form-data") && !contentType.includes("application/x-www-form-urlencoded")) {
+    return { kind: "text", raw: await req.text() };
+  }
+
+  const form = await req.formData();
+  const fields: Record<string, string> = {};
+  const files: { field: string; filename: string; contentType: string; bytes: Uint8Array }[] = [];
+
+  for (const [key, value] of form.entries()) {
+    if (value instanceof File) {
+      files.push({ field: key, filename: value.name, contentType: value.type || "application/octet-stream", bytes: new Uint8Array(await value.arrayBuffer()) });
+    } else {
+      fields[key] = value;
+    }
+  }
+
+  return { kind: "form", fields, files };
+}
 
 /**
  * Generic inbound webhook for whichever email vendor is currently active
@@ -21,7 +51,7 @@ import { emailAdapters } from "@/lib/notifications/registry";
  * (better to create an extra ticket than to silently drop a real message).
  */
 export async function POST(req: NextRequest) {
-  const rawBody = await req.text();
+  const body = await readInboundBody(req);
   const supabase = createAdminClient();
 
   const { data: active } = await supabase
@@ -43,7 +73,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  if (!adapter.verifyInboundWebhook(rawBody, req.headers)) {
+  if (!adapter.verifyInboundWebhook(body, req.headers)) {
     // Unverified inbound "mail" is worthless and potentially forged —
     // refuse outright rather than create a ticket from it.
     return NextResponse.json({ error: "Webhook signature did not verify." }, { status: 401 });
@@ -51,7 +81,7 @@ export async function POST(req: NextRequest) {
 
   let parsed;
   try {
-    parsed = adapter.parseInboundEvent(rawBody);
+    parsed = adapter.parseInboundEvent(body);
   } catch {
     return NextResponse.json({ error: "Could not parse webhook payload." }, { status: 400 });
   }

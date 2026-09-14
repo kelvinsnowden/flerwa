@@ -2,6 +2,7 @@ import "server-only";
 import type { EmailProviderAdapter } from "./email-provider";
 import type { SmsProviderAdapter } from "./sms-provider";
 import { resendEmailAdapter } from "./adapters/resend-email";
+import { mailgunAdapter } from "./adapters/mailgun";
 
 /**
  * Every email/SMS vendor this codebase knows how to speak to, keyed
@@ -19,6 +20,7 @@ import { resendEmailAdapter } from "./adapters/resend-email";
  */
 export const emailAdapters: Record<string, EmailProviderAdapter> = {
   resend: resendEmailAdapter,
+  mailgun: mailgunAdapter,
 };
 
 export const smsAdapters: Record<string, SmsProviderAdapter> = {};
