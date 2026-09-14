@@ -2,13 +2,14 @@ import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { formatMoney } from "@/lib/money";
-import { type ServiceTransaction } from "@/lib/types";
+import { type ServiceTransaction, type TransactionMilestone } from "@/lib/types";
 import { ChecklistItemRow } from "./checklist-item";
 import { CheckInButton, SubmitCompletionButton } from "./job-controls";
 import { ErrorNotice } from "@/components/error-notice";
 import { StatusTimeline } from "@/components/ui/status-timeline";
 import { StateBadge } from "@/components/ui/state-badge";
 import { Icon } from "@/components/ui/icon";
+import { MilestonesCard } from "@/components/ui/milestones-card";
 
 export default async function ProviderJobDetailPage({
   params,
@@ -54,6 +55,7 @@ export default async function ProviderJobDetailPage({
   const [
     { data: checklistItems, error: checklistError },
     { data: results, error: resultsError },
+    { data: milestones },
   ] = await Promise.all([
     supabase
       .from("service_checklist_items")
@@ -64,6 +66,7 @@ export default async function ProviderJobDetailPage({
       .from("transaction_checklist_results")
       .select("checklist_item_id, is_complete")
       .eq("transaction_id", id),
+    supabase.from("transaction_milestones").select("*").eq("transaction_id", id).order("sort_order").returns<TransactionMilestone[]>(),
   ]);
   const checklistLoadFailed = Boolean(checklistError || resultsError);
 
@@ -129,6 +132,12 @@ export default async function ProviderJobDetailPage({
           </div>
         )}
       </div>
+
+      {!!milestones?.length && (
+        <div className="mt-4">
+          <MilestonesCard milestones={milestones} currency={job.currency} />
+        </div>
+      )}
 
       {canCheckIn && <CheckInButton transactionId={job.id} />}
 

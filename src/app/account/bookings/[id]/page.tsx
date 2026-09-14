@@ -3,7 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { formatMoney } from "@/lib/money";
-import { TXN_STATE_LABELS, type ServiceTransaction } from "@/lib/types";
+import { TXN_STATE_LABELS, type ServiceTransaction, type TransactionMilestone } from "@/lib/types";
 import { EvidenceGallery } from "./evidence-gallery";
 import { ApproveOrReviseControls, ReviewForm } from "./booking-actions";
 import { DisputeLink } from "./dispute-link";
@@ -14,6 +14,7 @@ import { ErrorNotice } from "@/components/error-notice";
 import { StatusTimeline } from "@/components/ui/status-timeline";
 import { StateBadge } from "@/components/ui/state-badge";
 import { Icon } from "@/components/ui/icon";
+import { MilestonesCard } from "@/components/ui/milestones-card";
 
 const DISPUTABLE_ELSEWHERE_STATES: ServiceTransaction["state"][] = [
   "funded",
@@ -82,7 +83,7 @@ export default async function BookingDetailPage({
   }
   if (!booking) notFound();
 
-  const [{ count: revisionCount }, { data: existingReview }, { data: payment, error: paymentError }, { data: activePaymentProvider }] =
+  const [{ count: revisionCount }, { data: existingReview }, { data: payment, error: paymentError }, { data: milestones }, { data: activePaymentProvider }] =
     await Promise.all([
       supabase
         .from("transaction_events")
@@ -96,6 +97,7 @@ export default async function BookingDetailPage({
         .eq("reviewer_id", user.id)
         .maybeSingle(),
       supabase.from("payments").select("state, external_reference").eq("transaction_id", id).maybeSingle(),
+      supabase.from("transaction_milestones").select("*").eq("transaction_id", id).order("sort_order").returns<TransactionMilestone[]>(),
       // Admin client: payment_providers has no client-read policy for a
       // plain customer session (admin-only SELECT), and whether an
       // automated "Pay with M-Pesa" button can even be offered isn't
@@ -171,6 +173,12 @@ export default async function BookingDetailPage({
           />
         )}
       </div>
+
+      {!!milestones?.length && (
+        <div className="mt-4">
+          <MilestonesCard milestones={milestones} currency={booking.currency} />
+        </div>
+      )}
 
       {booking.providers && (
         <Link href={`/messages/${booking.id}`} className="mt-4 card p-4 flex items-center justify-between hover:border-[var(--trust)] transition-colors">

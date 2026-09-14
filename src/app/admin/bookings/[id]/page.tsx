@@ -2,8 +2,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { formatMoney } from "@/lib/money";
-import { TXN_STATE_LABELS, type TxnState } from "@/lib/types";
+import { TXN_STATE_LABELS, type TxnState, type TransactionMilestone } from "@/lib/types";
 import { ErrorNotice } from "@/components/error-notice";
+import { MilestonesCard } from "@/components/ui/milestones-card";
 import { AddNoteForm } from "./add-note-form";
 
 /**
@@ -41,6 +42,7 @@ export default async function AdminBookingDetailPage({ params }: { params: Promi
     { data: review },
     { data: adminActions },
     { data: notes },
+    { data: milestones },
   ] = await Promise.all([
     supabase.from("profiles").select("id, full_name, phone").eq("id", txn.customer_id).maybeSingle(),
     txn.provider_id
@@ -63,6 +65,7 @@ export default async function AdminBookingDetailPage({ params }: { params: Promi
       .eq("target_id", id)
       .order("created_at", { ascending: false }),
     supabase.from("booking_notes").select("id, admin_id, note, created_at").eq("transaction_id", id).order("created_at", { ascending: false }),
+    supabase.from("transaction_milestones").select("*").eq("transaction_id", id).order("sort_order").returns<TransactionMilestone[]>(),
   ]);
 
   const providerOwnerId = provider?.user_id;
@@ -139,9 +142,14 @@ export default async function AdminBookingDetailPage({ params }: { params: Promi
         </div>
       </div>
 
+      {!!milestones?.length && (
+        <div className="mb-6">
+          <MilestonesCard milestones={milestones} currency={txn.currency} />
+        </div>
+      )}
+
       <Section title="Payments" empty={!payments?.length}>
-        {payments?.map((p) => (
-          <RowCard key={p.id}>
+        {payments?.map((p) => (          <RowCard key={p.id}>
             {p.provider_key} — {p.state} — {formatMoney(p.amount_minor, p.currency)}
             {p.external_reference && <span className="text-[var(--muted)]"> · ref {p.external_reference}</span>}
             <span className="block text-xs text-[var(--muted)]">{new Date(p.created_at).toLocaleString("en-KE")}</span>

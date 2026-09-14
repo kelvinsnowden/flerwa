@@ -204,6 +204,25 @@ export interface ServiceTransaction {
   completion_summary: string | null;
 }
 
+// Only present (3 rows) for a transaction whose service_amount_minor
+// exceeds KSh 25,000 — see docs/07-payments.md's payment-structure table
+// and the differentiated-fee-schedule/milestone-payments migrations.
+export interface TransactionMilestone {
+  id: string;
+  transaction_id: string;
+  kind: "scope_agreement" | "materials" | "balance";
+  amount_minor: number;
+  state: "pending" | "released";
+  released_at: string | null;
+  sort_order: number;
+}
+
+export const MILESTONE_LABELS: Record<TransactionMilestone["kind"], string> = {
+  scope_agreement: "Scope agreement (30%)",
+  materials: "Materials",
+  balance: "Balance on completion",
+};
+
 export const REVIEW_TAGS = [
   "Professional",
   "Detailed",
