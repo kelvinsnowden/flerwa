@@ -261,9 +261,9 @@ here should be faked with placeholder heuristics.
 
 | ID | Function | Status | Route/Component | RPC/API | Role | Risk | Audit | Reversible | Priority | Decision blocker |
 |---|---|---|---|---|---|---|---|---|---|---|
-| REV-K1 | Review queue | Missing (no admin view of `reviews` at all) | — | — | Admin | Low | N/A | N/A | B | — |
+| REV-K1 | Review queue | **Implemented this pass** — new `/admin/reviews`: all reviews, paginated, filterable to hidden-only | `/admin/reviews` (new) | direct query, RLS-confirmed admin-readable | Admin | Low | N/A | N/A | — | — |
 | REV-K2 | Reported/flagged review handling | Missing — depends on J5 (report mechanism) existing first | — | — | Admin | Med | Yes | N/A | C | TSF-007 |
-| REV-K3 | Hide/unhide review | Missing (no `is_hidden`/visibility field on `reviews`) | — | — | Admin | Med | Yes | Yes | C | — |
+| REV-K3 | Hide/unhide review | **Implemented this pass** — new `reviews.is_hidden` column; `"reviews public read"` RLS (previously unconditional `true`) narrowed to `not is_hidden or is_admin()` — a genuine, deliberate RLS change, verified live (`pg_policies` shows the new qual exactly), backward-compatible (every existing consumer of `reviews`, including the public storefront, sees non-hidden reviews exactly as before; only a newly-hidden one changes, and only because an admin hid it). New `rpc_admin_set_review_hidden`, reason required, logged | `/admin/reviews` | `rpc_admin_set_review_hidden` (new) | Admin | Med | Yes | Yes | — | — |
 | REV-K4 | Silent edit of a review | **Not applicable — must never be built.** The task explicitly forbids this; noted here only to record that it was considered and rejected. | — | — | — | — | — | — | — | — |
 
 ---
@@ -274,7 +274,7 @@ here should be faked with placeholder heuristics.
 |---|---|---|---|---|---|---|---|---|---|---|
 | MSG-L1 | Conversation search (admin) | Missing — `messages`/`conversations` have no admin read path at all | — | — | Admin | Med (privacy) | N/A | N/A | C | — |
 | MSG-L2 | Reported-message handling | Missing (depends on J5) | — | — | Admin | Med | Yes | N/A | C | TSF-007 |
-| MSG-L3 | Notification delivery status | Partially implemented — `notifications` table exists and is populated (2 rows, confirmed); no admin view of delivery/read status | — | `notifications` table | Admin | Low | N/A | N/A | D | — |
+| MSG-L3 | Notification delivery status | **Deliberately not built this pass** — `notifications` has a `channel` column but no external channel is actually connected (NOTIF-001/002, still blocked on a vendor decision), so there is no real "delivery" concept to show yet beyond "was this in-app row inserted." An admin view here today would show insertion timestamps only, not real delivery/bounce data — building it now would create the appearance of a capability that doesn't exist. Revisit once NOTIF-001/002 resolves | — | `notifications` table | Admin | Low | N/A | N/A | D | NOTIF-001/002 vendor decision |
 | MSG-L4 | Resend notification | Missing | — | — | Admin | Low | Yes | N/A | D | — |
 | MSG-L5 | "Send as support" impersonation-labeled message | Missing — genuinely not built, correctly, since it needs the explicit labeling/audit the brief requires; do not build without that | — | — | Admin | Med | Yes | N/A | D | — |
 | MSG-L6 | Email/SMS/WhatsApp delivery history | Not applicable yet — no external notification channel is connected (NOTIF-001/002, register) | — | — | — | — | — | — | — | NOTIF-001/002 vendor decision |
@@ -438,3 +438,81 @@ No phase reordering was needed relative to the task's own suggested order —
 the codebase inspection confirmed the same priority the task assumed:
 visibility gaps (A) are the worst gaps today, governance (C) is real but
 correctly sequenced after the actions it would govern exist.
+
+---
+
+## Final accounting: everything still open, and exactly why
+
+Across the passes that built this document, every capability that was
+**small, safe, and unblocked** has been implemented and verified — 18
+admin RPCs, 11 new pages, 2 real RLS narrowings, all is_admin()-gated,
+reasoned where sensitive, logged to `admin_actions`, checked against real
+production data wherever real rows existed to check against. What remains
+— roughly 145 of the ~160 individual capability rows in this document —
+is not an oversight; each falls into exactly one of four buckets, and none
+of the four is "ran out of time to get to it."
+
+**1. Blocked on a founder/legal/business decision this session cannot
+make.** Building these without that input would mean inventing policy —
+the task's own Safety and decision rules forbid this explicitly, and this
+project has held that line throughout (see, for one concrete example, the
+payment-provider legal-signoff gate added early in this program, which
+makes it *impossible* to activate a real aggregator without an explicit
+attestation, rather than guessing whether the legal groundwork is ready).
+This bucket covers: the entire roles/permissions model (§P, GOV-P1–P4 —
+every "who can approve this" column across every other section depends on
+this one decision); dual-control thresholds (PAY-004); refund/cancellation
+policy numbers (PAY-005/009, TXN-005); privacy and deletion workflows
+(§Q — LEGAL-004/007); risk-signal definitions (§J — what counts as
+suspicious is a product decision, not an engineering one); fee/pricing
+model changes (CAT-G4); emergency platform-wide controls (EMG-R3/R6 — a
+"pause all new bookings" switch needs founder sign-off on when it's used,
+not just a button); and the notification vendor decision (NOTIF-001/002,
+which also blocks MSG-L3/L6). Each is cross-referenced to
+`MARKETPLACE_REMEDIATION_REGISTER.md`'s numbered
+`DECISIONS_REQUIRING_FOUNDER_OR_BUSINESS_APPROVAL` list in its own row
+above — nothing here is a vague "someone should decide this someday."
+
+**2. Real, unblocked work — but too large to be a same-session safe
+increment.** These don't need a founder decision, but they need dedicated
+design attention this document's own single-column-toggle pattern doesn't
+fit: full service-catalog CRUD with pricing effective-dating and version
+history (§G, CAT-G1/G6/G7); a generic `emergency_controls` table as the
+right foundation for EMG-R2 onward, rather than a one-off table per
+control (EMG-R10 already names this as the template to use); the
+report/flag intake mechanism (TSF-007 → §J/§K/§L's dependent rows), which
+is customer-and-provider-facing UI, not admin-only, and is a P0 in the
+register in its own right; and provider-side competence assessment
+(PROV-002, depends on the tier model in PROV-001). Attempting any of
+these as a rushed extension of today's pattern would produce something
+that looks finished but isn't — exactly what the brief's "do not mark a
+feature complete until it works end-to-end" rule exists to prevent.
+
+**3. Correctly deferred by this document's own phase ordering (§ above),
+not skipped.** Phase C (roles, dual control, privacy, access review) and
+Phase D (analytics, financial reporting, SLA/retention dashboards) were
+placed last because the codebase inspection confirmed they belong last —
+Phase D in particular is genuinely low-value to build today: the register
+already established that production has zero real users and only QA-
+fixture data, so a cohort-retention or unit-economics dashboard would have
+nothing real to show. Building it now would be decorative, which is
+exactly the anti-pattern §A's own findings called out and fixed for the
+dashboard.
+
+**4. Not applicable — must never be built,** full stop, regardless of time
+available: arbitrary SQL execution in the Admin UI (SYS-O8); silently
+editing a customer's or provider's review text (REV-K4); an unlabeled
+"send as support" impersonation capability (MSG-L5, noted as correctly
+*not* built); inventing default values for any of the bucket-1 decisions
+rather than leaving them visibly blocked.
+
+**What this means concretely:** the Admin Console today gives an
+operations team real, working, audited visibility and safe action on the
+platform's actual current shape — bookings, payments, ledger, providers,
+customers, disputes, reviews, categories, and the system's own background
+jobs. It does not yet give them everything a mature, multi-admin, real-
+revenue platform will eventually need, and it was never going to by the
+end of a single continuation program — that gap is real, it's fully
+inventoried above, and closing it further requires either founder input
+this session doesn't have, or dedicated design work this document
+correctly declines to rush.
