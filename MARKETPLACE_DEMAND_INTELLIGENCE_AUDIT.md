@@ -140,8 +140,40 @@ signals.
 > verified post-apply: a call to `rpc_log_demand_event` against
 > production (rolled back, nothing persisted) succeeded and returned a
 > real event id; `get_advisors` showed no unexpected new findings. The
-> `demand_rollup_daily` aggregation job is still NOT built — not needed
-> yet at current volume, tracked as future work.
+> `demand_rollup_daily` aggregation job has since been built — see the
+> update immediately below.
+
+> **`demand_rollup_daily` aggregation job — APPLIED to production on
+> 2026-09-15, per explicit user authorization**, as
+> `supabase/migrations/20260915151912_marketplace_001_demand_rollup_job.sql`
+> (identical content also kept at
+> `migration_proposals/PROPOSED_marketplace_001_demand_rollup_job.sql`):
+> adds `rpc_run_demand_rollup`/`rpc_run_demand_rollup_locked` (same
+> locked-wrapper pattern as `rpc_run_auto_approve_sweep_locked`) plus a
+> new `src/app/api/cron/demand-rollup/route.ts` cron route (registered
+> in `vercel.json`, daily at 06:00 UTC), following the exact shape of
+> the `ledger-reconciliation` route. **Found and fixed while building
+> this:** `demand_rollup_daily`'s live primary key
+> (`day, category_id, location_id`) makes `category_id`/`location_id`
+> implicitly `NOT NULL` — but real events frequently have a NULL
+> category (e.g. `provider_profile_viewed`) and/or NULL location (no
+> location capture on search yet), so the table as originally applied
+> could never store those groupings. The proposal migrates it to a
+> surrogate primary key plus `unique nulls not distinct (day,
+> category_id, location_id)` (Postgres 17). Live-verified in a rolled-
+> back transaction against production: seeded events including
+> NULL/NULL groupings, ran the rollup, confirmed correct per-group
+> counts, confirmed re-running is idempotent (no duplicate rows, same
+> totals), confirmed the NULL/NULL insert that used to be impossible
+> now succeeds. 4 new tests in `tests/db/demand-rollup.test.ts`.
+> Post-apply live verification against production (rolled back, nothing
+> persisted beyond the schema change itself): the NULL/NULL insert
+> succeeds, both `rpc_run_demand_rollup` and
+> `rpc_run_demand_rollup_locked` run successfully, and `get_advisors`
+> shows no unexpected new findings — the two functions correctly do
+> NOT appear in the anon/authenticated-executable lists. The cron
+> hasn't fired yet (next run: 06:00 UTC), so `demand_rollup_daily` has
+> 0 real rows as of this writing — that's expected, not a bug.
 
 Turned the Phase 3 design below into real, tested, ready-to-apply code
 — nothing here is fabricated data, and nothing is applied/committed
