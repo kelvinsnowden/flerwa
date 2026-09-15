@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { resolveLocationId } from "@/lib/resolve-location";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { getOrCreateDemandSessionId, logDemandEvent, bucketPriceRangeMinor } from "@/lib/demand-events";
 
 export async function postTask(formData: FormData) {
   const supabase = await createClient();
@@ -53,6 +54,18 @@ export async function postTask(formData: FormData) {
     .select("id")
     .single();
   if (error) return { error: error.message };
+
+  // MARKETPLACE-001 Phase 7 — demand-event instrumentation (inert/no-op
+  // until the backing migration is applied).
+  const demandSessionId = await getOrCreateDemandSessionId();
+  await logDemandEvent({
+    eventType: "request_created",
+    sessionId: demandSessionId,
+    sourceSurface: "tasks_new",
+    categoryId: categoryId,
+    locationId: locationId,
+    priceRangeBucket: bucketPriceRangeMinor(budgetHintMinor),
+  });
 
   redirect(`/tasks/${data.id}`);
 }

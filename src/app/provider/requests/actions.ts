@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { getOrCreateDemandSessionId, logDemandEvent } from "@/lib/demand-events";
 
 export async function submitQuote(requestId: string, amountKes: string, message: string) {
   const supabase = await createClient();
@@ -20,6 +21,17 @@ export async function submitQuote(requestId: string, amountKes: string, message:
     p_message: message || null,
   });
   if (error) return { error: error.message };
+
+  // MARKETPLACE-001 Phase 7 — demand-event instrumentation (inert/no-op
+  // until the backing migration is applied).
+  const { data: request } = await supabase.from("service_requests").select("category_id").eq("id", requestId).single();
+  const demandSessionId = await getOrCreateDemandSessionId();
+  await logDemandEvent({
+    eventType: "quote_requested",
+    sessionId: demandSessionId,
+    sourceSurface: "provider_requests",
+    categoryId: request?.category_id ?? null,
+  });
 
   revalidatePath(`/provider/requests/${requestId}`);
   revalidatePath("/provider/requests");

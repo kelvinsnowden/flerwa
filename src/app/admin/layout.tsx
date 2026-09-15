@@ -23,6 +23,8 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     <div className="mx-auto max-w-4xl px-4 py-8">
       <nav className="flex gap-4 text-sm border-b pb-4 mb-6">
         <Link href="/admin" className="font-semibold">Overview</Link>
+        <Link href="/admin/demand" className="text-[var(--muted)] hover:text-[var(--foreground)]">Demand</Link>
+        <Link href="/admin/matching" className="text-[var(--muted)] hover:text-[var(--foreground)]">Matching</Link>
         <Link href="/admin/verifications" className="text-[var(--muted)] hover:text-[var(--foreground)]">Verifications</Link>
         <Link href="/admin/providers" className="text-[var(--muted)] hover:text-[var(--foreground)]">Providers</Link>
         <Link href="/admin/customers" className="text-[var(--muted)] hover:text-[var(--foreground)]">Customers</Link>

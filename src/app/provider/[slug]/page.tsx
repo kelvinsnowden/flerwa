@@ -19,6 +19,7 @@ import { StorefrontQuickNav } from "./storefront-tabs";
 import { AvailabilityCalendar } from "./availability-calendar";
 import { ServiceAreaVisual } from "./service-area-visual";
 import { PortfolioGallery } from "./portfolio-gallery";
+import { getOrCreateDemandSessionId, logDemandEvent } from "@/lib/demand-events";
 
 export default async function ProviderStorefrontPage({
   params,
@@ -59,6 +60,21 @@ export default async function ProviderStorefrontPage({
   const isLive = provider.is_published && provider.verification_status === "verified";
   if (!isOwner && !isLive) {
     notFound();
+  }
+
+  // MARKETPLACE-001 Phase 7 — demand-event instrumentation (see
+  // src/lib/demand-events.ts; inert/no-op until the backing migration
+  // is applied). Only logged for real, live-visible views, not the
+  // owner's own preview.
+  if (!isOwner) {
+    const demandSessionId = await getOrCreateDemandSessionId();
+    await logDemandEvent({
+      eventType: "provider_profile_viewed",
+      sessionId: demandSessionId,
+      sourceSurface: "provider_storefront",
+      providerId: provider.id,
+      locationId: provider.base_location_id,
+    });
   }
 
   const [

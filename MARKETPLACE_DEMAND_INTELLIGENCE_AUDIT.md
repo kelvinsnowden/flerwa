@@ -126,6 +126,53 @@ signals.
 
 ---
 
+## Phase 7 implementation (same day, after this audit)
+
+Turned the Phase 3 design below into real, tested, ready-to-apply code
+— nothing here is fabricated data, and nothing is applied/committed
+without this report's authorization:
+
+- **`migration_proposals/PROPOSED_marketplace_001_demand_events.sql`**
+  — the full `demand_events`/`demand_rollup_daily` schema below, refined
+  from the original sketch: instead of a raw "anyone can insert" RLS
+  policy, the table has **no insert policy at all** (default-deny,
+  matching `payments`/`ledger_entries`) — the only write path is a new
+  `rpc_log_demand_event`, which rate-limits every call via the existing
+  `rpc_check_rate_limit` primitive before inserting. Live-verified in a
+  rolled-back transaction against production: event insert + dedup (two
+  calls with the same `dedup_key` return the same row, no duplicate),
+  direct client INSERT rejected by RLS, non-admin SELECT sees 0 rows,
+  admin SELECT sees the real rows, anon (signed-out) can also log.
+- **`src/lib/demand-events.ts`** — the application-layer logger
+  (`logDemandEvent`, fire-and-forget, never throws) and session-id
+  helper. Wired into real page loads and actions: `search_performed`/
+  `search_no_results` (home page), `service_viewed` (service detail),
+  `provider_profile_viewed` (storefront), `booking_created` (booking
+  action), `quote_requested` (quote submission), `request_created`
+  (task posting). Until the migration above is applied, every call
+  fails with "function does not exist" and is silently swallowed by
+  design — this is inert, not broken, and does not affect any existing
+  page.
+- **`src/app/admin/demand/page.tsx`** — a new admin "Demand"
+  dashboard, built entirely from EXISTING real data (no migration
+  needed for this part): per-category open task requests, unmet demand
+  (expired with 0 quotes), quote acceptance rate, bookings, and repeat-
+  customer rate, plus a flagged list of categories with real demand and
+  zero eligible providers. Honestly labels the search-side metrics
+  (top terms, search volume, no-result rate) as not yet available and
+  explains exactly what's needed.
+- **`tests/db/demand-events.test.ts`** — 7 tests describing the FIXED
+  (not-yet-applied) behavior, following this codebase's established
+  pattern (`tests/db/provider-eligibility.test.ts`): will fail against
+  the live, unpatched database until the migration is authorized and
+  applied.
+
+See `PROVIDER_MATCHING_AND_RANKING_AUDIT.md` for the companion Phase 7
+ranking implementation, and the final report for the full list of
+changes, tests, and what remains authorization-gated.
+
+---
+
 ## Phase 3 — Proposed event model (design only — NOT applied, NOT committed)
 
 No migration was applied. The SQL below is a **proposal**, written to be

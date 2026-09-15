@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { resolveLocationId } from "@/lib/resolve-location";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { getOrCreateDemandSessionId, logDemandEvent } from "@/lib/demand-events";
 
 export async function bookService(formData: FormData) {
   const supabase = await createClient();
@@ -44,6 +45,20 @@ export async function bookService(formData: FormData) {
   });
 
   if (error) return { error: error.message };
+
+  // MARKETPLACE-001 Phase 7 — demand-event instrumentation (inert/no-op
+  // until the backing migration is applied). dedupKey ties this to the
+  // same idempotency key rpc_book_service itself uses, so a retried
+  // submit never double-counts as two "booking_created" events either.
+  const demandSessionId = await getOrCreateDemandSessionId();
+  await logDemandEvent({
+    eventType: "booking_created",
+    sessionId: demandSessionId,
+    sourceSurface: "service_detail",
+    serviceId,
+    providerId,
+    dedupKey: idempotencyKey ? `booking_created:${idempotencyKey}` : null,
+  });
 
   redirect(`/account/bookings/${data}?created=1`);
 }

@@ -6,6 +6,8 @@ import { BookingForm } from "./booking-form";
 import { ErrorNotice } from "@/components/error-notice";
 import { Icon } from "@/components/ui/icon";
 import { ProviderCard } from "@/components/ui/provider-card";
+import { rankEligibleProviders } from "@/lib/provider-ranking";
+import { getOrCreateDemandSessionId, logDemandEvent } from "@/lib/demand-events";
 
 export default async function ServiceDetailPage({
   params,
@@ -54,15 +56,46 @@ export default async function ServiceDetailPage({
   // number yet — see docs/06-trust-architecture.md — this MVP surfaces
   // jobs_completed and rating, the honest signals available at launch
   // volume.
-  const { data: providers } = await supabase
+  const { data: providersRaw } = await supabase
     .from("providers")
     .select("*, reliability_scores(*), provider_categories!inner(category_id, is_cleared), profiles:user_id(avatar_url)")
     .eq("is_published", true)
     .eq("verification_status", "verified")
     .eq("is_accepting_work", true)
+    .eq("is_suspended", false)
+    .eq("is_test_fixture", false)
     .eq("provider_categories.category_id", service.category_id)
     .eq("provider_categories.is_cleared", true)
     .returns<(Provider & { reliability_scores: ReliabilityScore[]; profiles: { avatar_url: string | null } | null })[]>();
+
+  // MARKETPLACE-001 Phase 5 — explainable ranking (design:
+  // PROVIDER_MATCHING_AND_RANKING_AUDIT.md). Every provider here already
+  // passed the query's own hard eligibility filters above; ranking only
+  // orders WITHIN that already-eligible set, it never expands it. The
+  // exploration seed rotates daily so a qualified new provider gets
+  // rotating visibility without making the order non-reproducible
+  // within a single day (see rankEligibleProviders' own docs).
+  const today = new Date().toISOString().slice(0, 10);
+  const ranked = providersRaw
+    ? rankEligibleProviders(
+        providersRaw.map((p) => ({ provider: p, reliability: p.reliability_scores?.[0] })),
+        `${service.category_id}:${today}`
+      )
+    : [];
+  const providers = ranked.map((r) => r.provider);
+
+  // MARKETPLACE-001 Phase 7 — demand-event instrumentation (see
+  // src/lib/demand-events.ts; inert/no-op until the backing migration
+  // is applied).
+  const demandSessionId = await getOrCreateDemandSessionId();
+  await logDemandEvent({
+    eventType: "service_viewed",
+    sessionId: demandSessionId,
+    sourceSurface: "service_detail",
+    categoryId: service.category_id,
+    serviceId: service.id,
+    resultCount: providers.length,
+  });
 
   const {
     data: { user },

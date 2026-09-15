@@ -10,6 +10,7 @@ import { RecommendedServiceCard } from "@/components/ui/recommended-service-card
 import { TrustSignal } from "@/components/ui/trust-signal";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Icon, type IconName } from "@/components/ui/icon";
+import { getOrCreateDemandSessionId, logDemandEvent } from "@/lib/demand-events";
 
 // The 5 pilot services featured on the home page, in display order — real,
 // bookable catalogue entries (see supabase/migrations/20260911120000_
@@ -91,6 +92,22 @@ export default async function HomePage({
   const { data: services, error: servicesError } = isBrowsing
     ? await servicesQuery.returns<Service[]>()
     : { data: null, error: null };
+
+  // MARKETPLACE-001 Phase 7 — demand-event instrumentation. Fire-and-
+  // forget; see src/lib/demand-events.ts for why this never throws or
+  // slows the page down in a way that changes behavior.
+  if (isBrowsing && !servicesError) {
+    const sessionId = await getOrCreateDemandSessionId();
+    const resultCount = services?.length ?? 0;
+    await logDemandEvent({
+      eventType: resultCount === 0 ? "search_no_results" : "search_performed",
+      sessionId,
+      sourceSurface: "home_search",
+      categoryId: activeCategory?.id ?? null,
+      searchTerm: q ?? null,
+      resultCount,
+    });
+  }
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-6 sm:py-10">

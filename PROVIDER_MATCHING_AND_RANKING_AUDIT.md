@@ -39,6 +39,33 @@ nothing committed or pushed.
 > proposal is authorized and applied.** See
 > `SECURITY_READINESS_REGISTER.md` and `FINANCIAL_INTEGRITY_MODEL.md`
 > for full detail.
+>
+> **Phase 7 implementation (same day, after the -003 fix was applied to
+> production):** with the eligibility layer now live, the blocking
+> condition above is resolved, and the Phase 5 ranking design below has
+> been built and shipped as real, working application code (not
+> committed/pushed yet, pending this report's authorization — see
+> Section "Changes implemented"):
+> - `src/lib/provider-ranking.ts` — `checkProviderEligibility` (mirrors
+>   the RPC-level predicate for display/admin purposes) and
+>   `rankEligibleProviders` (deterministic score-desc ordering,
+>   `computed_at`-then-id tiebreaking, a rotating 1-in-5 exploration
+>   slot for low-history providers seeded by category+day). 16 unit
+>   tests in `src/lib/provider-ranking.test.ts`, all passing.
+> - `src/app/services/[slug]/page.tsx` now orders the provider list by
+>   this ranking instead of unspecified database order, and the query
+>   itself now also excludes `is_suspended`/`is_test_fixture` (using the
+>   -003 columns) in addition to the filters already there.
+> - `src/app/admin/matching/` — a new admin section showing, per
+>   service, the exact eligible+ranked list a customer would see right
+>   now (with score breakdown) plus every excluded provider and the
+>   specific reason(s) they're excluded — Phase 6's oversight
+>   requirement, built on real, live data.
+> This is now genuinely **Level 5 (rule-based matching with explainable
+> ranking)**, not Level 2 — see the headline answer above, which
+> describes the PRE-Phase-7 state and is left unedited for historical
+> accuracy; the current state is summarized here and in the final
+> report.
 
 ## Headline answer
 

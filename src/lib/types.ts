@@ -148,6 +148,10 @@ export interface Provider {
   /** Raw input for a KYC vendor check, not a trust claim itself — see rpc_record_identity_check. */
   national_id_number: string | null;
   identity_verification_consent: boolean;
+  /** MARKETPLACE-SECURITY-002/003: dual-control suspend/reinstate, guarded by trg_guard_provider_trust_fields. */
+  is_suspended: boolean;
+  /** MARKETPLACE-SECURITY-003: durable QA/test-fixture flag — never eligible for booking/quoting/ranking regardless of other flags. */
+  is_test_fixture: boolean;
 }
 
 export interface AvailabilityRule {
@@ -171,10 +175,15 @@ export interface ReliabilityScore {
   jobs_completed: number;
   jobs_accepted: number;
   completion_rate: number | null;
+  /** Column exists but no write path currently populates it — always null in practice as of MARKETPLACE-001's audit. Do not treat a non-null value here as validated. */
+  on_time_rate: number | null;
+  /** Same caveat as on_time_rate — schema exists, no writer populates it yet. */
+  cancellation_rate: number | null;
   dispute_count: number;
   avg_rating: number | null;
   score: number | null;
   sample_size: number;
+  computed_at: string;
 }
 
 export interface ServiceTransaction {
