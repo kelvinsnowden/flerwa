@@ -5,14 +5,27 @@ import { checkIn, submitCompletion } from "./actions";
 
 export function CheckInButton({ transactionId }: { transactionId: string }) {
   const [error, setError] = useState<string | null>(null);
+  const [noConflict, setNoConflict] = useState(false);
   const [isPending, startTransition] = useTransition();
 
   return (
     <div className="mt-4">
+      <label className="flex items-start gap-2 text-sm mb-3">
+        <input
+          type="checkbox"
+          checked={noConflict}
+          onChange={(e) => setNoConflict(e.target.checked)}
+          className="mt-0.5"
+        />
+        <span>
+          I confirm I have no undisclosed personal, family, or business relationship with this customer that could
+          affect my report.
+        </span>
+      </label>
       {error && <p className="text-sm text-[var(--danger)] mb-2">{error}</p>}
       <button
         className="btn-primary"
-        disabled={isPending}
+        disabled={isPending || !noConflict}
         onClick={() =>
           startTransition(async () => {
             let lat: number | null = null;
@@ -26,7 +39,7 @@ export function CheckInButton({ transactionId }: { transactionId: string }) {
             } catch {
               // proceed without geotag
             }
-            const res = await checkIn(transactionId, lat, lng);
+            const res = await checkIn(transactionId, lat, lng, noConflict);
             if (res?.error) setError(res.error);
           })
         }

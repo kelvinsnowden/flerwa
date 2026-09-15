@@ -3,12 +3,14 @@
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 
-export async function checkIn(transactionId: string, lat: number | null, lng: number | null) {
+export async function checkIn(transactionId: string, lat: number | null, lng: number | null, noConflictDeclared: boolean) {
+  if (!noConflictDeclared) return { error: "You must confirm you have no undisclosed relationship with the customer." };
   const supabase = await createClient();
   const { error } = await supabase.rpc("rpc_provider_check_in", {
     p_transaction_id: transactionId,
     p_geo_lat: lat,
     p_geo_lng: lng,
+    p_no_conflict_declared: noConflictDeclared,
   });
   if (error) return { error: error.message };
   revalidatePath(`/provider/jobs/${transactionId}`);

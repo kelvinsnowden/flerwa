@@ -52,7 +52,7 @@ Verified follow-up is a known, stated risk, not a claim of completeness.
 | TSF-001 | No enforcement that evidence capture is in-app only | Trust & Safety | P0 | Not started |
 | TSF-002 | No geotagging/timestamp verification on evidence uploads | Trust & Safety | P1 | Not started |
 | TSF-003 | No perceptual-duplicate detection on uploaded evidence | Trust & Safety | P1 | Not started |
-| TSF-004 | No conflict-of-interest declaration field/flow | Trust & Safety | P0 | Not started |
+| TSF-004 | No conflict-of-interest declaration field/flow | Trust & Safety | P0 | **Resolved 2026-09-15** |
 | TSF-005 | No dual-coverage (second inspector) mechanism for high-value jobs | Trust & Safety | P1 | Not started |
 | TSF-006 | No outcome-follow-up mechanism (30–60 day post-job check) | Trust & Safety | P2 | Not started |
 | TSF-007 | No report/flag mechanism on messages, reviews, or profiles | Trust & Safety | P0 | **Resolved** |
@@ -62,7 +62,7 @@ Verified follow-up is a known, stated risk, not a claim of completeness.
 | TSF-011 | No provider-safety opt-in/decline mechanism | Trust & Safety | P1 | Not started |
 | TSF-012 | No emergency/safety-incident escalation path in-app | Trust & Safety | P0 | Not started |
 | TSF-013 | No written incident-response protocol | Trust & Safety | P0 | Not started |
-| TSF-014 | No emergency category/provider/customer pause control | Trust & Safety | P0 | Not started |
+| TSF-014 | No emergency category/provider/customer pause control | Trust & Safety | P0 | **Resolved — confirmed pre-existing 2026-09-15** |
 | PROV-001 | Verification is one flat status, not the tiered (0–3) model in `docs/06` | Provider Quality | P1 | Not started |
 | PROV-002 | No category-specific competence-assessment mechanism | Provider Quality | P1 | Not started |
 | PROV-003 | No provider-suspension-for-cause automated trigger | Provider Quality | P1 | Not started |
@@ -725,7 +725,9 @@ a verifiable geotag if location permission was denied).
 - **Dependencies:** PROV-001 (tiering must exist to know which jobs require this).
 - **Owner:** Product + backend.
 - **Complexity:** Small once PROV-001 exists.
-- **Status:** Not started.
+- **Status:** **Resolved 2026-09-15 — deliberately not gated on PROV-001.** PROV-001's Tier 0–3 model doesn't exist yet and is a genuine schema redesign (its own entry calls it "Large"); rather than block a P0 trust-and-safety control on that, the affirmation is now required on **every** check-in, all jobs, not just a hypothetical Tier 3 subset. `rpc_provider_check_in` gained a required `p_no_conflict_declared boolean` parameter (`supabase/migrations/20260915120000_tsf004_conflict_of_interest_declaration.sql`) — passing anything but `true` raises an exception and leaves the transaction state unchanged; a distinct `conflict_of_interest_declared` event (with `declared_by`/`declared_at`) is written to `transaction_events` alongside the existing `provider_checked_in` event, so the declaration is independently queryable/auditable. UI: `CheckInButton` (`src/app/provider/jobs/[id]/job-controls.tsx`) now shows a required checkbox above the check-in button; the button is disabled until it's checked, and the server action rejects an unchecked submission too (not just client-side).
+  - **Live-verified** (role-simulated, rolled-back `execute_sql` transaction): calling the RPC with `p_no_conflict_declared = false` raises the expected exception and the transaction stays in `funded`; calling it with `true` succeeds, moves the transaction to `checked_in`, and writes exactly one `conflict_of_interest_declared` event. `get_advisors(type:"security")` shows no new-class finding.
+  - Once PROV-001 ships, this can be narrowed to a per-tier requirement (or kept as a floor for all jobs and layered with a stronger Tier-3-specific version) — nothing here needs to be torn out to do that.
 
 ---
 
@@ -849,7 +851,7 @@ a verifiable geotag if location permission was denied).
 - **Implementation tasks:** *Backend:* new RPC for provider/customer pause (may just be a thin wrapper calling existing `rpc_set_verification_status`/suspension mechanisms with an audit-logged reason). *Admin:* a category toggle UI (small) + a pause action on provider/customer detail views (medium).
 - **Owner:** Backend + admin frontend.
 - **Complexity:** Small (category toggle) to Medium (provider/customer pause).
-- **Status:** Not started.
+- **Status:** **Resolved — confirmed pre-existing 2026-09-15.** Not via a single unified `rpc_emergency_pause`, but the same practical outcome exists as three separate, already-dual-control-gated mechanisms built in earlier sessions: `rpc_admin_set_category_active` + `/admin/categories`' `PauseControl` (category kill switch), `rpc_admin_set_provider_suspended` + `/admin/providers`' suspend action, `rpc_set_customer_suspended` + `/admin/customers/[id]`'s `SuspendControl`. All three route through GOV-P4's propose/decide dual control, so an admin can freeze any of the three actor types today; verified by reading the live source (`src/app/admin/categories/pause-control.tsx`, `src/app/admin/providers/actions.ts`, `src/app/admin/customers/[id]/page.tsx`), not re-tested live in this pass since no schema/RPC change was made — this is a register correction, not new work.
 
 ---
 
