@@ -26,6 +26,7 @@ Verified follow-up is a known, stated risk, not a claim of completeness.
 | SEC-011 | No CSP or frame-ancestors header | Security | P2 | Not started |
 | SEC-012 | Identity documents lack a defined retention/deletion policy | Security/Legal | P0 | Not started |
 | SEC-013 | `_execute_*` dual-control functions had default PUBLIC EXECUTE grant — anon could bypass admin check + dual control entirely | Security | **P0 — critical** | **Resolved 2026-09-15** |
+| SEC-014 | GOV-P4's permission/dispatch CASEs had no ELSE — a future unhandled action type would silently bypass the permission check | Security | P1 | **Resolved 2026-09-15** |
 | PAY-001 | No real payment aggregator connected — `manual` only | Payments | P1 | Not started |
 | PAY-002 | Payment-provider-timeout handling never exercised | Payments | P2 | Not started |
 | PAY-003 | No reconciliation job against aggregator settlement | Payments | P0 | Not started |
@@ -385,6 +386,22 @@ materially more work than the other headers.
 - **Verified:** live re-check of `has_function_privilege()` for all four functions (plus the new `_execute_confirm_manual_payment`) against both `anon` and `authenticated` now returns `false` uniformly; a fresh advisor run shows the count of `SECURITY DEFINER`-executable-by-`anon`/`authenticated` findings dropping (21→17 anon, 67→63 authenticated) with no new class of finding introduced.
 - **Owner:** Backend/security.
 - **Complexity:** Trivial fix once found (4 `revoke` statements) — the finding itself required noticing an absence, not an error message.
+- **Status:** Resolved 2026-09-15.
+
+---
+
+### SEC-014 — GOV-P4's permission/dispatch CASEs had no ELSE branch
+
+- **Domain/Subdomain:** Security / Authorization
+- **Problem:** `can_act_on_approval(p_action_type)` — the single gate every dual-control action (refund, suspend, category-pause, manual-payment-confirm, force-resolve) is checked against — was a bare `select case p_action_type when ... end` with no `else`. In Postgres, a `CASE` with no matching branch and no `ELSE` evaluates to `NULL`, not an error and not `false`. That `NULL` return flows into `rpc_propose_admin_action`/`rpc_decide_admin_action`'s `if not can_act_on_approval(...) then raise exception ... end if;` — and in PL/pgSQL, `not null` is `null`, and `if null then` never executes the branch. A `p_action_type` value with no matching `WHEN` would silently skip the permission check entirely, letting **any authenticated user** propose or decide that action type. `rpc_decide_admin_action`'s own execution-dispatch `case v_row.action_type when ... end case;` (no `ELSE`) had the same shape from the other direction: an unhandled action type would silently do nothing, yet the very next line still unconditionally set `status = 'executed'` — a false-positive audit trail claiming an action executed when nothing ran.
+- **Evidence:** Confirmed (code + live) — `pg_get_functiondef` on both functions showed no `else` branch in either `CASE`; `select enum_range(null::approval_action_type)` confirmed all 6 live enum values happen to be covered by both, so this was not exploitable *today*, only latent.
+- **Why it matters / failure scenario:** this is the exact two-step migration pattern used twice already this session (PAY-004 added `confirm_manual_payment`, TXN-010 added `force_resolve_stuck_transaction`) — `ALTER TYPE approval_action_type ADD VALUE '...'` in one migration, then a **separate** migration redefining `can_act_on_approval` and the dispatch `case` to add the new `WHEN` branch. If a future addition ever ships the enum-value migration without the function-update migration (deployed out of order, one forgotten, a partial rollback), there would be a live window where proposing/deciding the new action type bypasses the admin-role check entirely — the same class of bug as SEC-013, just triggered by an omission-in-a-future-change instead of an omission-in-the-original-migration.
+- **Fix:** `supabase/migrations/20260915140000_govp4_close_case_without_else_gap.sql` — added `else false` to `can_act_on_approval` and `else raise exception 'No executor registered for action type %.', v_row.action_type;` to the dispatch `case` in `rpc_decide_admin_action`. A future unhandled action type now fails loud (permission denied, or an explicit "no executor" exception with the approval marked `execution_failed`) instead of silently bypassing or silently no-opping-but-claiming-success.
+- **Also tightened while touching this:** `can_act_on_approval` had previously been granted to `anon` (visible in `get_advisors`'s `anon_security_definer_function_executable` list) despite never being called from anywhere but internal, `authenticated`-only RPCs — the redefinition's explicit `revoke all ... then grant ... to authenticated` drops that unnecessary anon grant. Confirmed live via `has_function_privilege`.
+- **How it was found:** a deliberate audit pass across every permission-check function's live source (`pg_get_functiondef`), prompted by wanting to find gaps the standard advisor checks wouldn't catch — not from an error or a user report.
+- **Verified:** live, role-simulated, rolled-back SQL — a `super_admin` proposes `confirm_manual_payment`, a *different* `finance_admin` decides `approve`, the approval reaches `status = 'executed'` and the transaction reaches `funded`, confirming the redefinition introduced no regression to the working path. `get_advisors(type:"security")` shows no new-class finding and confirms `can_act_on_approval` dropped off the `anon`-executable list.
+- **Owner:** Backend/security.
+- **Complexity:** Small — two `else` clauses, but required reading every permission function's actual source rather than trusting the CASE-list "looks complete."
 - **Status:** Resolved 2026-09-15.
 
 ---
