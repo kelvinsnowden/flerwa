@@ -34,14 +34,17 @@ draft ──► requested ──► quote_accepted ──► funded ──► ch
                                                    │                    │
                                                    └──────────────────► released ──► settled ──► reviewed ──► closed
 
-  funded, pre-check-in ──► cancelled_by_customer (100% refund) or refunded
-                            (rpc_cancel_booking — customer-only; re-read in
-                            full this pass. Flat 100% refund, NO time-tiered
-                            fee split per docs/07's >24h/<24h/after-check-in
-                            matrix — confirmed NOT implemented, TXN-005/
-                            PAY-009. Blocked entirely once checked_in — the
-                            RPC raises rather than allowing a post-check-in
-                            cancellation at all.)
+  funded (any pre-evidence state, including checked_in/in_progress)
+    ──► cancelled_by_customer | refunded | settled
+                            (rpc_cancel_booking — customer-only, confirmed:
+                            `v_txn.customer_id <> auth.uid()` is the only
+                            gate, the provider cannot call this RPC. TXN-005
+                            RESOLVED: docs/07's >24h full-refund / <24h 50%-
+                            to-provider / post-check-in 100%-to-provider
+                            tiers are now implemented — see register. Result
+                            state is `refunded` when the provider gets 0%,
+                            `settled` otherwise. `select ... for update` —
+                            Confirmed, code.)
   Any state after `funded`    ──► disputed    (rpc_open_dispute)
   disputed                    ──► settled | refunded   (rpc_resolve_dispute, admin-gated, financial split)
 ```
@@ -58,17 +61,23 @@ re-confirmed this pass by re-reading `20260908134652_rls_policies.sql`:
 | `requested`/`quote_accepted` → `funded` | `rpc_confirm_manual_payment` (admin) or `rpc_ingest_payment_event`→`_fund_transaction` (webhook) | Admin, or trusted server webhook path | Transaction fundable state + amount/currency match (webhook path) | `_fund_transaction` uses `select ... for update` (Confirmed, code) |
 | `funded`/`scheduled` → `checked_in` | `rpc_provider_check_in` | The assigned provider only | `providers.user_id = auth.uid()` (join-scoped select, not a separate RLS check) | `select ... for update` — **Confirmed, code, re-read in full this pass** |
 | `checked_in`/`in_progress`/`revision_requested` → `evidence_submitted` | `rpc_submit_completion` | The assigned provider only | Every `is_required` checklist item must have a completed `transaction_checklist_results` row, or the RPC raises (Confirmed, live DB, prior session — Viewed For You test); sets `auto_approve_at = now() + 5 days` | `select ... for update` — **Confirmed, code, re-read in full this pass** |
-| `evidence_submitted` → `approved`/`released` | `rpc_approve_and_release` | Customer, admin, or the auto-approve sweep (5-day silence) | — | **Not independently re-verified this pass** — TXN-003 (2 of 5 originally-flagged RPCs now closed; this one remains open) |
-| `evidence` → `revision_requested` | `rpc_request_revision` | Customer | — | **Not independently re-verified this pass** |
-| `approved` → `released` | (same RPC as approval, or a distinct step — **not independently re-verified this pass whether these are one RPC call or two**) | — | — | — |
-| `released` → `settled` | — | — | — | — |
-| any funded+ state → `disputed` | `rpc_open_dispute` | Either participant | — | — |
-| `disputed` → `settled`/`refunded` | `rpc_resolve_dispute` | Admin only | Split must sum to service amount (Confirmed, live DB, prior session) | — |
-| any pre-released state → `cancelled` | `rpc_cancel_booking` | Customer or provider (exact authorization split **not independently re-verified this pass**) | — | — |
+| `evidence_submitted` → `released`→`settled` | `rpc_approve_and_release` | Customer, admin, or the auto-approve sweep (5-day silence) | — | `rpc_approve_and_release` itself has no lock — it's a thin auth check that delegates entirely to `_release_transaction`, which does `select ... for update` — **Confirmed, code + live `pg_proc` check, TXN-003 closed** |
+| `evidence_submitted` → `revision_requested` | `rpc_request_revision` | Customer | Max 2 revisions, or the RPC raises directing the customer to open a dispute instead | `select ... for update` — **Confirmed, code + live `pg_proc` check, TXN-003 closed** |
+| `evidence_submitted` → `released` → `settled` | Both transitions happen inside one call to `_release_transaction` (one RPC invocation, not two) — **Confirmed, code, this pass** | — | — | — |
+| any funded+ state (through `in_progress`) → `disputed` | `rpc_open_dispute` | Either participant | `is_txn_participant()` | `select ... for update` — **Confirmed, code + live `pg_proc` check, TXN-003 closed**. Sets a 48h `sla_deadline` since TXN-004; see `rpc_escalate_overdue_disputes` for the escalation sweep. |
+| `disputed` → `settled`/`refunded` | `rpc_resolve_dispute` → dual-control `_execute_refund` | Trust & safety or finance admin proposes, a **different** admin decides (GOV-P4) | Split must sum to service amount (Confirmed, live DB, prior session) | — |
+| any pre-`evidence_submitted` state (funded, scheduled, en_route, checked_in, in_progress) → `cancelled_by_customer`/`refunded`/`settled` | `rpc_cancel_booking` | Customer only — confirmed, `v_txn.customer_id <> auth.uid()` is the sole gate, no provider path exists | — | `select ... for update` — Confirmed, code |
 
-**Open items from this pass, filed in the register:** TXN-003 (lock audit on
-5 RPCs), TXN-005 (cancellation-fee logic unverified), PAY-009 (refund path
-independent of dispute unverified).
+**TXN-003 (lock audit on 5 RPCs): CLOSED, all 5 confirmed.** `_fund_transaction`,
+`rpc_provider_check_in`, and `rpc_submit_completion` were confirmed in
+earlier passes; `rpc_request_revision` and `rpc_open_dispute` take the lock
+directly, and `rpc_approve_and_release` delegates to `_release_transaction`,
+which takes it — all reconfirmed directly against `pg_proc.prosrc` on the
+live database, not just the migration files. **TXN-005 (cancellation-fee
+logic): RESOLVED** — see register. **PAY-009 (refund path independent of
+dispute): investigation closed** — `rpc_cancel_booking` already serves this
+role for pre-completion cancellations; a full dispute record is only
+required once work is underway, which is the intended boundary.
 
 ## 2. `payments` / `payment_provider_events` / `ledger_entries`
 

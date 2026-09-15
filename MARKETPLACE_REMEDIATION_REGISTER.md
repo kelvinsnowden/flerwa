@@ -38,7 +38,7 @@ Verified follow-up is a known, stated risk, not a claim of completeness.
 | PAY-010 | No payout-detail-change hold (`docs/07`'s 24h re-verification rule) | Payments/Security | P1 | Not started |
 | TXN-001 | `rpc_submit_quote`/`rpc_accept_quote` have no idempotency key | Transactions | P1 | Not started |
 | TXN-002 | `rpc_start_conversation` has no idempotency key | Transactions | P2 | Not started |
-| TXN-003 | No lock audit performed on 5 state-transition RPCs | Transactions | P2 | **In progress — 2 of 5 confirmed** |
+| TXN-003 | No lock audit performed on 5 state-transition RPCs | Transactions | P2 | **Resolved 2026-09-15 — 5 of 5 confirmed** |
 | TXN-004 | Disputes have no deadline/time-bound field | Transactions | P0 | **Resolved 2026-09-15** |
 | TXN-005 | No cancellation-fee enforcement (`docs/07`'s <24h/after-check-in rules) | Transactions | P1 | **Resolved 2026-09-15** |
 | TXN-006 | No customer-unreachable / repeat-non-funding penalty | Transactions | P2 | Not started |
@@ -550,7 +550,8 @@ materially more work than the other headers.
 - **Recommended solution:** Read each function body; confirm each does `select ... for update` before checking/writing state, or document why it doesn't need to (e.g., an insert-only operation with a unique constraint doing the same job).
 - **Owner:** Backend.
 - **Complexity:** Small (audit) — Medium if fixes are needed.
-- **Status:** Not started.
+- **Resolution (2026-09-15):** All 5 confirmed, no fixes needed. `rpc_provider_check_in` and `rpc_submit_completion` were confirmed in a prior pass. This pass confirmed the remaining 3 by reading their bodies AND cross-checking `pg_proc.prosrc ilike '%for update%'` directly against the live database (not just the migration files, which have been redefined multiple times this session — e.g. `rpc_cancel_booking` alone was redefined 3 times across sessions): `rpc_request_revision` and `rpc_open_dispute` both take `select ... for update` directly; `rpc_cancel_booking` (TXN-005) also does. `rpc_approve_and_release` itself has no lock — live check confirms `prosrc` has none — but it's a thin authorization-only wrapper that unconditionally delegates to `_release_transaction`, which does take the lock (confirmed both in file and live); this is the same safe "cheap auth check, then locked delegate" pattern already used by `rpc_confirm_manual_payment` → `_fund_transaction`, not a gap. `MARKETPLACE_TRANSACTION_STATE_MACHINE.md` §1's table updated with all 5 findings plus a couple of other staleness fixes noticed in passing (the cancel-booking row still described pre-TXN-005 flat-refund/checked-in-blocked behavior; the disputed-resolution row didn't reflect PAY-004/GOV-P4 dual control).
+- **Status:** Resolved 2026-09-15.
 
 ---
 
@@ -1459,6 +1460,28 @@ general load testing. **Severity:** P2. **Status:** Not started.
   confirming `rpc_approve_and_release`'s exact release mechanics — not
   re-read this pass.
 - **Status:** In progress (2/5 closed).
+
+---
+
+### TXN-003 — Lock audit, closed 2026-09-15: 5 of 5 confirmed
+
+- **Update to the above:** the 3 remaining RPCs were read in full AND
+  cross-checked against the live database (`select prosrc ilike '%for
+  update%' from pg_proc where proname = ...`), not just the migration
+  files — worth calling out explicitly since `rpc_cancel_booking` alone
+  was redefined 3 separate times across this session's migrations, so a
+  stale local file read could easily have given a false answer.
+  `rpc_request_revision` and `rpc_open_dispute` both take `select ...
+  for update` directly. `rpc_approve_and_release` itself has **no**
+  lock (confirmed live) — but it does nothing except an authorization
+  check before unconditionally calling `_release_transaction`, which
+  does take the lock (confirmed both in file and live). This is the
+  same "cheap auth check, then a locked internal delegate" shape
+  already used by `rpc_confirm_manual_payment` → `_fund_transaction`
+  elsewhere in this schema — not a gap, just a two-function split.
+- **Status:** Resolved 2026-09-15. See `MARKETPLACE_REMEDIATION_REGISTER.md`'s
+  TXN-003 entry above and `MARKETPLACE_TRANSACTION_STATE_MACHINE.md` §1
+  for the final table.
 
 ---
 
