@@ -163,16 +163,16 @@ export default async function AdminDemandPage() {
       </div>
 
       <div className="card p-4 mt-6 text-sm text-[var(--muted)]">
-        <p className="font-semibold text-[var(--foreground)] mb-1">Not yet available: search-side demand</p>
+        <p className="font-semibold text-[var(--foreground)] mb-1">Search-side demand: collecting now, not yet shown here</p>
         <p>
-          Most-searched terms, search volume over time, no-result rate, and search-to-booking
-          conversion all require the event collection proposed in{" "}
-          <code className="text-xs">migration_proposals/PROPOSED_marketplace_001_demand_events.sql</code>,
-          which is <strong>not yet applied to production</strong>. The application code that would log
-          these events is already wired in (see <code className="text-xs">src/lib/demand-events.ts</code>)
-          and is currently a safe no-op. Once the migration is authorized and applied, this page can be
-          extended to read from <code className="text-xs">demand_events</code> directly — see
-          MARKETPLACE_DEMAND_INTELLIGENCE_AUDIT.md for the full design.
+          The <code className="text-xs">demand_events</code> table and{" "}
+          <code className="text-xs">rpc_log_demand_event</code> are now live in production (applied
+          2026-09-15) and <code className="text-xs">src/lib/demand-events.ts</code> is actively logging
+          real search/view/booking events as customers and providers use the app. This page has not yet
+          been extended to read and display that data (most-searched terms, search volume over time,
+          no-result rate, search-to-booking conversion) — that's the next build step, once enough real
+          volume has accumulated to be meaningful. See MARKETPLACE_DEMAND_INTELLIGENCE_AUDIT.md for the
+          full design.
         </p>
       </div>
     </div>

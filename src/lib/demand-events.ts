@@ -4,14 +4,14 @@ import { createClient } from "@/lib/supabase/server";
 /**
  * MARKETPLACE-001 Phase 7 — demand/search event instrumentation.
  *
- * Backed by migration_proposals/PROPOSED_marketplace_001_demand_events.sql
- * (rpc_log_demand_event), which is NOT yet applied to production — see
- * MARKETPLACE_DEMAND_INTELLIGENCE_AUDIT.md. Until it's authorized and
- * applied, every call in this file fails with "function
- * rpc_log_demand_event does not exist" and is silently swallowed by
- * design (see logDemandEvent's own doc comment) — this instrumentation
- * is inert, not broken, in the meantime. No event is ever fabricated;
- * this only records what actually happens.
+ * Backed by
+ * supabase/migrations/20260915143409_marketplace_001_demand_events.sql
+ * (rpc_log_demand_event), APPLIED to production on 2026-09-15 — see
+ * MARKETPLACE_DEMAND_INTELLIGENCE_AUDIT.md. Every call in this file is
+ * now live and recording real events. logDemandEvent still never
+ * throws (analytics stays best-effort even for transient errors — rate
+ * limiting, a network blip), but it is no longer inert. No event is
+ * ever fabricated; this only records what actually happens.
  */
 
 export type DemandEventType =

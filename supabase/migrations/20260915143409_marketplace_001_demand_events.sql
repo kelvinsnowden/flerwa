@@ -1,27 +1,15 @@
 -- =====================================================================
 -- MARKETPLACE-001 Phase 3/7 — demand/search event instrumentation.
--- APPLIED to production on 2026-09-15, per explicit user authorization,
--- as supabase/migrations/20260915143409_marketplace_001_demand_events.sql
--- (identical content). This file is kept here as the original proposal
--- record; the migrations/ copy is the source of truth for what's
--- actually deployed. Post-apply live verification: rpc_log_demand_event
--- called against production (rolled back) and returned a real event id.
--- `get_advisors` (security) showed no unexpected new findings —
--- rpc_log_demand_event appearing as anon/authenticated-executable is
--- intentional (anonymous browsing events must be loggable) and is
--- rate-limited + RLS-protected as designed.
+-- Applied per explicit user authorization. Verified via role-simulated,
+-- rolled-back SQL against production before this apply (see
+-- MARKETPLACE_DEMAND_INTELLIGENCE_AUDIT.md for the design rationale).
 --
--- Refines the original Phase 3 sketch in
--- MARKETPLACE_DEMAND_INTELLIGENCE_AUDIT.md in one way: instead of a raw
--- "anyone can insert" RLS policy, demand_events has NO insert policy at
--- all (default-deny, matching payments/ledger_entries) — the only
--- write path is rpc_log_demand_event, a SECURITY DEFINER function that
+-- Refines the original Phase 3 sketch: instead of a raw "anyone can
+-- insert" RLS policy, demand_events has NO insert policy at all
+-- (default-deny, matching payments/ledger_entries) — the only write
+-- path is rpc_log_demand_event, a SECURITY DEFINER function that
 -- rate-limits every call via the existing rpc_check_rate_limit
--- primitive before inserting. This is consistent with this session's
--- MARKETPLACE-SECURITY-002/003 finding that direct client writes to a
--- table are a bug class, not just a shape-validation problem — apply
--- the same discipline to a brand-new table from day one rather than
--- proposing a weaker policy and hardening it later.
+-- primitive before inserting.
 -- =====================================================================
 
 create type demand_event_type as enum (
@@ -48,30 +36,17 @@ create table demand_events (
   id                 uuid primary key default gen_random_uuid(),
   event_type         demand_event_type not null,
   occurred_at        timestamptz not null default now(),
-  -- Anonymous correlation, always present. Authenticated user_id only
-  -- when the event genuinely needs it — a browsing session should not
-  -- force-correlate to an identity.
   session_id         uuid not null,
   user_id            uuid references profiles(id),
-  -- What was searched/viewed/booked — all nullable, a given event type
-  -- only populates the fields relevant to it.
   search_term        text,
   category_id        uuid references categories(id),
   service_id         uuid references services(id),
   provider_id        uuid references providers(id),
   location_id        uuid references locations(id),
-  -- Coarse budget bucket, not a raw amount — avoids leaking a precise
-  -- customer budget signal. Values like 'under_1000', '1000_5000', are
-  -- defined by the application layer, not enforced here.
   price_range_bucket text,
   result_count       integer,
-  -- Correlates a whole funnel (search -> impression -> click -> view ->
-  -- booking) without needing to guess from timestamps.
   correlation_id     uuid not null default gen_random_uuid(),
-  source_surface     text not null, -- e.g. 'home_search', 'service_detail', 'provider_storefront'
-  -- Client-generated idempotency key so a retried request (double
-  -- submit, React strict-mode double-invoke, a flaky network retry)
-  -- never double-counts.
+  source_surface     text not null,
   dedup_key          text,
   metadata           jsonb not null default '{}'::jsonb,
   constraint demand_events_search_term_length check (search_term is null or char_length(search_term) <= 200)
@@ -85,23 +60,12 @@ create index demand_events_correlation_idx on demand_events (correlation_id);
 create index demand_events_session_idx on demand_events (session_id, occurred_at);
 
 alter table demand_events enable row level security;
--- No insert policy at all — default-deny for every role. The only
--- write path is rpc_log_demand_event below.
 create policy "admin can read demand events" on demand_events
   for select using (is_admin());
 
 comment on table demand_events is
-  'Raw, append-only demand/funnel events. PROPOSED, not yet applied. Write: only via rpc_log_demand_event (rate-limited). Read: admin-only via RLS. Retention: intended ~90 days raw (deletion job not yet built, see MARKETPLACE_DEMAND_INTELLIGENCE_AUDIT.md) — aggregates in demand_rollup_daily survive indefinitely since they carry no raw search terms or per-user correlation.';
+  'Raw, append-only demand/funnel events. Write: only via rpc_log_demand_event (rate-limited). Read: admin-only via RLS. Retention: intended ~90 days raw (deletion job not yet built, see MARKETPLACE_DEMAND_INTELLIGENCE_AUDIT.md) — aggregates in demand_rollup_daily survive indefinitely since they carry no raw search terms or per-user correlation.';
 
--- ---------------------------------------------------------------------
--- Write path: rate-limited, SECURITY DEFINER, the only way to insert.
--- Mirrors rpc_check_rate_limit's own identity derivation (auth.uid()
--- when signed in, else the caller-supplied session_id — never used for
--- anything security-sensitive, only to bound event volume per browsing
--- session). A generous but real limit: 120 events per rolling 10-minute
--- window per identity, covering a legitimate, fast-clicking browsing
--- session while bounding a scripted flood.
--- ---------------------------------------------------------------------
 create or replace function rpc_log_demand_event(
   p_event_type demand_event_type,
   p_session_id uuid,
@@ -127,10 +91,6 @@ begin
 
   v_allowed := rpc_check_rate_limit('demand_event', 120, 600, p_session_id::text);
   if not v_allowed then
-    -- Fail closed but quiet: analytics is best-effort, a rate-limited
-    -- caller should not see a hard error surfaced in the UI. The
-    -- calling code treats this as a no-op, not an exception, by
-    -- catching it — see src/lib/demand-events.ts.
     raise exception 'Rate limit exceeded for demand event logging.';
   end if;
 
@@ -157,17 +117,6 @@ end $$;
 revoke all on function rpc_log_demand_event(demand_event_type, uuid, text, uuid, uuid, uuid, uuid, text, text, integer, uuid, text, jsonb) from public;
 grant execute on function rpc_log_demand_event(demand_event_type, uuid, text, uuid, uuid, uuid, uuid, text, text, integer, uuid, text, jsonb) to anon, authenticated;
 
--- ---------------------------------------------------------------------
--- Rollup/aggregation strategy (sketch, not a scheduled job in this
--- proposal — see MARKETPLACE_DEMAND_INTELLIGENCE_AUDIT.md's own
--- caveat: at current near-zero volume, an admin page querying
--- demand_events directly with a bounded time window is not expensive
--- enough to require a rollup table yet. Build this once real volume
--- exists, using the same scheduler_runs + advisory-lock pattern already
--- proven for auto-approve-sweep/ledger-reconciliation/dispute
--- escalation. Table shape kept here for forward compatibility, unused
--- by this pass's admin pages.
--- ---------------------------------------------------------------------
 create table demand_rollup_daily (
   day             date not null,
   category_id     uuid references categories(id),
@@ -181,4 +130,4 @@ alter table demand_rollup_daily enable row level security;
 create policy "admin can read demand rollup" on demand_rollup_daily
   for select using (is_admin());
 comment on table demand_rollup_daily is
-  'Daily pre-aggregated demand counts. PROPOSED, not yet applied, and not yet written to by any job — reserved shape for when demand_events volume grows enough to need it.';
+  'Daily pre-aggregated demand counts. Not yet written to by any job — reserved shape for when demand_events volume grows enough to need it.';

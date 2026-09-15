@@ -4,15 +4,12 @@ import { DB_URL, withRolledBackTransaction, asUser, asPostgres, FIXTURES } from 
 /**
  * MARKETPLACE-001 — demand-event instrumentation (Phase 3/7).
  *
- * These tests describe the behavior proposed in
- * migration_proposals/PROPOSED_marketplace_001_demand_events.sql, which
- * has NOT been applied to the live database as of when this file was
- * written — see MARKETPLACE_DEMAND_INTELLIGENCE_AUDIT.md. Every
- * assertion below will FAIL against the live DB until that migration
- * is authorized and applied (the current, unpatched database has no
- * demand_events table or rpc_log_demand_event function at all) — that
- * failure is itself the expected signal, not a bug in this test.
- * Skipped without SUPABASE_DB_URL; see TESTING.md.
+ * Backed by
+ * supabase/migrations/20260915143409_marketplace_001_demand_events.sql,
+ * which was APPLIED to production on 2026-09-15 — see
+ * MARKETPLACE_DEMAND_INTELLIGENCE_AUDIT.md. These tests should now pass
+ * against the live database. Skipped without SUPABASE_DB_URL; see
+ * TESTING.md.
  */
 describe.skipIf(!DB_URL)("demand events (MARKETPLACE-001)", () => {
   it("rpc_log_demand_event records an event and returns its id", async () => {

@@ -128,6 +128,21 @@ signals.
 
 ## Phase 7 implementation (same day, after this audit)
 
+> **Applied to production (2026-09-15), per explicit user
+> authorization:** the schema below
+> (`migration_proposals/PROPOSED_marketplace_001_demand_events.sql`,
+> identical content also at
+> `supabase/migrations/20260915143409_marketplace_001_demand_events.sql`)
+> is now live. `demand_events`/`demand_rollup_daily` exist,
+> `rpc_log_demand_event` is callable, and every instrumentation call
+> site listed below is now actually recording real events (no longer a
+> silent no-op) as real customers and providers use the app. Live-
+> verified post-apply: a call to `rpc_log_demand_event` against
+> production (rolled back, nothing persisted) succeeded and returned a
+> real event id; `get_advisors` showed no unexpected new findings. The
+> `demand_rollup_daily` aggregation job is still NOT built — not needed
+> yet at current volume, tracked as future work.
+
 Turned the Phase 3 design below into real, tested, ready-to-apply code
 — nothing here is fabricated data, and nothing is applied/committed
 without this report's authorization:
