@@ -1,52 +1,37 @@
 -- =====================================================================
--- MARKETPLACE-SECURITY-002 — SUPERSEDED, NOT APPLIED as its own file.
--- This file was never run directly against the live database. Its
--- content was fully carried forward into
--- security_proposals/PROPOSED_marketplace_security_003_financial_hardening.sql,
--- which WAS applied to production on 2026-09-15 (see that file, and
--- supabase/migrations/20260915135253_marketplace_security_003_financial_hardening.sql).
--- Kept here only as the original review artifact/history — do not apply
--- this file separately, it would be redundant with what's already live.
---
--- Fixes three confirmed, live-verified gaps (verified via role-simulated,
--- rolled-back SQL — nothing was created or persisted):
---
--- 1. CRITICAL: service_transactions had a direct-insert RLS policy
---    ("txn customer create", with check (customer_id = auth.uid())) with
---    NO check on provider_id, state, or financial amounts, and the
---    existing financial-write guard trigger only fired BEFORE UPDATE, not
---    BEFORE INSERT. Any authenticated customer could INSERT a row
---    directly via PostgREST with state='settled' (or 'funded'/'released'/
---    'refunded'), an arbitrary provider_id (including an unverified,
---    unpublished, or suspended provider), and self-chosen financial
---    amounts — completely bypassing rpc_book_service, its fee
---    calculation, and its (already-too-narrow) eligibility check.
---    Live-verified exploitable 2026-09-15.
---
--- 2. rpc_book_service checked only provider_categories.is_cleared for the
---    supplied p_provider_id — not is_published, verification_status,
---    is_accepting_work, or is_suspended. Live-verified: a provider with
---    verification_status='submitted' (never verified) was successfully
---    booked.
---
--- 3. rpc_submit_quote checked only that a provider_categories row EXISTS
---    for the category — not is_cleared, is_published, verification_status,
---    is_accepting_work, or is_suspended. Weaker than rpc_book_service's
---    already-insufficient check. Live-verified: the same unverified
---    provider successfully submitted a quote.
---
--- Fix approach: reuse the existing, proven session-local bypass-flag
--- mechanism (app.bypass_txn_guard) that already gates rpc_confirm_manual_
--- payment and _release_transaction's UPDATEs — extend it to also cover
--- INSERT, and require every legitimate service_transactions-creating
--- function to set it explicitly before its own insert. Add real
--- eligibility checks (published + verified + accepting + not suspended +
--- cleared) to rpc_book_service and rpc_submit_quote, with a row lock on
--- the provider to close the TOCTOU window Phase 3 named explicitly.
+-- MARKETPLACE-SECURITY-003 — applied per explicit user authorization.
+-- Supersedes and fully includes
+-- security_proposals/PROPOSED_marketplace_security_002_provider_eligibility.sql.
+-- See SECURITY_READINESS_REGISTER.md / FINANCIAL_INTEGRITY_MODEL.md for
+-- the findings and live-verification evidence behind each fix below.
+-- The commented-out is_test_fixture data-mutation statement for the
+-- standing QA fixture provider is DELIBERATELY EXCLUDED from this
+-- migration — it requires separate authorization.
 -- =====================================================================
 
 -- ---------------------------------------------------------------------
--- 1. Extend the financial-write guard to INSERT.
+-- FIX 1 (SEC-P0-001, primary defense): revoke the grant that made the
+-- direct-insert bypass possible at all. Confirmed live: no code
+-- anywhere in this repository ever calls
+-- `.from("service_transactions").insert(...)` or
+-- `.from("quotes").insert(...)` — every legitimate transaction/quote is
+-- created by a SECURITY DEFINER RPC (rpc_book_service, rpc_submit_quote,
+-- rpc_accept_quote, _create_recurring_occurrence,
+-- rpc_convert_deal_desk_request), which run as the function owner and
+-- are therefore completely unaffected by revoking the CALLING role's
+-- own table-level grant.
+--
+-- UPDATE and DELETE grants are deliberately NOT revoked here — see
+-- SECURITY_READINESS_REGISTER.md for the reasoning (a possible
+-- intentional admin escape hatch that this pass could not fully rule
+-- out without a business-process conversation).
+-- ---------------------------------------------------------------------
+revoke insert on service_transactions from anon, authenticated;
+revoke insert on quotes from anon, authenticated;
+
+-- ---------------------------------------------------------------------
+-- FIX 2 (SEC-P0-001, defense-in-depth): extend the financial-write guard
+-- to also cover INSERT.
 -- ---------------------------------------------------------------------
 create or replace function trg_guard_transaction_financial_write() returns trigger
 language plpgsql set search_path = public as $$
@@ -56,9 +41,6 @@ begin
   end if;
 
   if tg_op = 'INSERT' then
-    -- A direct (non-bypassed) insert may only create an inert draft row —
-    -- no state, no money, no provider commitment. Every real booking path
-    -- goes through a SECURITY DEFINER function that sets the bypass flag.
     if new.state <> 'draft' then
       raise exception 'A new booking must be created through the app — direct inserts cannot set an initial state.';
     end if;
@@ -68,7 +50,6 @@ begin
     return new;
   end if;
 
-  -- Existing UPDATE logic, unchanged.
   if new.state is distinct from old.state
      and new.state in ('funded','released','settled','refunded') then
     raise exception
@@ -93,8 +74,35 @@ create trigger guard_transaction_financial_write
   for each row execute function trg_guard_transaction_financial_write();
 
 -- ---------------------------------------------------------------------
--- 2. rpc_book_service: real eligibility check + row lock (TOCTOU) +
---    bypass flag for its own insert.
+-- FIX 3 (SEC-P0-004): service_requests.state and .transaction_id had no
+-- protection at all.
+-- ---------------------------------------------------------------------
+alter table service_requests add constraint service_requests_state_check
+  check (state in ('open','quoted','awarded','expired','cancelled'));
+
+create or replace function trg_guard_service_request_write() returns trigger
+language plpgsql set search_path = public as $$
+begin
+  if coalesce(current_setting('app.bypass_txn_guard', true), 'off') = 'on' then
+    return new;
+  end if;
+  if new.state is distinct from old.state and new.state = 'awarded' then
+    raise exception 'A request can only be marked awarded through accepting a quote.';
+  end if;
+  if new.transaction_id is distinct from old.transaction_id then
+    raise exception 'transaction_id cannot be set directly.';
+  end if;
+  return new;
+end $$;
+
+drop trigger if exists guard_service_request_write on service_requests;
+create trigger guard_service_request_write
+  before update on service_requests
+  for each row execute function trg_guard_service_request_write();
+
+-- ---------------------------------------------------------------------
+-- FIX 4 (SEC-P0-002/003, SEC-P1-001): real provider-eligibility checks
+-- in rpc_book_service, rpc_submit_quote, rpc_accept_quote.
 -- ---------------------------------------------------------------------
 create or replace function rpc_book_service(
   p_service_id uuid,
@@ -104,7 +112,7 @@ create or replace function rpc_book_service(
   p_instructions text,
   p_contact_phone text,
   p_idempotency_key text default null
-) returns uuid language plpgsql security definer set search_path = public as $$
+) returns uuid language plpgsql security definer set search_path = public as $function$
 declare
   v_txn_id uuid;
   v_service services%rowtype;
@@ -131,19 +139,15 @@ begin
   v_category_id := v_service.category_id;
 
   if p_provider_id is not null then
-    -- Row lock closes the TOCTOU window: a concurrent suspend/unpublish
-    -- UPDATE on this provider must wait for this transaction to finish.
     select * into v_provider from providers where id = p_provider_id for update;
     if not found then raise exception 'This professional is not available for booking.'; end if;
 
-    -- Deliberately generic error — do not leak WHICH condition failed
-    -- (verification vs. publication vs. suspension vs. clearance) to an
-    -- unauthenticated-in-spirit client probing provider IDs.
     if not (
       v_provider.is_published
       and v_provider.verification_status = 'verified'
       and v_provider.is_accepting_work
       and not v_provider.is_suspended
+      and not coalesce(v_provider.is_test_fixture, false)
       and (v_category_id is null or exists (
         select 1 from provider_categories pc
         where pc.provider_id = p_provider_id and pc.category_id = v_category_id and pc.is_cleared
@@ -194,13 +198,11 @@ begin
   perform _create_transaction_milestones_if_qualifying(v_txn_id);
 
   return v_txn_id;
-end $function$;
+end;
+$function$;
 
--- ---------------------------------------------------------------------
--- 3. rpc_submit_quote: real eligibility check + row lock.
--- ---------------------------------------------------------------------
 create or replace function rpc_submit_quote(p_request_id uuid, p_amount_minor bigint, p_message text default null)
-returns uuid language plpgsql security definer set search_path = public as $$
+returns uuid language plpgsql security definer set search_path = public as $function$
 declare
   v_provider providers%rowtype;
   v_request service_requests%rowtype;
@@ -208,7 +210,6 @@ declare
 begin
   if auth.uid() is null then raise exception 'Not authenticated.'; end if;
 
-  -- Row lock: same TOCTOU rationale as rpc_book_service.
   select * into v_provider from providers where user_id = auth.uid() for update;
   if not found then raise exception 'You need a seller profile first.'; end if;
 
@@ -222,6 +223,7 @@ begin
     and v_provider.verification_status = 'verified'
     and v_provider.is_accepting_work
     and not v_provider.is_suspended
+    and not coalesce(v_provider.is_test_fixture, false)
     and exists (
       select 1 from provider_categories pc
       where pc.provider_id = v_provider.id and pc.category_id = v_request.category_id and pc.is_cleared
@@ -243,17 +245,11 @@ begin
   );
 
   return v_quote_id;
-end $function$;
+end;
+$function$;
 
--- ---------------------------------------------------------------------
--- 4. rpc_accept_quote: re-check the quoting provider's eligibility at
---    acceptance time too, not just at quote-submission time — a quote
---    can go stale (provider suspended/unpublished between quoting and
---    the customer accepting). Row lock via `for update`, already present
---    on the quote/request rows; adding it on the provider row too.
--- ---------------------------------------------------------------------
 create or replace function rpc_accept_quote(p_quote_id uuid)
-returns uuid language plpgsql security definer set search_path = public as $$
+returns uuid language plpgsql security definer set search_path = public as $function$
 declare
   v_quote quotes%rowtype;
   v_request service_requests%rowtype;
@@ -281,6 +277,7 @@ begin
     and v_provider.verification_status = 'verified'
     and v_provider.is_accepting_work
     and not v_provider.is_suspended
+    and not coalesce(v_provider.is_test_fixture, false)
     and exists (
       select 1 from provider_categories pc
       where pc.provider_id = v_provider.id and pc.category_id = v_request.category_id and pc.is_cleared
@@ -309,6 +306,8 @@ begin
 
   update quotes set state = 'accepted' where id = p_quote_id;
   update quotes set state = 'declined' where request_id = v_request.id and id <> p_quote_id and state = 'pending';
+
+  perform set_config('app.bypass_txn_guard', 'on', true);
   update service_requests set state = 'awarded', transaction_id = v_txn_id where id = v_request.id;
 
   perform log_event(v_txn_id, 'service_created', null, 'requested',
@@ -323,20 +322,15 @@ begin
   );
 
   return v_txn_id;
-end $function$;
+end;
+$function$;
 
 -- ---------------------------------------------------------------------
--- 5. Give the two remaining legitimate insert paths the bypass flag —
---    otherwise the new INSERT guard (step 1) breaks them. Logic
---    unchanged; only the set_config line is new. See residual-risk notes
---    in SECURITY_READINESS_REGISTER.md for why these two do NOT get a
---    fresh eligibility re-check in this pass (recurring occurrences and
---    admin-driven Deal Desk conversions are architecturally different
---    from a customer-initiated booking/quote and need their own design
---    discussion, not a copy-pasted check).
+-- FIX 5: give the two remaining legitimate service_transactions-insert
+-- paths the bypass flag.
 -- ---------------------------------------------------------------------
 create or replace function _create_recurring_occurrence(p_series_id uuid)
-returns uuid language plpgsql security definer set search_path = public as $$
+returns uuid language plpgsql security definer set search_path = public as $function$
 declare
   v_series recurring_series%rowtype;
   v_service services%rowtype;
@@ -389,10 +383,11 @@ begin
           'Pay to confirm your next occurrence of ' || v_service.name || '.', v_txn_id);
 
   return v_txn_id;
-end $function$;
+end;
+$function$;
 
 create or replace function rpc_convert_deal_desk_request(p_request_id uuid, p_customer_id uuid, p_category_id uuid, p_fulfilment_mode fulfilment_mode, p_amount_minor bigint)
-returns uuid language plpgsql security definer set search_path = public as $$
+returns uuid language plpgsql security definer set search_path = public as $function$
 declare
   v_req deal_desk_requests%rowtype;
   v_txn_id uuid;
@@ -446,29 +441,49 @@ begin
           v_txn_id);
 
   return v_txn_id;
-end $function$;
+end;
+$function$;
 
 -- ---------------------------------------------------------------------
--- 6. Defense-in-depth: quotes.state has no CHECK constraint today (only
---    a comment documenting the intended 4 values). Close it the same way
---    txn_state is a real enum, not free text. Not itself independently
---    exploitable via any known path today (rpc_accept_quote/decline
---    already only ever set documented values, and RLS on quotes requires
---    provider_id ownership so at least impersonation isn't possible) —
---    still a real, cheap, defense-in-depth fix worth taking now while
---    touching this code.
+-- FIX 6: quotes.state had no CHECK constraint.
 -- ---------------------------------------------------------------------
 alter table quotes add constraint quotes_state_check
   check (state in ('pending','accepted','declined','expired'));
 
 -- ---------------------------------------------------------------------
--- Grants: no grant changes needed. rpc_book_service, rpc_submit_quote,
--- rpc_accept_quote keep their existing authenticated-only grants
--- (already confirmed anon cannot call any of the three). Re-affirmed
--- explicitly here for clarity, matching this codebase's established
--- discipline of never assuming a grant survived a CREATE OR REPLACE
--- (it does survive REPLACE in Postgres, but the explicit statement
--- costs nothing and removes any doubt for the next person reading this).
+-- FIX 7: durable test-fixture safeguard.
+-- ---------------------------------------------------------------------
+alter table providers add column is_test_fixture boolean not null default false;
+alter table providers add constraint providers_test_fixture_not_published
+  check (not (is_test_fixture and is_published));
+
+comment on column providers.is_test_fixture is
+  'True for QA/test provider accounts that must never be bookable, quotable, published, or surfaced to real customers, regardless of their other flags. Enforced by providers_test_fixture_not_published (DB-level) and by the eligibility predicate in rpc_book_service/rpc_submit_quote/rpc_accept_quote (RPC-level). Not automatically backfilled by this migration.';
+
+create or replace function trg_guard_provider_trust_fields() returns trigger
+language plpgsql set search_path = public as $$
+begin
+  if is_admin() then
+    return new;
+  end if;
+  if coalesce(current_setting('app.bypass_provider_trust_guard', true), 'off') = 'on' then
+    return new;
+  end if;
+  if new.verification_status is distinct from old.verification_status
+     or new.verified_at is distinct from old.verified_at
+     or new.user_id is distinct from old.user_id
+     or new.id is distinct from old.id
+     or new.is_published is distinct from old.is_published
+     or new.is_suspended is distinct from old.is_suspended
+     or new.is_test_fixture is distinct from old.is_test_fixture then
+    raise exception 'Verification status, publish state, suspension, and test-fixture flag can only be changed by an admin.';
+  end if;
+  return new;
+end $$;
+
+-- ---------------------------------------------------------------------
+-- Grants: re-affirm authenticated-only execution on the three
+-- customer/provider-facing RPCs.
 -- ---------------------------------------------------------------------
 revoke all on function rpc_book_service(uuid,uuid,uuid,timestamptz,text,text,text) from public, anon;
 grant execute on function rpc_book_service(uuid,uuid,uuid,timestamptz,text,text,text) to authenticated;

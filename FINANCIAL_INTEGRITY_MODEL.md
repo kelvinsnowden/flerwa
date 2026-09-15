@@ -223,14 +223,27 @@ as `REL-002`/`LOADTEST-001`).
 
 | # | Invariant | Status |
 |---|---|---|
-| 1 | Transactions only created via sanctioned functions | Fix designed + live-tested, NOT applied |
-| 2 | State transitions only via sanctioned functions | Fix designed + live-tested, NOT applied |
-| 3 | Only eligible providers attached to transactions/quotes | Fix designed + live-tested, NOT applied |
-| 4 | Test fixtures structurally unbookable | Fix designed + live-tested, NOT applied |
+| 1 | Transactions only created via sanctioned functions | **APPLIED to production 2026-09-15** |
+| 2 | State transitions only via sanctioned functions | **APPLIED to production 2026-09-15** |
+| 3 | Only eligible providers attached to transactions/quotes | **APPLIED to production 2026-09-15** |
+| 4 | Test fixtures structurally unbookable (schema only — no row flagged yet) | **APPLIED to production 2026-09-15** |
 | 5 | Financial amounts non-negative, never attacker-set | Pre-existing `CHECK`s confirmed intact; covered by #1 |
 | 6 | Ledger stays balanced | Pre-existing mechanism, unaffected, not re-verified this pass |
 
-No production migration has been applied for any of the above. See
+Invariants 1–4 were applied to production on 2026-09-15, per explicit
+user authorization, as
+`supabase/migrations/20260915135253_marketplace_security_003_financial_hardening.sql`.
+Each was independently re-verified live post-apply (rolled-back
+transactions, nothing persisted): the direct `service_transactions`
+insert exploit now fails with `permission denied for table
+service_transactions`; the `service_requests.state` forgery attempt now
+fails with `"A request can only be marked awarded through accepting a
+quote."`; and an `is_test_fixture`+`is_published` combination now fails
+the `providers_test_fixture_not_published` CHECK constraint. The one
+item still NOT applied is the separate data mutation flagging "QA
+Plumbing Pro" as `is_test_fixture = true` — that requires its own
+authorization since it mutates an existing row rather than
+schema/behavior. See
 `security_proposals/PROPOSED_marketplace_security_003_financial_hardening.sql`
-for the complete, single authoritative proposal (supersedes the `-002`
+for the complete, single authoritative proposal record (supersedes the `-002`
 file) and `SECURITY_READINESS_REGISTER.md` for per-finding status.

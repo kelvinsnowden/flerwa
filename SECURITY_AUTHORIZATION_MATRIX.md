@@ -15,8 +15,16 @@ pass it).
 > row (SEC-P0-004) to the provider-work-creating table; updated the
 > `providers` trust-field section to include the proposed
 > `is_test_fixture` column. All of this reflects
-> `security_proposals/PROPOSED_marketplace_security_003_financial_hardening.sql`,
-> which is NOT applied.
+> `security_proposals/PROPOSED_marketplace_security_003_financial_hardening.sql`.
+>
+> **Applied (2026-09-15), per explicit user authorization:** as
+> `supabase/migrations/20260915135253_marketplace_security_003_financial_hardening.sql`.
+> Every "After proposed fix" column below is now the live, current
+> behavior in production, not a future state — confirmed via live
+> rolled-back-transaction re-tests post-apply. The one exception is the
+> `is_test_fixture` *data* mutation for the standing QA fixture provider
+> (not part of this table's schema/behavior scope), which remains
+> unapplied pending separate authorization.
 
 ## Provider-work-creating paths
 
@@ -106,14 +114,20 @@ status, publish state, and suspension can only be changed by an admin
 via the relevant rpc_*."` when attempted as a non-admin during this
 pass's own testing. No fix needed here — noted as a positive finding.
 
-**Extended this pass (proposed, NOT applied):** the same trigger's
-guarded-field list is extended to also cover the new
-`providers.is_test_fixture` column (FIX 7 of the -003 proposal), using
-the identical admin-only-or-bypass-flag mechanism — no new dedicated
-RPC needed, since the trigger already permits a direct admin `UPDATE`.
-A `CHECK` constraint (`not (is_test_fixture and is_published)`) backs
-this up at the schema level so a test fixture can never be published
-even by an admin mistake or a future bug in the trigger itself.
+**Extended this pass, APPLIED 2026-09-15:** the same trigger's
+guarded-field list now also covers `providers.is_test_fixture` (FIX 7
+of the -003 migration), using the identical admin-only-or-bypass-flag
+mechanism — no new dedicated RPC needed, since the trigger already
+permits a direct admin `UPDATE`. A `CHECK` constraint (`not
+(is_test_fixture and is_published)`) backs this up at the schema level
+so a test fixture can never be published even by an admin mistake or a
+future bug in the trigger itself — confirmed live post-apply: an
+`UPDATE providers SET is_test_fixture = true, is_published = true`
+attempt against production was rejected with `"new row for relation
+\"providers\" violates check constraint
+\"providers_test_fixture_not_published\""` (rolled back). No provider
+row has actually been flagged `is_test_fixture = true` yet — that data
+mutation remains separately unauthorized.
 
 ## Provider ranking must consume this layer, never bypass it
 

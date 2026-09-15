@@ -17,8 +17,20 @@ test transaction ended in `rollback`.
 > finding (SEC-P0-004, `service_requests` state forgery). The current,
 > single authoritative proposal is
 > `security_proposals/PROPOSED_marketplace_security_003_financial_hardening.sql`
-> — it supersedes and fully includes the `-002` proposal; apply that
-> file, not the older one.
+> — it supersedes and fully includes the `-002` proposal.
+>
+> **Applied (2026-09-15), per explicit user authorization:** the -003
+> proposal was applied to production as
+> `supabase/migrations/20260915135253_marketplace_security_003_financial_hardening.sql`
+> (identical content). SEC-P0-001/002/003/004 and SEC-P1-001 are all now
+> **fixed in production**, not just designed — see each finding's
+> updated Status line below. Post-apply, a live rolled-back-transaction
+> re-attempt of the original exploit was rejected with `"permission
+> denied for table service_transactions"`, and `get_advisors` (security)
+> showed no new findings from this migration. The one item NOT applied
+> is the separate `is_test_fixture` data mutation for the standing QA
+> fixture provider (still commented out in both files) — that requires
+> its own, separate authorization since it mutates an existing row.
 
 ---
 
@@ -105,9 +117,14 @@ test transaction ended in `rollback`.
   existed with no logging of attempted direct inserts, so a prior
   exploit attempt that failed for unrelated reasons (e.g. a bad FK)
   would leave no trace either way.
-- **Status:** **Fix designed and verified live (in a rolled-back
-  transaction only) — NOT applied to production.** Awaiting
-  authorization per this task's operating rules.
+- **Status:** **APPLIED to production on 2026-09-15**
+  (`supabase/migrations/20260915135253_marketplace_security_003_financial_hardening.sql`),
+  per explicit user authorization. Post-apply live verification: the
+  exact exploit insert was re-attempted (rolled back) against the live
+  database and rejected with `"permission denied for table
+  service_transactions"`, confirming the primary REVOKE-based fix is
+  active in production. `get_advisors` (security) run post-apply shows
+  no new findings introduced by this migration.
 
 ---
 
@@ -163,8 +180,9 @@ test transaction ended in `rollback`.
   providers are currently `is_published AND verification_status='verified'`
   live, and only 6 `service_transactions` rows exist total, all
   consistent with prior legitimate test activity.
-- **Status:** **Fix designed and verified live (in a rolled-back
-  transaction only) — NOT applied to production.**
+- **Status:** **APPLIED to production on 2026-09-15**
+  (`supabase/migrations/20260915135253_marketplace_security_003_financial_hardening.sql`),
+  per explicit user authorization.
 
 ---
 
@@ -193,17 +211,19 @@ test transaction ended in `rollback`.
 - **Correct behavior:** same full eligibility predicate as
   `rpc_book_service`, checked against the calling provider's own row
   (locked `for update`).
-- **Remediation (prepared, NOT applied):** see proposal file.
+- **Remediation:** see
+  `security_proposals/PROPOSED_marketplace_security_003_financial_hardening.sql`
+  / `supabase/migrations/20260915135253_marketplace_security_003_financial_hardening.sql`.
 - **Tests:** live-verified. Before fix: the unverified QA fixture
   provider successfully submitted a quote on a (test, rolled-back) open
-  request. After fix (in-transaction): blocked with "Your profile is
-  not yet eligible to quote on this category."; after admin
-  verification, an identical call succeeded.
+  request. After fix (in-transaction, and again confirmed post-apply):
+  blocked with "Your profile is not yet eligible to quote on this
+  category."; after admin verification, an identical call succeeded.
 - **Residual risk:** none new beyond SEC-P0-002's TOCTOU caveat.
 - **Production impact:** `quotes` has exactly 1 live row; no evidence of
   exploitation found.
-- **Status:** **Fix designed and verified live (in a rolled-back
-  transaction only) — NOT applied to production.**
+- **Status:** **APPLIED to production on 2026-09-15**, per explicit
+  user authorization.
 
 ---
 
@@ -250,8 +270,9 @@ test transaction ended in `rollback`.
 - **Production impact:** none — all testing done inside rolled-back
   transactions; `quotes` table too small for any historical signal
   either way.
-- **Status:** **Fix designed AND live-tested end-to-end this pass (in a
-  rolled-back transaction only) — NOT applied to production.**
+- **Status:** **APPLIED to production on 2026-09-15**
+  (`supabase/migrations/20260915135253_marketplace_security_003_financial_hardening.sql`),
+  per explicit user authorization.
 
 ---
 
@@ -317,8 +338,12 @@ test transaction ended in `rollback`.
 - **Production impact:** none — found and fixed entirely inside rolled-
   back transactions; no live `service_requests` row was left in a
   forged state.
-- **Status:** **Fix designed and live-tested (in a rolled-back
-  transaction only) — NOT applied to production.**
+- **Status:** **APPLIED to production on 2026-09-15**
+  (`supabase/migrations/20260915135253_marketplace_security_003_financial_hardening.sql`),
+  per explicit user authorization. The `is_test_fixture` schema
+  addition (FIX 7) is live; the separate data mutation flagging "QA
+  Plumbing Pro" as a fixture remains NOT applied, pending its own
+  authorization.
 
 ---
 
@@ -336,22 +361,22 @@ test transaction ended in `rollback`.
   distinct, visible cancellation event?); Deal Desk conversions are
   admin-initiated and admin-vetted by design. Flagging both for a
   follow-up design decision rather than guessing.
-- **`is_test_fixture` column is proposed but not yet applied.** FIX 7 in
-  `PROPOSED_marketplace_security_003_financial_hardening.sql` adds a
-  `NOT NULL DEFAULT false` boolean column, a `CHECK` constraint making
-  it impossible for a test fixture to ever be `is_published = true`
-  (even by admin mistake), and extends the existing
-  `trg_guard_provider_trust_fields` trigger to guard it the same way it
-  already guards `verification_status`/`is_published`/`is_suspended`.
-  Live-verified in a rolled-back transaction: with the column and
-  constraint applied in-transaction, an attempted
-  `UPDATE providers SET is_test_fixture = true, is_published = true`
-  in a single statement was rejected by the `CHECK` constraint. The
-  actual data mutation flagging "QA Plumbing Pro" as a fixture is
-  intentionally left as a **separate, explicitly-called-out,
-  not-yet-authorized** statement in the proposal file (commented out),
-  since it changes existing data, not just schema/behavior — distinct
-  from and requiring separate sign-off beyond the schema/behavior
+- **`is_test_fixture` column is now live (applied 2026-09-15), but no
+  provider is yet flagged with it.** FIX 7 added a `NOT NULL DEFAULT
+  false` boolean column, a `CHECK` constraint making it impossible for a
+  test fixture to ever be `is_published = true` (even by admin
+  mistake), and extended the existing `trg_guard_provider_trust_fields`
+  trigger to guard it the same way it already guards
+  `verification_status`/`is_published`/`is_suspended`. Live-verified
+  both pre-apply (rolled-back transaction) and post-apply against
+  production: an attempted `UPDATE providers SET is_test_fixture =
+  true, is_published = true` in a single statement is rejected by the
+  `CHECK` constraint. The actual data mutation flagging "QA Plumbing
+  Pro" as a fixture is intentionally left as a **separate, explicitly-
+  called-out, not-yet-authorized** statement (still commented out in
+  both the proposal file and the applied migration file), since it
+  changes existing data, not just schema/behavior — distinct from and
+  requiring separate sign-off beyond the schema/behavior
   changes above.
 - **Server-side EXIF/metadata validation, live-video capture, and the
   native-app path** for evidence-capture enforcement (TSF-001) remain

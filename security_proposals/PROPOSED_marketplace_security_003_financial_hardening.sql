@@ -1,16 +1,18 @@
 -- =====================================================================
--- MARKETPLACE-SECURITY-003 — PROPOSED, NOT APPLIED.
--- This file has NOT been run against the live database. It supersedes
--- security_proposals/PROPOSED_marketplace_security_002_provider_eligibility.sql
--- (that file's contents are fully included/extended here — apply THIS
--- file, not that one, once authorized). Do not apply without explicit
--- authorization. Once authorized, apply via the Supabase migration tool
--- and move this file into supabase/migrations/ with a normal
--- timestamped name.
+-- MARKETPLACE-SECURITY-003 — APPLIED to production on 2026-09-15, per
+-- explicit user authorization, as
+-- supabase/migrations/20260915135253_marketplace_security_003_financial_hardening.sql
+-- (identical content). This file is kept here as the original proposal
+-- record with its full rationale/comments; the migrations/ copy is the
+-- source of truth for what's actually deployed. Live-verified
+-- post-apply: the direct-insert exploit against service_transactions
+-- now fails with "permission denied for table service_transactions";
+-- all constraints/triggers confirmed present. See
+-- SECURITY_READINESS_REGISTER.md for full findings and evidence.
 --
--- Every fact this file's comments assert was live-verified via
--- role-simulated, rolled-back SQL during this pass — see
--- SECURITY_READINESS_REGISTER.md for the full findings and evidence.
+-- The commented-out is_test_fixture data-mutation statement near the
+-- end of this file was NOT applied — it requires separate
+-- authorization since it mutates an existing row.
 -- =====================================================================
 
 -- ---------------------------------------------------------------------
