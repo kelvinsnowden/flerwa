@@ -49,7 +49,7 @@ Verified follow-up is a known, stated risk, not a claim of completeness.
 | TXN-013 | `_execute_refund` never reversed `materials_held` — money stuck permanently on any disputed transaction with materials | Transactions/Payments | P0 | **Resolved 2026-09-15** |
 | TXN-011 | Recurring/per-occurrence escrow model not implemented | Transactions/Payments | P2 | **Resolved 2026-09-14** |
 | TXN-012 | Milestone payment structure (`docs/07`'s >KSh 25k rule) not implemented | Transactions/Payments | P2 | **Resolved 2026-09-14** |
-| TSF-001 | No enforcement that evidence capture is in-app only | Trust & Safety | P0 | Not started |
+| TSF-001 | No enforcement that evidence capture is in-app only | Trust & Safety | P0 | **In progress 2026-09-15 — real camera-stream capture added; server-side EXIF/native-app half still open** |
 | TSF-002 | No geotagging/timestamp verification on evidence uploads | Trust & Safety | P1 | Not started |
 | TSF-003 | No perceptual-duplicate detection on uploaded evidence | Trust & Safety | P1 | Not started |
 | TSF-004 | No conflict-of-interest declaration field/flow | Trust & Safety | P0 | **Resolved 2026-09-15** |
@@ -690,7 +690,10 @@ operations-tooling issue.
 - **Dependencies:** TSF-002 (geotagging) is the same underlying mechanism.
 - **Owner:** Product + mobile/frontend engineering.
 - **Complexity:** Large.
-- **Status:** Not started.
+- **Status:** **In progress 2026-09-15 — the PWA-camera half done, the "Large" half (native app / server-side EXIF) still open.** Photo evidence capture (`src/app/provider/jobs/[id]/checklist-item.tsx`) now goes through a real `getUserMedia`+`<canvas>` capture component (`camera-capture.tsx`): a live video stream is shown and the "Capture" button draws the current frame to a canvas and produces a Blob — there is no OS file/gallery picker anywhere in this path, so a captured frame is genuinely a live camera frame, not a pre-existing file. This is a strictly stronger guarantee than the old `<input type="file" capture="environment">`, which is a *hint* most mobile browsers still let users bypass by picking an existing photo.
+  - **Also fixed, found while building this:** `recordEvidence` (`src/app/provider/jobs/[id]/actions.ts`) previously hardcoded `captured_in_app: true` on every insert regardless of how the file actually arrived — meaning the admin "not captured in-app" warning (`src/app/admin/bookings/[id]/page.tsx`) had been dead code since day one. It now reflects the real capture method; a new `capture_method` column (`camera_stream`/`file_fallback`) plus a DB check constraint (`transaction_evidence_capture_consistency`) ties `captured_in_app` to it for every row going forward, so this can't silently regress to the old lie even from a bug in application code — **live-verified**: a mismatched insert (`captured_in_app=true` with `capture_method='file_fallback'`) is rejected by Postgres itself, not just the app.
+  - **Honest fallback labeling, not silent weakening:** getUserMedia-unsupported/denied browsers and all video evidence (no live-video capture UI built) fall back to a generic file input, explicitly labeled `file_fallback` in the DB and flagged in the UI ("not a verified in-app capture") rather than being folded into the strong signal.
+  - **Deliberately NOT claimed resolved — still open:** (1) server-side EXIF/metadata validation as originally scoped (moot for the `camera_stream` path specifically, since `canvas.toBlob()` output has no EXIF to check — but would still add value against a maliciously crafted `file_fallback` upload); (2) no live-video capture (MediaRecorder) — video evidence is 100% `file_fallback` today; (3) a determined attacker could still feed a fake camera stream to `getUserMedia` via a virtual camera driver — this raises the bar significantly over a file picker but is not unspoofable; (4) the native-app path this item's own recommended solution names is out of scope entirely. TSF-002 (geotagging) shares this mechanism and is likewise still open beyond what check-in/evidence already geotags opportunistically.
 
 ---
 

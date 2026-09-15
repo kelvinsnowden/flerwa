@@ -25,6 +25,7 @@ export async function recordEvidence(input: {
   description: string;
   geoLat: number | null;
   geoLng: number | null;
+  captureMethod: "camera_stream" | "file_fallback";
 }) {
   const supabase = await createClient();
   const {
@@ -32,6 +33,13 @@ export async function recordEvidence(input: {
   } = await supabase.auth.getUser();
   if (!user) return { error: "Not authenticated." };
 
+  // TSF-001: captured_in_app is no longer hardcoded true — it reflects
+  // what the client actually reports. camera_stream means the photo came
+  // straight off a live getUserMedia frame (no OS file/gallery picker
+  // touched); file_fallback is the weaker, spoofable path, used only
+  // when getUserMedia was unavailable/denied or for video (no live-video
+  // capture UI yet — see TSF-001's register entry for that gap).
+  //
   // RLS ("evidence provider insert") independently re-checks that this user
   // is the assigned provider for this transaction — this insert is not
   // trusted on the strength of the server action alone.
@@ -41,7 +49,8 @@ export async function recordEvidence(input: {
     type: input.type,
     storage_path: input.storagePath,
     description: input.description || null,
-    captured_in_app: true,
+    captured_in_app: input.captureMethod === "camera_stream",
+    capture_method: input.captureMethod,
     geo_lat: input.geoLat,
     geo_lng: input.geoLng,
     uploaded_by: user.id,

@@ -4,6 +4,7 @@ import { useRef, useState, useTransition } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { recordEvidence } from "./actions";
 import { Icon } from "@/components/ui/icon";
+import { CameraCapture, type CaptureMethod } from "./camera-capture";
 
 interface Item {
   id: string;
@@ -23,15 +24,18 @@ export function ChecklistItemRow({
   isComplete: boolean;
 }) {
   const [done, setDone] = useState(isComplete);
-  const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [pendingBlob, setPendingBlob] = useState<Blob | null>(null);
+  const [pendingType, setPendingType] = useState<"photo" | "video">("photo");
+  const [captureMethod, setCaptureMethod] = useState<CaptureMethod | null>(null);
   const [description, setDescription] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
-  const fileRef = useRef<HTMLInputElement>(null);
+  const videoFileRef = useRef<HTMLInputElement>(null);
 
   function upload() {
-    const file = pendingFile;
-    if (!file) return;
+    const blob = pendingBlob;
+    const method = captureMethod;
+    if (!blob || !method) return;
     setError(null);
     startTransition(async () => {
       let lat: number | null = null;
@@ -48,32 +52,34 @@ export function ChecklistItemRow({
       }
 
       const supabase = createClient();
-      const ext = file.name.split(".").pop() ?? "jpg";
+      const ext = pendingType === "video" ? "mp4" : "jpg";
+      const contentType = blob.type || (pendingType === "video" ? "video/mp4" : "image/jpeg");
       const path = `${transactionId}/${item.id}-${Date.now()}.${ext}`;
       const { error: uploadError } = await supabase.storage
         .from("transaction-evidence")
-        .upload(path, file, { contentType: file.type });
+        .upload(path, blob, { contentType });
       if (uploadError) {
         setError(uploadError.message);
         return;
       }
 
-      const type = file.type.startsWith("video") ? "video" : "photo";
       const res = await recordEvidence({
         transactionId,
         checklistItemId: item.id,
-        type,
+        type: pendingType,
         storagePath: path,
         description,
         geoLat: lat,
         geoLng: lng,
+        captureMethod: method,
       });
       if (res?.error) {
         setError(res.error);
         return;
       }
       setDone(true);
-      setPendingFile(null);
+      setPendingBlob(null);
+      setCaptureMethod(null);
       setDescription("");
     });
   }
@@ -90,37 +96,53 @@ export function ChecklistItemRow({
           {item.help_text && <p className="text-xs text-[var(--muted)] mt-0.5">{item.help_text}</p>}
           {error && <p className="text-xs text-[var(--danger)] mt-1">{error}</p>}
         </div>
-        <input
-          ref={fileRef}
-          type="file"
-          accept="image/*,video/*"
-          capture="environment"
-          className="hidden"
-          onChange={(e) => {
-            const file = e.target.files?.[0];
-            if (file) {
-              setPendingFile(file);
-              setError(null);
-            }
-          }}
-        />
-        {!pendingFile && (
-          <button
-            type="button"
-            className="btn-secondary text-xs shrink-0"
-            disabled={isPending}
-            onClick={() => fileRef.current?.click()}
-          >
-            {done ? "Replace" : "Capture"}
-          </button>
+        {!pendingBlob && (
+          <div className="flex flex-col items-end gap-1">
+            <CameraCapture
+              disabled={isPending}
+              onCapture={(blob, method) => {
+                setPendingBlob(blob);
+                setPendingType("photo");
+                setCaptureMethod(method);
+                setError(null);
+              }}
+            />
+            <input
+              ref={videoFileRef}
+              type="file"
+              accept="video/*"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) {
+                  setPendingBlob(file);
+                  setPendingType("video");
+                  setCaptureMethod("file_fallback");
+                  setError(null);
+                }
+                e.target.value = "";
+              }}
+            />
+            <button
+              type="button"
+              className="text-[10px] text-[var(--muted-2)] underline"
+              disabled={isPending}
+              onClick={() => videoFileRef.current?.click()}
+            >
+              Attach a video instead
+            </button>
+          </div>
         )}
       </div>
 
-      {pendingFile && (
+      {pendingBlob && (
         <div className="flex flex-col gap-2 rounded-lg bg-[var(--surface)] p-3">
           <p className="text-xs text-[var(--muted)] flex items-center gap-1.5">
             <Icon name="camera" size={14} />
-            {pendingFile.name}
+            {pendingType === "video" ? "Video attached" : "Photo captured"}
+            {captureMethod === "file_fallback" && (
+              <span className="text-[var(--danger)]"> · not a verified in-app capture</span>
+            )}
           </p>
           <textarea
             value={description}
@@ -138,7 +160,8 @@ export function ChecklistItemRow({
               className="btn-secondary text-xs"
               disabled={isPending}
               onClick={() => {
-                setPendingFile(null);
+                setPendingBlob(null);
+                setCaptureMethod(null);
                 setDescription("");
               }}
             >
