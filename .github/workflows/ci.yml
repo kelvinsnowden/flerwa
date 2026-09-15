@@ -23,6 +23,11 @@ jobs:
 
       - name: Unit tests
         run: npm test
+        env:
+          # Tier 1 DB tests (tests/db/*.test.ts) skip themselves cleanly
+          # when this isn't set — see TESTING.md for what's required to
+          # turn them on for real (a repo secret, not committed anywhere).
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
 
       - name: Build
         run: npm run build

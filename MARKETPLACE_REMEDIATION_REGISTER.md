@@ -13,7 +13,7 @@ Verified follow-up is a known, stated risk, not a claim of completeness.
 
 | ID | Title | Domain | Severity | Status |
 |---|---|---|---|---|
-| SEC-001 | No automated regression suite for financial/authz logic | Security | P0 | **In progress — foundation started** |
+| SEC-001 | No automated regression suite for financial/authz logic | Security | P0 | **In progress — tier 1 DB harness + tier 2 server-action tests added 2026-09-15** |
 | SEC-002 | Storage buckets have no malware/content scanning | Security | P0 | Not started |
 | SEC-003 | No dependency-vulnerability scanning in CI | Security | P1 | Not started |
 | SEC-004 | No security headers configured | Security | P2 | Not started |
@@ -1805,6 +1805,63 @@ Information needed · Owner · Deadline/dependency.
   this branch's commits reach GitHub. No branch-protection rule requires
   it to pass yet — see below.
 - **Status:** In progress (CI added; branch protection still manual).
+
+---
+
+### SEC-001 — Tier 1 DB harness + tier 2 server-action tests added 2026-09-15
+
+- **Update:** a prior pass's own SEC-001 entry already identified that
+  this sandbox has no verified network path from a `vitest`/Node process
+  to the live Supabase project (no `DATABASE_URL`/service-role-equivalent
+  credential exposed by any tool available here, and outbound network
+  goes through an HTTPS-only proxy a raw Postgres connection likely
+  wouldn't route through) and no local Postgres/Supabase-CLI stack — and
+  worked around it by running DB-level checks live via the Supabase MCP's
+  `execute_sql` tool, verified but never turned into committed test
+  files. This pass turns that pattern into real, permanent,
+  `SUPABASE_DB_URL`-gated test files for the first time: `tests/db/`
+  (new directory) — `client.ts` (a `withRolledBackTransaction` helper
+  wrapping the `postgres` npm package, new devDependency, plus the same
+  `asUser`/role-simulation pattern used throughout this project's manual
+  verification) and two real suites, `dual-control.test.ts` (PAY-004's
+  propose/decide/self-block/distinct-admin flow, plus a regression guard
+  for SEC-013's exact bug class — the `_execute_*` functions staying
+  un-callable directly by `anon`/`authenticated`) and
+  `cancellation-fees.test.ts` (all four of TXN-005's fee tiers). Every
+  test `describe.skipIf(!SUPABASE_DB_URL)`s itself — `npm test` still
+  exits 0 without the credential, reported as skipped, not silently
+  passing or breaking the suite. The SQL each test runs was validated the
+  same way the prior pass's checks were (live, via `execute_sql`, rolled
+  back) before being transcribed — real verification of the logic, but
+  not the same claim as this exact file having been executed by `vitest`
+  itself; see `TESTING.md` for the honest distinction and what a repo
+  secret would need to turn this on for real in CI.
+- **Also fixed, tier 2:** two real, previously-blocking bugs in the test
+  setup itself, not just "no tests existed yet" — `vitest.config.ts`
+  didn't resolve the `@/*` alias Next's own `tsconfig.json` defines (Vite
+  doesn't read `tsconfig.json` paths automatically), and nothing mocked
+  the `server-only` package, which throws unconditionally outside Next's
+  bundler. Both meant **no test file could import any server action
+  module at all** until this pass — confirmed by reproducing the exact
+  failure with the first action test file added. Fixed once,
+  `vitest.setup.ts` + `vitest.config.ts`, benefiting every future test in
+  this tier, not just the ones added here. Four new suites: `cancelBooking`/
+  `openDispute`/`approveBooking`, the three TXN-010 repair actions, and
+  `confirmPayment` — each asserting the exact RPC name/params sent and
+  that a database error is surfaced rather than thrown or swallowed.
+- **Verified:** `npm test` — 69 passed, 8 skipped (the DB tier), 0
+  failed; `npx tsc --noEmit` clean; `npm run build` clean.
+- **Not done, stated rather than silently assumed solved:** full closure
+  needs every RPC listed under "financial/authorization logic" in
+  `SECURITY.md` to have a tier-1 test for both the authorized and
+  unauthorized path — genuinely multi-week given the number of RPCs in
+  this schema, unchanged from the original estimate. No negative-RLS
+  suite yet (a customer directly reading/writing another customer's row,
+  etc.) beyond what's incidentally covered. `TESTING.md` written as the
+  actual next-steps document, including the template these two suites
+  set for adding more.
+- **Status:** In progress — real tier 1 + tier 2 infrastructure and
+  first suites in place; full RPC coverage remains open.
 
 ---
 
