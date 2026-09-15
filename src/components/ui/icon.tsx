@@ -32,7 +32,11 @@ export type IconName =
   | "chef-hat"
   | "help-circle"
   | "paperclip"
-  | "flag";
+  | "flag"
+  | "x"
+  | "external-link"
+  | "instagram"
+  | "tiktok";
 
 const PATHS: Record<IconName, React.ReactNode> = {
   "shield-check": (
@@ -157,6 +161,37 @@ const PATHS: Record<IconName, React.ReactNode> = {
     <>
       <path d="M5 21V4" />
       <path d="M5 4h13l-3 4 3 4H5" />
+    </>
+  ),
+  x: (
+    <>
+      <path d="M18 6 6 18" />
+      <path d="M6 6l12 12" />
+    </>
+  ),
+  "external-link": (
+    <>
+      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+      <path d="M15 3h6v6" />
+      <path d="M10 14 21 3" />
+    </>
+  ),
+  // Deliberately a plain monoline camera/square glyph, not a reproduction
+  // of the Instagram logo — same "generic, no trademarked artwork"
+  // discipline already applied to the M-Pesa payment graphics.
+  instagram: (
+    <>
+      <rect x="3" y="3" width="18" height="18" rx="5" />
+      <circle cx="12" cy="12" r="4" />
+      <path d="M17.5 6.5h.01" />
+    </>
+  ),
+  // Plain monoline musical-note glyph — same rationale as instagram
+  // above, not the TikTok logo.
+  tiktok: (
+    <>
+      <path d="M14 4v10.5a3.5 3.5 0 1 1-3.5-3.5" />
+      <path d="M14 4c0 2.5 2 4.5 4.5 4.5" />
     </>
   ),
 };

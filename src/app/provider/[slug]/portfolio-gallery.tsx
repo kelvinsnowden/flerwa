@@ -4,8 +4,22 @@ import { useMemo, useState } from "react";
 import Image from "next/image";
 import { Icon } from "@/components/ui/icon";
 import type { PortfolioItem } from "@/lib/types";
+import { PortfolioLightbox } from "./portfolio-lightbox";
 
-export function PortfolioGallery({ items }: { items: PortfolioItem[] }) {
+export function PortfolioGallery({
+  items,
+  bookHref,
+  requestSimilarHref,
+  canReport,
+}: {
+  items: PortfolioItem[];
+  bookHref: string | null;
+  requestSimilarHref: string | null;
+  canReport?: boolean;
+}) {
+  // Category chips are built entirely from real, provider-entered tags —
+  // never a fixed/fabricated taxonomy. Only a category that at least one
+  // real item actually uses ever appears here.
   const tags = useMemo(() => {
     const seen = new Set<string>();
     for (const item of items) if (item.tag) seen.add(item.tag);
@@ -13,7 +27,15 @@ export function PortfolioGallery({ items }: { items: PortfolioItem[] }) {
   }, [items]);
 
   const [filter, setFilter] = useState<string | null>(null);
-  const visible = filter ? items.filter((i) => i.tag === filter) : items;
+  const filtered = filter ? items.filter((i) => i.tag === filter) : items;
+  // Featured items surface first within whatever filter is active —
+  // still only ever the provider's own real items, just reordered.
+  const visible = useMemo(
+    () => [...filtered].sort((a, b) => Number(b.is_featured) - Number(a.is_featured)),
+    [filtered]
+  );
+
+  const [openIndex, setOpenIndex] = useState<number | null>(null);
 
   return (
     <div>
@@ -49,37 +71,54 @@ export function PortfolioGallery({ items }: { items: PortfolioItem[] }) {
         </div>
       )}
 
-      <div className="grid grid-cols-3 gap-2">
-        {visible.map((item) => {
-          const content = (
-            <>
-              <Image src={item.photo_url} alt={item.caption ?? ""} fill className="object-cover" />
-              {item.media_type === "video" && (
-                <span className="absolute inset-0 flex items-center justify-center">
-                  <span className="h-8 w-8 rounded-full flex items-center justify-center bg-black/50 text-white">
-                    <Icon name="video" size={16} />
-                  </span>
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+        {visible.map((item, i) => (
+          <button
+            key={item.id}
+            type="button"
+            onClick={() => setOpenIndex(i)}
+            aria-label={item.caption ? `View: ${item.caption}` : "View portfolio item"}
+            className="relative aspect-square rounded-[var(--radius-sm)] overflow-hidden bg-[var(--surface)] block text-left"
+          >
+            <Image
+              src={item.photo_url}
+              alt={item.caption ?? ""}
+              fill
+              className="object-cover"
+              sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+            />
+            {item.media_type === "video" && (
+              <span className="absolute inset-0 flex items-center justify-center">
+                <span className="h-8 w-8 rounded-full flex items-center justify-center bg-black/50 text-white">
+                  <Icon name="video" size={16} />
                 </span>
-              )}
-              {item.reach_label && (
-                <span className="absolute bottom-1 left-1 text-xs font-semibold text-white bg-black/50 rounded-full px-1.5 py-0.5">
-                  {item.reach_label}
-                </span>
-              )}
-            </>
-          );
-          const className = "relative aspect-square rounded-[var(--radius-sm)] overflow-hidden bg-[var(--surface)] block";
-          return item.media_type === "video" && item.video_url ? (
-            <a key={item.id} href={item.video_url} target="_blank" rel="noopener noreferrer" className={className}>
-              {content}
-            </a>
-          ) : (
-            <div key={item.id} className={className}>
-              {content}
-            </div>
-          );
-        })}
+              </span>
+            )}
+            {item.is_featured && (
+              <span className="absolute top-1 left-1 h-5 w-5 rounded-full flex items-center justify-center bg-black/50 text-white">
+                <Icon name="star" size={11} />
+              </span>
+            )}
+            {item.reach_label && (
+              <span className="absolute bottom-1 left-1 text-xs font-semibold text-white bg-black/50 rounded-full px-1.5 py-0.5">
+                {item.reach_label}
+              </span>
+            )}
+          </button>
+        ))}
       </div>
+
+      {openIndex !== null && (
+        <PortfolioLightbox
+          items={visible}
+          index={openIndex}
+          onClose={() => setOpenIndex(null)}
+          onNavigate={setOpenIndex}
+          bookHref={bookHref}
+          requestSimilarHref={requestSimilarHref}
+          canReport={canReport}
+        />
+      )}
     </div>
   );
 }

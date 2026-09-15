@@ -3,7 +3,8 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { formatMoney } from "@/lib/money";
 import type { IconName } from "@/components/ui/icon";
-import type { Provider, ReliabilityScore, Service, PortfolioItem, ProviderFaq } from "@/lib/types";
+import type { Provider, ReliabilityScore, Service, PortfolioItem, ProviderFaq, SocialHighlight } from "@/lib/types";
+import { SocialHighlightsSection } from "@/components/social/social-highlights-section";
 import { ErrorNotice } from "@/components/error-notice";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Avatar } from "@/components/ui/avatar";
@@ -87,6 +88,7 @@ export default async function ProviderStorefrontPage({
     { data: scheduledServices },
     { data: responseMinutes },
     { data: faqs },
+    { data: socialHighlights },
   ] = await Promise.all([
     user && !isOwner
       ? supabase
@@ -144,6 +146,15 @@ export default async function ProviderStorefrontPage({
       .eq("provider_id", provider.id)
       .order("sort_order")
       .returns<ProviderFaq[]>(),
+    // RLS ("social highlights public read") already scopes this to
+    // public, non-hidden rows for a non-owner, and to everything for the
+    // owner/admin — no extra filter needed here.
+    supabase
+      .from("provider_social_highlights")
+      .select("*")
+      .eq("provider_id", provider.id)
+      .order("sort_order")
+      .returns<SocialHighlight[]>(),
   ]);
 
   const isSaved = Boolean(isSavedRow);
@@ -159,7 +170,9 @@ export default async function ProviderStorefrontPage({
   }
 
   const reliability = provider.reliability_scores?.[0];
-  const portfolioPhotoUrls = (portfolioItems ?? []).map((p) => p.photo_url);
+  const portfolioPhotoUrls = [...(portfolioItems ?? [])]
+    .sort((a, b) => Number(b.is_featured) - Number(a.is_featured))
+    .map((p) => p.photo_url);
 
   // The quick-chip row: one chip per distinct real SERVICE the provider
   // offers (services.icon when set, else its category's icon) — no
@@ -179,6 +192,17 @@ export default async function ProviderStorefrontPage({
   });
   const firstActiveService = services?.[0]?.services;
   const bioText = [provider.bio, provider.experience_summary].filter(Boolean).join("\n\n");
+
+  const bookHref = firstActiveService ? `/services/${firstActiveService.slug}?provider=${provider.id}#book` : null;
+  // "Request similar content" reuses the existing, already-trusted task-
+  // request flow (a customer posts a task, providers discover and quote
+  // it) — never a new booking path, and never auto-assigns this provider.
+  const requestSimilarHref = !isOwner ? "/tasks/new" : null;
+
+  // Real, currently-active prices only — never a fabricated "from" price.
+  const activePrices = (services ?? []).map((s) => s.price_minor ?? s.services.base_price_minor).filter((p): p is number => p != null);
+  const startingPriceMinor = activePrices.length > 0 ? Math.min(...activePrices) : null;
+  const startingPriceCurrency = services?.[0]?.services.currency;
 
   return (
     <div className={`mx-auto max-w-2xl sm:pb-10 ${isOwner ? "pb-8" : "pb-28"}`}>
@@ -236,6 +260,12 @@ export default async function ProviderStorefrontPage({
             <Icon name="map-pin" size={16} className="text-[var(--trust)] flex-shrink-0" />
             {provider.locations.ward ?? provider.locations.town}
             {serviceAreas && serviceAreas.length > 0 && " (and surrounding areas)"}
+          </p>
+        )}
+
+        {startingPriceMinor != null && (
+          <p className="mt-1 text-sm">
+            Starting from <span className="font-semibold" style={{ color: "var(--trust)" }}>{formatMoney(startingPriceMinor, startingPriceCurrency)}</span>
           </p>
         )}
 
@@ -330,11 +360,25 @@ export default async function ProviderStorefrontPage({
         <div id="portfolio" className="pt-8 scroll-mt-28">
           <h2 className="font-semibold mb-3">Portfolio</h2>
           {portfolioItems && portfolioItems.length > 0 ? (
-            <PortfolioGallery items={portfolioItems} />
+            <PortfolioGallery
+              items={portfolioItems}
+              bookHref={bookHref}
+              requestSimilarHref={requestSimilarHref}
+              canReport={!isOwner && Boolean(user)}
+            />
+          ) : isOwner ? (
+            <div className="card p-4 text-sm text-[var(--muted)]">
+              <p>Your portfolio is empty. Add photos or videos of your work so customers can see it here.</p>
+              <Link href="/provider/portfolio" className="btn-secondary inline-flex mt-3">
+                Add portfolio work
+              </Link>
+            </div>
           ) : (
             <p className="text-sm text-[var(--muted)]">No portfolio photos yet.</p>
           )}
         </div>
+
+        <SocialHighlightsSection highlights={socialHighlights ?? []} />
 
         {(bioText || provider.verification_status === "verified" || hasRemoteService) && (
           <div className="pt-8">

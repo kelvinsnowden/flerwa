@@ -299,6 +299,32 @@ export interface PortfolioItem {
   reach_label: string | null;
   /** Provider-defined grouping used to build the portfolio's filter chips (e.g. "UGC", "TikTok"). */
   tag: string | null;
+  /** Optional, self-reported: what kind of project this was (e.g. "Product photography"). */
+  project_type: string | null;
+  /** Optional, self-reported brand/client name — only ever shown if the provider chose to enter it. */
+  client_name: string | null;
+  /** Provider-controlled draft/publish toggle. */
+  is_public: boolean;
+  /** Admin-only moderation flag, guarded server-side — see trg_guard_portfolio_moderation. */
+  is_hidden: boolean;
+  is_featured: boolean;
+  /** Confirmed at upload time — required to be true for the item to be created. */
+  rights_confirmed: boolean;
+  /** Whether media_type='video' is hosted on our own storage ('native', in-app playback) or an external link ('external', opens on the origin platform). Null for images. */
+  video_source: "native" | "external" | null;
+}
+
+export interface SocialHighlight {
+  id: string;
+  provider_id: string;
+  platform: "instagram" | "tiktok";
+  post_url: string;
+  title: string | null;
+  sort_order: number;
+  is_public: boolean;
+  is_hidden: boolean;
+  rights_confirmed: boolean;
+  created_at: string;
 }
 
 export interface ProviderFaq {

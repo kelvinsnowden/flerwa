@@ -101,6 +101,10 @@ export default async function ProviderDashboardPage() {
           <Icon name="camera" size={16} className="text-[var(--trust)]" />
           Portfolio
         </Link>
+        <Link href="/provider/social" className="card p-3 flex items-center gap-2 text-sm font-medium hover:border-[var(--trust)] transition-colors">
+          <Icon name="instagram" size={16} className="text-[var(--trust)]" />
+          Social highlights
+        </Link>
         <Link href="/provider/faq" className="card p-3 flex items-center gap-2 text-sm font-medium hover:border-[var(--trust)] transition-colors">
           <Icon name="file-text" size={16} className="text-[var(--trust)]" />
           FAQ

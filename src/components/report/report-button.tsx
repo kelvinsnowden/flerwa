@@ -9,6 +9,17 @@ const REASONS: Record<ReportTargetType, string[]> = {
   review: ["Fake or misleading", "Harassment or abuse", "Off-topic / spam", "Something else"],
   provider_profile: ["Suspicious or fraudulent listing", "Impersonation", "Inappropriate content", "Something else"],
   customer_profile: ["Harassment or abuse", "Scam or fraud attempt", "Something else"],
+  portfolio_item: ["Not their own work / stolen content", "Inappropriate content", "Misleading claims", "Something else"],
+  social_highlight: ["Not their own post", "Inappropriate content", "Broken or suspicious link", "Something else"],
+};
+
+const REPORT_LABEL: Record<ReportTargetType, string> = {
+  message: "message",
+  review: "review",
+  provider_profile: "professional",
+  customer_profile: "customer",
+  portfolio_item: "portfolio item",
+  social_highlight: "social highlight",
 };
 
 /**
@@ -56,7 +67,7 @@ export function ReportButton({
 
   return (
     <div className="card p-3 text-sm" style={{ maxWidth: 320 }}>
-      <p className="font-semibold mb-2">Report this {targetType === "provider_profile" ? "professional" : targetType}</p>
+      <p className="font-semibold mb-2">Report this {REPORT_LABEL[targetType]}</p>
       <div className="flex flex-col gap-1.5">
         {REASONS[targetType].map((r) => (
           <label key={r} className="flex items-center gap-2 text-xs">

@@ -2,7 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 
-export type ReportTargetType = "message" | "review" | "provider_profile" | "customer_profile";
+export type ReportTargetType = "message" | "review" | "provider_profile" | "customer_profile" | "portfolio_item" | "social_highlight";
 
 export async function submitReport(
   targetType: ReportTargetType,
