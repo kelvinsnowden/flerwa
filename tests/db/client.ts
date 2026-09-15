@@ -63,4 +63,14 @@ export const FIXTURES = {
   homeServicesCategory: "b8e3330d-9e01-4fa5-8bcd-63c93bcf17a9",
   superAdmin: "44444444-aaaa-0000-0000-000000000003",
   secondAdmin: "36839847-bd0f-49fd-aa3a-168dc11756f4",
+  // QA Plumbing Pro: a real, live, standing test fixture (see
+  // MARKETPLACE_REMEDIATION_REGISTER.md / SECURITY_READINESS_REGISTER.md)
+  // — is_published=true, verification_status='submitted' (never
+  // verified), is_accepting_work=true, is_suspended=false, cleared for
+  // homeServicesCategory. Its real, current "unverified" state is what
+  // MARKETPLACE-SECURITY-002's provider-eligibility tests exercise —
+  // no fixture data was fabricated for this suite.
+  qaPlumbingProvider: "aa332618-bf31-4af2-b699-f8bba7b47bdb",
+  qaPlumbingProviderUserId: "113f57de-b636-4f5e-b819-54a5c556f94c",
+  plumbingRepairService: "99cd48b5-1f08-4bc6-8422-227888c5d2f9",
 } as const;

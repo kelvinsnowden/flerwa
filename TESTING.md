@@ -68,8 +68,19 @@ propose/decide/self-block/distinct-admin-execution flow (PAY-004), that
 the `_execute_*` functions behind every dual-control action remain
 un-callable directly by `anon`/`authenticated` (SEC-013 — this is the
 single test most likely to catch a regression of that exact bug class),
-and all four of `rpc_cancel_booking`'s cancellation-fee tiers (TXN-005),
-including the milestone-aware case. **Not yet covered:** the rest of the
+all four of `rpc_cancel_booking`'s cancellation-fee tiers (TXN-005),
+including the milestone-aware case, and provider-eligibility
+authorization (`tests/db/provider-eligibility.test.ts`,
+MARKETPLACE-SECURITY-002/003) — 12 tests describing the FIXED,
+not-yet-applied behavior for `rpc_book_service`/`rpc_submit_quote`/
+`rpc_accept_quote`/direct `service_transactions` and `quotes` inserts,
+`service_requests.state` forgery (SEC-P0-004), the proposed
+`is_test_fixture` schema guarantee, a full `rpc_accept_quote`
+positive/TOCTOU pair, and `rpc_book_service`'s idempotency-key
+behavior; see `SECURITY_READINESS_REGISTER.md` and
+`FINANCIAL_INTEGRITY_MODEL.md` for why they currently fail against the
+live, unpatched database and what needs authorizing before they'll
+pass. **Not yet covered:** the rest of the
 RPCs SEC-001's own definition of done names — TXN-010's three repair
 tools, `rpc_resolve_dispute`, `rpc_open_dispute`/the SLA sweep (TXN-004),
 recurring-series (TXN-011), milestones (TXN-012) beyond what the
