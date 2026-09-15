@@ -26,8 +26,10 @@ const DISPUTABLE_ELSEWHERE_STATES: ServiceTransaction["state"][] = [
   "revision_requested",
 ];
 
-// Mirrors rpc_cancel_booking's own state check: free to cancel any time
-// up to (not including) the Pro checking in.
+// Mirrors rpc_cancel_booking's own state check (TXN-005): cancellation is
+// allowed through 'in_progress' — the fee actually paid depends on timing
+// and state, computed server-side by the RPC itself (docs/07's
+// cancellation-fee table), not by this list.
 const CANCELLABLE_STATES: ServiceTransaction["state"][] = [
   "requested",
   "quoted",
@@ -35,6 +37,8 @@ const CANCELLABLE_STATES: ServiceTransaction["state"][] = [
   "funded",
   "scheduled",
   "en_route",
+  "checked_in",
+  "in_progress",
 ];
 
 export default async function BookingDetailPage({
@@ -239,7 +243,14 @@ export default async function BookingDetailPage({
 
       {!canApproveOrRevise && canDisputeElsewhere && <DisputeLink transactionId={booking.id} />}
 
-      {canCancel && <CancelBooking transactionId={booking.id} />}
+      {canCancel && (
+        <CancelBooking
+          transactionId={booking.id}
+          isFunded={!!booking.funded_at}
+          isCheckedInOrLater={["checked_in", "in_progress"].includes(booking.state)}
+          scheduledFor={booking.scheduled_for}
+        />
+      )}
 
       <Link href={`/support?booking=${booking.id}`} className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-[var(--muted)]">
         <Icon name="help-circle" size={16} />

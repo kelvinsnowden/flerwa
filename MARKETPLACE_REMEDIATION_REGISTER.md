@@ -40,7 +40,7 @@ Verified follow-up is a known, stated risk, not a claim of completeness.
 | TXN-002 | `rpc_start_conversation` has no idempotency key | Transactions | P2 | Not started |
 | TXN-003 | No lock audit performed on 5 state-transition RPCs | Transactions | P2 | **In progress — 2 of 5 confirmed** |
 | TXN-004 | Disputes have no deadline/time-bound field | Transactions | P0 | **Resolved 2026-09-15** |
-| TXN-005 | No cancellation-fee enforcement (`docs/07`'s <24h/after-check-in rules) | Transactions | P1 | **Confirmed not fixed — investigation closed** |
+| TXN-005 | No cancellation-fee enforcement (`docs/07`'s <24h/after-check-in rules) | Transactions | P1 | **Resolved 2026-09-15** |
 | TXN-006 | No customer-unreachable / repeat-non-funding penalty | Transactions | P2 | Not started |
 | TXN-007 | No provider no-show detection or suspension trigger | Transactions | P1 | Not started |
 | TXN-008 | Quote expiry not enforced | Transactions | P2 | Not started |
@@ -574,7 +574,9 @@ materially more work than the other headers.
 - **Domain/Subdomain:** Transactions / Payments
 - **Problem:** `docs/07`'s cancellation-fee table (<24h → 50% to provider; after check-in → 100% to provider) has no corresponding logic in `rpc_cancel_booking` — **not independently re-verified this pass** what that RPC actually does financially; flagged as Investigating pending that read.
 - **Severity:** P1.
-- **Status:** Investigating.
+- **Resolution (2026-09-15):** Confirmed via direct read (see TXN-005/PAY-009 investigation note below) that `rpc_cancel_booking` did flat 100% refund regardless of timing and hard-blocked cancellation entirely from `checked_in` onward. Implemented in
+  `supabase/migrations/20260915093000_txn005_cancellation_fee_tiers.sql`: `rpc_cancel_booking` now computes a `v_provider_pct` (0/50/100) from `docs/07`'s table — >24h before `scheduled_for` (or no `scheduled_for` at all, i.e. nothing to violate) → 0%; <24h before → 50%; `checked_in`/`in_progress` → 100% — and splits the still-held `service_amount_minor + platform_fee_minor` between `provider_payable` and `refunds` accordingly (materials are always refunded in full to the customer regardless of tier — the customer never received them, so they aren't a "the provider showed up" cost). Cancellation is now allowed through `checked_in`/`in_progress` (previously hard-blocked, closing the register's own "provider is compensated after check-in is unreachable" finding) but still refused from `evidence_submitted` onward, where the existing approve/revise/dispute flow is the correct path instead. **Milestone correctness:** opening cancellation up to `checked_in`/`in_progress` means both the `scope_agreement` (released at funding) and `materials` (released at check-in) milestone stages may already be paid out by cancel time — both are now excluded from the reversal, extending the same "reverse only what's still actually held" fix TXN-012 already applied to `scope_agreement` alone. `/account/bookings/[id]` now allows cancelling from `checked_in`/`in_progress` and shows an honest, tier-specific warning before confirming (not a source of truth — the RPC computes the real figure server-side). Verified live via role-simulated, rolled-back transactions covering all four cases: >24h-before (0% provider, full refund, state=`refunded`), <24h-before (50%/50% split, state=`settled`), a milestone-qualifying transaction cancelled from `checked_in` with both `scope_agreement` and `materials` already released (100% of the remaining balance to the provider, full-lifecycle ledger stays balanced — the exact double-counting risk this design had to avoid), and `evidence_submitted` correctly still blocked.
+- **Status:** Resolved 2026-09-15.
 
 ---
 
