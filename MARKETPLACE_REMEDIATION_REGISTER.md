@@ -45,7 +45,8 @@ Verified follow-up is a known, stated risk, not a claim of completeness.
 | TXN-007 | No provider no-show detection or suspension trigger | Transactions | P1 | Not started |
 | TXN-008 | Quote expiry not enforced | Transactions | P2 | Not started |
 | TXN-009 | Booking expiry (unfunded `requested` transactions) never swept | Transactions | P2 | Not started |
-| TXN-010 | No admin general-purpose transaction repair tool | Transactions/Ops | P0 | Not started |
+| TXN-010 | No admin general-purpose transaction repair tool | Transactions/Ops | P0 | **Resolved 2026-09-15** |
+| TXN-013 | `_execute_refund` never reversed `materials_held` — money stuck permanently on any disputed transaction with materials | Transactions/Payments | P0 | **Resolved 2026-09-15** |
 | TXN-011 | Recurring/per-occurrence escrow model not implemented | Transactions/Payments | P2 | **Resolved 2026-09-14** |
 | TXN-012 | Milestone payment structure (`docs/07`'s >KSh 25k rule) not implemented | Transactions/Payments | P2 | **Resolved 2026-09-14** |
 | TSF-001 | No enforcement that evidence capture is in-app only | Trust & Safety | P0 | Not started |
@@ -96,8 +97,8 @@ Verified follow-up is a known, stated risk, not a claim of completeness.
 | LEGAL-006 | No public liability / professional indemnity insurance confirmed | Legal | P0 | Requires business decision |
 | LEGAL-007 | Data retention periods not defined anywhere in code or policy | Legal | P1 | Requires business decision |
 | LEGAL-008 | Tax treatment (withholding, VAT) by service type not resolved | Legal | P1 | Requires legal review |
-| OPS-001 | No admin single-pane transaction-detail view | Ops/Support | P0 | Not started |
-| OPS-002 | No safe transaction-repair tool beyond 2 narrow RPCs | Ops/Support | P0 | Not started |
+| OPS-001 | No admin single-pane transaction-detail view | Ops/Support | P0 | **Resolved — confirmed pre-existing 2026-09-15** |
+| OPS-002 | No safe transaction-repair tool beyond 2 narrow RPCs | Ops/Support | P0 | **Resolved 2026-09-15** |
 | OPS-003 | No support/fraud/verification queue triage UI beyond `/admin/verifications` | Ops/Support | P1 | Not started |
 | OPS-004 | No role-based admin access — `is_admin()` is all-or-nothing | Ops/Support | P1 | Not started |
 | OPS-005 | No two-person approval for financial/ban actions | Ops/Support | P0 | Not started |
@@ -627,7 +628,20 @@ Cross-referenced with OPS-002 — same underlying gap, filed under both
 domains since it's simultaneously a transactions-integrity issue and an
 operations-tooling issue.
 
-- **Severity:** P0. **Status:** Not started. See OPS-002 for full detail.
+- **Severity:** P0. **Status:** Resolved 2026-09-15. See OPS-002 for full detail (three RPCs built: `rpc_admin_correct_transaction_amount`, `rpc_admin_reassign_provider`, `rpc_admin_force_resolve_stuck_transaction`, plus the `_execute_refund` materials bug fix — TXN-013).
+
+---
+
+### TXN-013 — `_execute_refund` never reversed `materials_held`
+
+- **Domain/Subdomain:** Transactions / Payments
+- **Problem:** `_execute_refund` (the function behind dual-control dispute resolution) only ever debited `funds_held` (service amount + platform fee) — it never touched `materials_held` at all, in any version of the function across this project's history. Any disputed transaction with `materials_amount_minor > 0` left that money permanently stuck in `materials_held` with no reversing ledger entry: neither refunded to the customer nor paid to the provider. `rpc_resolve_dispute`'s own signature has no materials parameter, so there was no way for an admin to even direct where it should go.
+- **Evidence:** Confirmed (code) — full read of the live `_execute_refund` body (`supabase/migrations/20260914160000_milestone_payments.sql`) before the fix; confirmed by reproducing it live via a role-simulated, rolled-back dispute resolution on a transaction with `materials_amount_minor = 60000`: the resulting `materials_held` account's net balance for that transaction was left nonzero (money unaccounted for) before the fix.
+- **How it was found:** Discovered while building TXN-010's `rpc_admin_force_resolve_stuck_transaction`, which is structurally almost identical to `_execute_refund` — writing the materials-handling logic for the new function made the absence of the same logic in the existing one obvious by contrast (the same pattern that surfaced SEC-013).
+- **Severity:** P0 — real, unaccounted-for money in a live financial ledger.
+- **Fix:** `supabase/migrations/20260915100100_txn010_admin_transaction_repair_tools.sql` — `_execute_refund` now also debits whatever portion of `materials_held` is still actually held (accounting for the `materials` milestone possibly having already released at check-in, same already-released reasoning applied elsewhere) and credits it in full to the customer's `refunds` — the same "customer never received the materials" default `rpc_cancel_booking` already established, since `rpc_resolve_dispute` has no parameter to direct it otherwise.
+- **Verified:** live, role-simulated, rolled-back: opened a dispute on a transaction with materials, resolved it via the real `rpc_resolve_dispute` → dual-control → `rpc_decide_admin_action` path, confirmed a `materials_held` debit of the exact materials amount now exists, `materials_held`'s net balance for that transaction is 0, the refund total correctly includes the materials amount, and the full-lifecycle ledger balances (previously would have failed this check).
+- **Status:** Resolved 2026-09-15.
 
 ---
 
@@ -1169,7 +1183,8 @@ vertical). **Status:** Requires legal review.
 - **Recommended solution:** A `/admin/transactions/[id]` detail view unifying all of the above into one timeline, read-only, with links to take the two existing repair actions (`rpc_resolve_dispute`, manual payment confirmation) directly from that screen.
 - **Owner:** Backend + admin frontend.
 - **Complexity:** Medium.
-- **Status:** Not started (pending confirmation of current `/admin/transactions` scope — Investigating first).
+- **Resolution (confirmed 2026-09-15):** This was already substantially built — a prior session's own work, referenced there as `MARKETPLACE_ADMIN_CAPABILITY_MATRIX.md` BK-B2/B3/B4/B13, that this register's own "Investigating" status never got closed out. Full read of `/admin/bookings/[id]/page.tsx` this pass confirms it unifies: core transaction fields, payments, ledger entries (**with a live debit=credit balance check rendered on the page itself**), disputes, evidence (flagging any not captured in-app), the customer review, internal admin notes (with an add-note form), the full state-transition event history, and prior admin interventions — all in one page, one query batch, every underlying table's RLS policy confirmed `is_admin()`-gated (no service-role bypass needed). It lives at `/admin/bookings/[id]`, not `/admin/transactions/[id]` as originally proposed — the transactions list (`/admin/transactions`) already links there. This pass added the TXN-010/OPS-002 repair tools directly onto this same page (a "Repair tools" panel, gated by current state). **Not yet done:** payment_provider_events (raw webhook deliveries) isn't surfaced here — a minor gap, low priority until PAY-001 connects a real aggregator generating real webhook traffic to inspect.
+- **Status:** Resolved — confirmed pre-existing 2026-09-15, register status corrected to match reality.
 
 ---
 
@@ -1181,7 +1196,19 @@ vertical). **Status:** Requires legal review.
 - **Recommended solution:** Identify the next 2–3 most common repair needs (a wrong amount before funding, a mis-assigned provider, a stuck `checked_in` transaction with no evidence ever submitted) and build narrow, audited RPCs for each, following the exact established pattern (`SECURITY DEFINER`, `is_admin()`-gated, `admin_actions` logged, `app.bypass_txn_guard`-style escape hatch for the one specific transition needed).
 - **Owner:** Backend.
 - **Complexity:** Medium (one RPC at a time).
-- **Status:** Not started.
+- **Resolution (2026-09-15):** Built the register's own three named examples, in
+  `supabase/migrations/20260915100000_txn010_force_resolve_enum_value.sql` and
+  `20260915100100_txn010_admin_transaction_repair_tools.sql`:
+  1. **`rpc_admin_correct_transaction_amount`** — fixes a wrong amount before funding (blocked once `funded_at` is set — the `guard_transaction_financial_write` trigger already enforces this at the DB level, and this RPC checks it explicitly for a clearer error). Recomputes the platform/provider fee via the same `_resolve_fee_pcts` call `rpc_book_service` itself uses, and regenerates any milestone rows against the corrected amount. Single `is_admin()` — no money has moved yet.
+  2. **`rpc_admin_reassign_provider`** — fixes a mis-assigned provider, allowed only through `en_route` (before physical work starts, since reassigning after check-in would strand already-released milestone money with the wrong provider). Requires the new provider to be cleared for the category, the same check `rpc_book_service` enforces. Single `is_admin()`.
+  3. **`rpc_admin_force_resolve_stuck_transaction`** — resolves a job stuck mid-flight (`checked_in` through `revision_requested`) with no open dispute to anchor a resolution (e.g. a provider checked in and went silent). Structurally mirrors `_execute_refund` almost exactly — same split rule, same already-released-milestone accounting, same materials handling — just keyed on the transaction directly. Money-moving with no dispute record, so this goes through the **same dual-control mechanism** as a real dispute resolution (a new `force_resolve_stuck_transaction` approval-action type, GOV-P4) — a single admin cannot execute it alone.
+
+  Building (3) surfaced a real, separate bug — see **TXN-013** — fixed in the same migration.
+
+  All three wired into `/admin/bookings/[id]` via a new "Repair tools" panel (gated by current state, mirroring each RPC's own guard), and `/admin/approvals` extended to show and link the new dual-control action type.
+
+  Verified live via role-simulated, rolled-back transactions: amount correction resolves fees correctly and is blocked once funded; reassignment is blocked for an uncleared provider and once checked-in, succeeds for a cleared one; force-resolve is blocked from the wrong states, blocks self-decide, a distinct admin's approval correctly splits funds with the full-lifecycle ledger balanced (including the trickiest case — a milestone-qualifying transaction where both `scope_agreement` and `materials` had already released before the stuck resolution).
+- **Status:** Resolved 2026-09-15.
 
 ---
 

@@ -6,6 +6,10 @@ import { TXN_STATE_LABELS, type TxnState, type TransactionMilestone } from "@/li
 import { ErrorNotice } from "@/components/error-notice";
 import { MilestonesCard } from "@/components/ui/milestones-card";
 import { AddNoteForm } from "./add-note-form";
+import { RepairPanel } from "./repair-panel";
+
+const REASSIGNABLE_STATES = ["requested", "quoted", "quote_accepted", "funded", "scheduled", "en_route"];
+const FORCE_RESOLVABLE_STATES = ["checked_in", "in_progress", "evidence_submitted", "customer_review", "revision_requested"];
 
 /**
  * MARKETPLACE_ADMIN_CAPABILITY_MATRIX.md BK-B2/B3/B4/B13: the single
@@ -67,6 +71,21 @@ export default async function AdminBookingDetailPage({ params }: { params: Promi
     supabase.from("booking_notes").select("id, admin_id, note, created_at").eq("transaction_id", id).order("created_at", { ascending: false }),
     supabase.from("transaction_milestones").select("*").eq("transaction_id", id).order("sort_order").returns<TransactionMilestone[]>(),
   ]);
+
+  const { data: clearedProviders } = await supabase
+    .from("provider_categories")
+    .select("provider_id, providers(id, display_name)")
+    .eq("category_id", txn.category_id)
+    .eq("is_cleared", true)
+    .returns<{ provider_id: string; providers: { id: string; display_name: string } | null }[]>();
+
+  const otherClearedProviders =
+    clearedProviders
+      ?.filter((pc) => pc.provider_id !== txn.provider_id && pc.providers)
+      .map((pc) => ({ id: pc.providers!.id, display_name: pc.providers!.display_name })) ?? [];
+
+  const scopeAgreementReleased = milestones?.find((m) => m.kind === "scope_agreement" && m.state === "released")?.amount_minor ?? 0;
+  const serviceStillHeldMinor = txn.service_amount_minor - scopeAgreementReleased;
 
   const providerOwnerId = provider?.user_id;
   const { data: providerOwner } = providerOwnerId
@@ -147,6 +166,17 @@ export default async function AdminBookingDetailPage({ params }: { params: Promi
           <MilestonesCard milestones={milestones} currency={txn.currency} />
         </div>
       )}
+
+      <RepairPanel
+        transactionId={txn.id}
+        canCorrectAmount={!txn.funded_at}
+        canReassign={REASSIGNABLE_STATES.includes(txn.state)}
+        canForceResolve={FORCE_RESOLVABLE_STATES.includes(txn.state)}
+        serviceAmountKes={txn.service_amount_minor / 100}
+        materialsAmountKes={txn.materials_amount_minor / 100}
+        clearedProviders={otherClearedProviders}
+        serviceStillHeldKes={serviceStillHeldMinor / 100}
+      />
 
       <Section title="Payments" empty={!payments?.length}>
         {payments?.map((p) => (          <RowCard key={p.id}>

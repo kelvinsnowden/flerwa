@@ -5,7 +5,13 @@ import { ApprovalActions } from "./approval-actions";
 
 type PendingApproval = {
   id: string;
-  action_type: "refund" | "suspend_customer" | "suspend_provider" | "category_pause" | "confirm_manual_payment";
+  action_type:
+    | "refund"
+    | "suspend_customer"
+    | "suspend_provider"
+    | "category_pause"
+    | "confirm_manual_payment"
+    | "force_resolve_stuck_transaction";
   payload: Record<string, unknown>;
   reason: string | null;
   proposed_by: string;
@@ -22,6 +28,7 @@ const ACTION_LABELS: Record<PendingApproval["action_type"], string> = {
   suspend_provider: "Suspend/reinstate provider",
   category_pause: "Pause/resume category",
   confirm_manual_payment: "Confirm manual payment received",
+  force_resolve_stuck_transaction: "Force-resolve stuck transaction",
 };
 
 function summarizePayload(a: PendingApproval): string {
@@ -36,6 +43,8 @@ function summarizePayload(a: PendingApproval): string {
       return p.active ? "Resume" : "Pause";
     case "confirm_manual_payment":
       return `Reference ${p.external_reference}${p.notes ? ` — "${p.notes}"` : ""}`;
+    case "force_resolve_stuck_transaction":
+      return `Provider gets ${formatMoney(Number(p.provider_minor), "KES")}, customer refunded ${formatMoney(Number(p.customer_refund_minor), "KES")}`;
     default:
       return JSON.stringify(p);
   }
@@ -102,6 +111,12 @@ export default async function AdminApprovalsPage({
                 <p className="font-medium">{ACTION_LABELS[a.action_type]}</p>
                 <p className="text-sm text-[var(--muted)]">{summarizePayload(a)}</p>
                 {a.reason && <p className="text-sm mt-1">&ldquo;{a.reason}&rdquo;</p>}
+                {(a.action_type === "force_resolve_stuck_transaction" || a.action_type === "confirm_manual_payment") &&
+                  typeof a.payload.transaction_id === "string" && (
+                    <a href={`/admin/bookings/${a.payload.transaction_id}`} className="text-xs underline">
+                      View transaction
+                    </a>
+                  )}
                 <p className="text-xs text-[var(--muted-2)] mt-1">
                   Proposed by {nameById.get(a.proposed_by) ?? a.proposed_by.slice(0, 8)} · {new Date(a.proposed_at).toLocaleString("en-KE")}
                 </p>

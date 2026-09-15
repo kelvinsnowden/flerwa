@@ -1,0 +1,12 @@
+-- TXN-010 / OPS-002: no safe admin repair path exists beyond
+-- rpc_resolve_dispute and rpc_convert_deal_desk_request. This adds a third
+-- dual-control action type for the highest-risk repair (force-resolving a
+-- transaction stuck mid-flight with no open dispute) — see the main
+-- migration for the two lower-risk, single-admin repair RPCs (amount
+-- correction pre-funding, provider reassignment) and this one's full
+-- rationale.
+--
+-- New enum value must commit in its own transaction before any later
+-- statement can reference it (Postgres restriction on ALTER TYPE ... ADD
+-- VALUE), same as PAY-004's enum extension.
+alter type approval_action_type add value 'force_resolve_stuck_transaction';
