@@ -31,7 +31,8 @@ export type IconName =
   | "shopping-bag"
   | "chef-hat"
   | "help-circle"
-  | "paperclip";
+  | "paperclip"
+  | "flag";
 
 const PATHS: Record<IconName, React.ReactNode> = {
   "shield-check": (
@@ -152,6 +153,12 @@ const PATHS: Record<IconName, React.ReactNode> = {
     </>
   ),
   paperclip: <path d="M8 12V6.5a3.5 3.5 0 1 1 7 0V15a5.5 5.5 0 1 1-11 0V8" />,
+  flag: (
+    <>
+      <path d="M5 21V4" />
+      <path d="M5 4h13l-3 4 3 4H5" />
+    </>
+  ),
 };
 
 export function Icon({

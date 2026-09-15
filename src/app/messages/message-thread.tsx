@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Icon } from "@/components/ui/icon";
+import { ReportButton } from "@/components/report/report-button";
 import type { Message } from "@/lib/types";
 import { sendMessage, markThreadRead } from "./actions";
 
@@ -140,7 +141,7 @@ export function MessageThread({
         {messages.map((m) => {
           const mine = m.sender_id === currentUserId;
           return (
-            <div key={m.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
+            <div key={m.id} className={`flex flex-col ${mine ? "items-end" : "items-start"}`}>
               <div
                 className="max-w-[80%] rounded-2xl px-3.5 py-2 text-sm"
                 style={
@@ -157,6 +158,11 @@ export function MessageThread({
                   {new Date(m.created_at).toLocaleTimeString("en-KE", { hour: "numeric", minute: "2-digit" })}
                 </p>
               </div>
+              {!mine && (
+                <div className="mt-0.5">
+                  <ReportButton targetType="message" targetId={m.id} />
+                </div>
+              )}
             </div>
           );
         })}

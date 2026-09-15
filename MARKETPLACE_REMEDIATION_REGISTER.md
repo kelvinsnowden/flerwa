@@ -55,8 +55,8 @@ Verified follow-up is a known, stated risk, not a claim of completeness.
 | TSF-004 | No conflict-of-interest declaration field/flow | Trust & Safety | P0 | Not started |
 | TSF-005 | No dual-coverage (second inspector) mechanism for high-value jobs | Trust & Safety | P1 | Not started |
 | TSF-006 | No outcome-follow-up mechanism (30–60 day post-job check) | Trust & Safety | P2 | Not started |
-| TSF-007 | No report/flag mechanism on messages, reviews, or profiles | Trust & Safety | P0 | Not started |
-| TSF-008 | No moderation queue or admin abuse-review workflow | Trust & Safety | P1 | Not started |
+| TSF-007 | No report/flag mechanism on messages, reviews, or profiles | Trust & Safety | P0 | **Resolved** |
+| TSF-008 | No moderation queue or admin abuse-review workflow | Trust & Safety | P1 | Partially addressed — see TSF-007 |
 | TSF-009 | No risk-scoring or suspicious-behavior signal pipeline | Trust & Safety | P1 | Not started |
 | TSF-010 | No account/transaction velocity limits beyond the 5 rate-limited actions | Trust & Safety | P1 | Not started |
 | TSF-011 | No provider-safety opt-in/decline mechanism | Trust & Safety | P1 | Not started |
@@ -101,7 +101,7 @@ Verified follow-up is a known, stated risk, not a claim of completeness.
 | OPS-002 | No safe transaction-repair tool beyond 2 narrow RPCs | Ops/Support | P0 | **Resolved 2026-09-15** |
 | OPS-003 | No support/fraud/verification queue triage UI beyond `/admin/verifications` | Ops/Support | P1 | Not started |
 | OPS-004 | No role-based admin access — `is_admin()` is all-or-nothing | Ops/Support | P1 | Not started |
-| OPS-005 | No two-person approval for financial/ban actions | Ops/Support | P0 | Not started |
+| OPS-005 | No two-person approval for financial/ban actions | Ops/Support | P0 | **Resolved — via PAY-004/GOV-P4** |
 | OPS-006 | No SLA timers or escalation on admin queues | Ops/Support | P2 | Not started |
 | OPS-007 | No internal-notes/assignment mechanism on disputes or verifications | Ops/Support | P2 | Not started |
 | OPS-008 | No customer-visible communication-history view for support | Ops/Support | P2 | Not started |
@@ -761,7 +761,11 @@ a verifiable geotag if location permission was denied).
 - **Implementation tasks:** *DB:* new table + RLS + index. *Backend:* a `reportContent` server action. *Frontend:* a report affordance on messages, reviews, and profiles. *Admin:* the queue (TSF-008).
 - **Owner:** Product + backend.
 - **Complexity:** Medium.
-- **Status:** Not started.
+- **Status:** **Resolved.** `reports` table (`reporter_id`, `target_type` enum `message`/`review`/`provider_profile`/`customer_profile`, `target_id`, `reason`, `description`, `state` enum `open`/`reviewing`/`actioned`/`dismissed`) + RLS applied live (`supabase/migrations/20260915110000_tsf007_report_flag_mechanism.sql`, `20260915110100_tsf007_fix_reports_profile_embedding.sql`). `can_report_target(target_type, target_id)` (SECURITY DEFINER, mirrors `is_admin()`/`is_txn_participant()`'s "callable by authenticated, used inside RLS" pattern — not the `_`-prefixed internal-helper pattern) checks the reporter can actually see the target: for a message, they're the transaction customer/provider or conversation customer/provider; for a review, it's public; for a provider profile, it's public; for a customer profile, only a provider who has an active transaction/conversation with that customer. The insert policy requires both `reporter_id = auth.uid()` and `can_report_target(...)`. `rpc_admin_resolve_report(report_id, state, note)` (admin-only, logs to `admin_actions` as `resolve_report`) is the only way to change a report's state.
+  - **Live-verified** (role-simulated, rolled-back `execute_sql` transaction): a transaction participant can report a message they can see; a non-participant's insert is blocked by RLS (`new row violates row-level security policy for table "reports"`); any authenticated user can report a public provider profile; a non-admin calling `rpc_admin_resolve_report` is blocked (`Only an admin may resolve a report.`); a real admin resolving a report updates `state`/`resolved_by`/`resolved_at` and writes exactly one `admin_actions` row. `get_advisors(type:"security")` showed no new-class finding — `can_report_target` and `rpc_admin_resolve_report` land in the same accepted "SECURITY DEFINER callable by anon/authenticated" baseline as every other public-facing RPC/permission-check function in this schema.
+  - **Found and fixed in the same pass:** `reports.reporter_id`/`resolved_by` were originally defined against `auth.users(id)` (the same PGRST200-causing pattern `20260910154541_fix_postgrest_profile_embedding.sql` fixed for `providers.user_id`/`service_transactions.customer_id`) — retargeted to `profiles(id)` before any UI shipped against it, so the admin moderation queue's `profiles:reporter_id(full_name)` embed actually resolves.
+  - **UI:** `src/components/report/report-button.tsx` (reusable client component, target-type-specific reason lists) + `src/components/report/actions.ts` (`submitReport` server action — a thin RLS-checked insert, no RPC needed since the policy does the real check). Wired into: `src/app/messages/message-thread.tsx` (a small flag affordance under each message from the *other* party — never on your own messages), `src/app/provider/[slug]/page.tsx` (per-review, plus a "Report this professional" link near the primary CTA).
+  - **What this does NOT cover, on purpose:** a `customer_profile` report affordance has no UI entry point yet (there's no page that shows a customer's profile to a provider outside the transaction/message thread itself) — the schema and RLS support it, but nothing links to it. That's a real, documented gap, not a silent one.
 
 ---
 
@@ -774,7 +778,7 @@ a verifiable geotag if location permission was denied).
 - **Dependencies:** TSF-007.
 - **Owner:** Backend + admin frontend.
 - **Complexity:** Medium.
-- **Status:** Not started.
+- **Status:** Partially addressed as a side effect of closing TSF-007 — `/admin/moderation` (`src/app/admin/moderation/page.tsx`) lists open/reviewing reports and lets an admin mark actioned/dismissed with a note, logged to `admin_actions`. **Still missing, and NOT claimed as done here:** filters, a reason-code taxonomy (currently free-text reasons chosen from a fixed per-target-type list, not stored as a normalized code), and warn/suspend/ban shortcut actions — resolving a report today does not itself suspend the provider or hide the review; an admin still has to go do that separately from `/admin/providers` or `/admin/reviews`. That gap is real, scoped, and left open rather than papered over.
 
 ---
 
@@ -987,7 +991,7 @@ a verifiable geotag if location permission was denied).
 Same underlying gap as TSF-007, filed here for messaging-specific
 discoverability.
 
-- **Severity:** P1. **Status:** Not started. See TSF-007.
+- **Severity:** P1. **Status:** **Resolved via TSF-007** — every message from the other party in a thread now has a report affordance (`src/app/messages/message-thread.tsx`). Blocking a user outright (as opposed to reporting a message) is still not built — that's a distinct feature, not covered by TSF-007's scope.
 
 ---
 
@@ -1236,7 +1240,9 @@ vertical). **Status:** Requires legal review.
 ### OPS-005 — No two-person approval for financial/ban actions
 
 Same underlying gap as PAY-004, filed under Operations for
-process-completeness. **Severity:** P0. **Status:** Not started. See PAY-004.
+process-completeness. **Severity:** P0.
+- **Resolution (2026-09-15):** Resolved via PAY-004 and the GOV-P4 dual-control mechanism it extended — every financial or ban-type action in this schema now requires two different admins: refunds, customer/provider suspension, category pause (built in an earlier pass), manual payment confirmation (PAY-004), and force-resolving a stuck transaction (TXN-010) all route through the same propose/decide flow, none executable by a single admin. See PAY-004's own register entry for the verification evidence.
+- **Status:** Resolved 2026-09-15. See PAY-004.
 
 ---
 

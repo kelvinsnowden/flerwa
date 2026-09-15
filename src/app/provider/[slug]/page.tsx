@@ -13,6 +13,7 @@ import { Icon } from "@/components/ui/icon";
 import { SaveButton } from "@/components/ui/save-button";
 import { MessageButton } from "@/components/ui/message-button";
 import { ReadMore } from "@/components/ui/read-more";
+import { ReportButton } from "@/components/report/report-button";
 import { HeroGallery } from "./hero-gallery";
 import { StorefrontQuickNav } from "./storefront-tabs";
 import { AvailabilityCalendar } from "./availability-calendar";
@@ -233,6 +234,12 @@ export default async function ProviderStorefrontPage({
           </div>
         )}
 
+        {!isOwner && user && (
+          <div className="mt-2">
+            <ReportButton targetType="provider_profile" targetId={provider.id} label="Report this professional" />
+          </div>
+        )}
+
         {serviceChips.length > 0 && (
           <div className="mt-5 grid grid-cols-4 gap-2">
             {serviceChips.slice(0, 4).map((c) => (
@@ -396,6 +403,11 @@ export default async function ProviderStorefrontPage({
                       {r.tags.map((t: string) => (
                         <span key={t} className="badge-muted">{t}</span>
                       ))}
+                    </div>
+                  )}
+                  {user && (
+                    <div className="mt-2">
+                      <ReportButton targetType="review" targetId={r.id} />
                     </div>
                   )}
                 </div>
