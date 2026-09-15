@@ -11,6 +11,10 @@
     {
       "path": "/api/cron/generate-recurring-occurrences",
       "schedule": "0 5 * * *"
+    },
+    {
+      "path": "/api/cron/escalate-overdue-disputes",
+      "schedule": "0 * * * *"
     }
   ]
 }

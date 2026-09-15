@@ -10,7 +10,20 @@ export function ConfirmPaymentForm({ transactionId }: { transactionId: string })
   const [done, setDone] = useState(false);
   const [isPending, startTransition] = useTransition();
 
-  if (done) return <p className="mt-3 badge-trust inline-flex">Payment confirmed</p>;
+  if (done) {
+    return (
+      <div className="mt-3">
+        <p className="badge-info inline-flex mb-1">Submitted for approval</p>
+        <p className="text-sm text-[var(--muted)]">
+          A different finance admin needs to approve this from{" "}
+          <a href="/admin/approvals" className="underline">
+            /admin/approvals
+          </a>{" "}
+          before the payment is actually marked funded (dual control — PAY-004).
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-end">

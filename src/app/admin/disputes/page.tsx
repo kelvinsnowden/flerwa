@@ -11,6 +11,9 @@ interface DisputeRow {
   state: string;
   created_at: string;
   assigned_to: string | null;
+  sla_deadline: string | null;
+  escalated_at: string | null;
+  overdue_notified_at: string | null;
   service_transactions: {
     id: string;
     service_amount_minor: number;
@@ -63,6 +66,10 @@ export default async function AdminDisputesPage() {
               providerName: d.service_transactions?.providers?.display_name ?? "Professional",
               customerName: d.service_transactions?.profiles?.full_name ?? "Customer",
               assignedTo: d.assigned_to,
+              state: d.state,
+              slaDeadline: d.sla_deadline,
+              escalatedAt: d.escalated_at,
+              overdueNotifiedAt: d.overdue_notified_at,
             }}
             admins={admins ?? []}
           />

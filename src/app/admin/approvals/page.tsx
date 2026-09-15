@@ -5,7 +5,7 @@ import { ApprovalActions } from "./approval-actions";
 
 type PendingApproval = {
   id: string;
-  action_type: "refund" | "suspend_customer" | "suspend_provider" | "category_pause";
+  action_type: "refund" | "suspend_customer" | "suspend_provider" | "category_pause" | "confirm_manual_payment";
   payload: Record<string, unknown>;
   reason: string | null;
   proposed_by: string;
@@ -21,6 +21,7 @@ const ACTION_LABELS: Record<PendingApproval["action_type"], string> = {
   suspend_customer: "Suspend/reinstate customer",
   suspend_provider: "Suspend/reinstate provider",
   category_pause: "Pause/resume category",
+  confirm_manual_payment: "Confirm manual payment received",
 };
 
 function summarizePayload(a: PendingApproval): string {
@@ -33,6 +34,8 @@ function summarizePayload(a: PendingApproval): string {
       return p.suspended ? "Suspend" : "Reinstate";
     case "category_pause":
       return p.active ? "Resume" : "Pause";
+    case "confirm_manual_payment":
+      return `Reference ${p.external_reference}${p.notes ? ` — "${p.notes}"` : ""}`;
     default:
       return JSON.stringify(p);
   }
@@ -69,9 +72,10 @@ export default async function AdminApprovalsPage({
     <div>
       <h1 className="text-xl font-bold mb-2">Approvals</h1>
       <p className="text-sm text-[var(--muted)] mb-6">
-        Every refund, ban/reinstatement, and category pause requires a <strong>different</strong> admin to approve it
-        before it takes effect (dual control — see MARKETPLACE_REMEDIATION_REGISTER.md GOV-P4). Proposing one of these
-        actions elsewhere in the admin console lands it here.
+        Every refund, ban/reinstatement, category pause, and manual payment confirmation requires a{" "}
+        <strong>different</strong> admin to approve it before it takes effect (dual control — see
+        MARKETPLACE_REMEDIATION_REGISTER.md GOV-P4 / PAY-004). Proposing one of these actions elsewhere in the admin
+        console lands it here.
       </p>
 
       <form className="mb-4 flex gap-2" method="get">

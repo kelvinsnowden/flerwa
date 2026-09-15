@@ -25,10 +25,11 @@ Verified follow-up is a known, stated risk, not a claim of completeness.
 | SEC-010 | No PII redaction in server logs | Security | P1 | Not started |
 | SEC-011 | No CSP or frame-ancestors header | Security | P2 | Not started |
 | SEC-012 | Identity documents lack a defined retention/deletion policy | Security/Legal | P0 | Not started |
+| SEC-013 | `_execute_*` dual-control functions had default PUBLIC EXECUTE grant — anon could bypass admin check + dual control entirely | Security | **P0 — critical** | **Resolved 2026-09-15** |
 | PAY-001 | No real payment aggregator connected — `manual` only | Payments | P1 | Not started |
 | PAY-002 | Payment-provider-timeout handling never exercised | Payments | P2 | Not started |
 | PAY-003 | No reconciliation job against aggregator settlement | Payments | P0 | Not started |
-| PAY-004 | No dual-control on `rpc_confirm_manual_payment` | Payments | P0 | Not started |
+| PAY-004 | No dual-control on `rpc_confirm_manual_payment` | Payments | P0 | **Resolved 2026-09-15** |
 | PAY-005 | No prorated-payment path for partial completion | Payments | P1 | Not started |
 | PAY-006 | Ledger self-consistency is never asserted by a job | Payments | P0 | **Verified** |
 | PAY-007 | Flat 12% fee in code does not match `docs/10`'s vertical model | Payments | P1 | **Resolved 2026-09-14** |
@@ -38,7 +39,7 @@ Verified follow-up is a known, stated risk, not a claim of completeness.
 | TXN-001 | `rpc_submit_quote`/`rpc_accept_quote` have no idempotency key | Transactions | P1 | Not started |
 | TXN-002 | `rpc_start_conversation` has no idempotency key | Transactions | P2 | Not started |
 | TXN-003 | No lock audit performed on 5 state-transition RPCs | Transactions | P2 | **In progress — 2 of 5 confirmed** |
-| TXN-004 | Disputes have no deadline/time-bound field | Transactions | P0 | Not started |
+| TXN-004 | Disputes have no deadline/time-bound field | Transactions | P0 | **Resolved 2026-09-15** |
 | TXN-005 | No cancellation-fee enforcement (`docs/07`'s <24h/after-check-in rules) | Transactions | P1 | **Confirmed not fixed — investigation closed** |
 | TXN-006 | No customer-unreachable / repeat-non-funding penalty | Transactions | P2 | Not started |
 | TXN-007 | No provider no-show detection or suspension trigger | Transactions | P1 | Not started |
@@ -371,6 +372,22 @@ materially more work than the other headers.
 
 ---
 
+### SEC-013 — `_execute_*` dual-control functions had default PUBLIC EXECUTE grant
+
+- **Domain/Subdomain:** Security / Authorization
+- **Problem:** `20260914120200_dual_control_approvals.sql` (the migration that built the GOV-P4 dual-control mechanism for refund/suspend_customer/suspend_provider/category_pause) has a comment stating "Deliberately no grants on any `_execute_*` function to anon/authenticated — only reachable through `rpc_decide_admin_action`'s own SECURITY DEFINER call chain" — but that migration never actually executed a `revoke`. PostgreSQL grants `EXECUTE` to `PUBLIC` by default on every newly created function, and `anon`/`authenticated` both inherit from `PUBLIC` implicitly. The result: `_execute_refund`, `_execute_suspend_customer`, `_execute_suspend_provider`, and `_execute_category_pause` — each of which trusts entirely that it is only reached through `rpc_decide_admin_action`'s own permission and self-decide checks, and performs **zero internal authorization check of its own** — were directly callable by anyone via `POST /rest/v1/rpc/_execute_refund` etc., **including unauthenticated (`anon`) requests**, completely bypassing both the `is_admin()`/role check and the entire two-person-approval mechanism those functions exist to enforce.
+- **Evidence:** Confirmed live, before the fix — `select has_function_privilege('anon', '_execute_refund(jsonb)', 'EXECUTE')` returned `true` for all four functions, for both `anon` and `authenticated`. Confirmed by `mcp__Supabase__get_advisors(type:"security")` independently flagging all four under `anon_security_definer_function_executable` / `authenticated_security_definer_function_executable`.
+- **Severity:** P0 — critical. An unauthenticated caller could have issued an arbitrary refund on any dispute (`_execute_refund`, taking `dispute_id`/`provider_minor`/`customer_refund_minor`/`resolution` straight from the request body), suspended or reinstated any customer or provider account, or paused/resumed any category — with no login, no admin check, and no second approver.
+- **Failure scenario:** `curl -X POST .../rest/v1/rpc/_execute_refund -d '{"p": {"dispute_id": "<any open dispute>", "provider_minor": 0, "customer_refund_minor": <full amount>, "resolution": "..."}}'` with no `Authorization` header at all, issued by anyone who found the endpoint (e.g. from the advisor output, or generic Supabase RPC enumeration).
+- **How it was found:** Discovered as a side effect of PAY-004 — the newly added `_execute_confirm_manual_payment` was given its `revoke all ... from public, anon, authenticated` explicitly, and the resulting advisor diff made the absence of an equivalent revoke on the four pre-existing functions visible immediately by contrast.
+- **Fix:** `supabase/migrations/20260915090200_fix_execute_admin_action_functions_public_grant.sql` — `revoke all on function _execute_refund(jsonb), _execute_suspend_customer(jsonb), _execute_suspend_provider(jsonb), _execute_category_pause(jsonb) from public, anon, authenticated;`. The legitimate call path (`rpc_decide_admin_action` → `perform _execute_*(...)`) is unaffected: a `SECURITY DEFINER` function executes nested calls with the *owner's* privileges regardless of the invoking role's own grants, which is exactly the mechanism the original migration's comment described — it just never installed the revoke needed to close the direct path.
+- **Verified:** live re-check of `has_function_privilege()` for all four functions (plus the new `_execute_confirm_manual_payment`) against both `anon` and `authenticated` now returns `false` uniformly; a fresh advisor run shows the count of `SECURITY DEFINER`-executable-by-`anon`/`authenticated` findings dropping (21→17 anon, 67→63 authenticated) with no new class of finding introduced.
+- **Owner:** Backend/security.
+- **Complexity:** Trivial fix once found (4 `revoke` statements) — the finding itself required noticing an absence, not an error message.
+- **Status:** Resolved 2026-09-15.
+
+---
+
 ### PAY-001 — No real payment aggregator connected
 
 - **Domain/Subdomain:** Payments
@@ -420,7 +437,12 @@ materially more work than the other headers.
 - **Implementation tasks:** *DB:* new `pending_admin_approvals` table (action type, target, requested_by, approved_by, threshold logic). *Backend:* split the RPC as above. *Admin:* an approval queue UI.
 - **Owner:** Backend + Ops policy owner (threshold is a business decision).
 - **Complexity:** Medium.
-- **Status:** Not started. Requires business decision (threshold amount).
+- **Resolution (2026-09-15):** No new threshold decision needed — the founder's earlier ratified decision (DECISIONS_REQUIRING_FOUNDER_OR_BUSINESS_APPROVAL #4: "two-person approval for everything, no single-admin threshold... every privileged financial/moderation RPC") already covers manual payment confirmation; it was simply never retrofitted when the generic dual-control mechanism (GOV-P4) shipped. Implemented in
+  `supabase/migrations/20260915090000_pay004_dual_control_enum_value.sql` and
+  `20260915090100_pay004_dual_control_manual_payment.sql`: added `confirm_manual_payment` to `approval_action_type`, gated by the pre-existing but previously-unused `finance_admin` role; `rpc_confirm_manual_payment` now proposes instead of executing directly (`rpc_propose_admin_action`), and a new `_execute_confirm_manual_payment` (the RPC's former body, unchanged, minus its own `is_admin()` check) runs only when a **different** finance admin decides via `rpc_decide_admin_action`. Same name/parameters on the public RPC, so `admin/payments/actions.ts` needed no change; the UI (`confirm-payment-form.tsx`) was updated to show "Submitted for approval" instead of claiming "Payment confirmed" immediately, matching the existing dispute-card pattern. `admin/approvals/page.tsx` extended with the new action type's label/payload summary. Verified live via role simulation (rolled back): propose alone leaves the transaction in `requested` state (not funded); the proposer attempting to decide their own proposal is rejected; a second, distinct admin's approval correctly funds the transaction with a payment row, a balanced ledger, and the audit-trail action attributed to the decider.
+  **Known limitation, not fixed by this change:** the live database currently has exactly one admin account, so no manual payment can actually be *decided* (only proposed) until a second admin is granted the `finance_admin` role via `/admin/roles` — this is a pre-existing consequence of the dual-control architecture itself (true for refund/suspend/pause too), not something new introduced here.
+  **Bonus finding — see SEC-013:** while adding this, discovered and fixed a critical, live, unauthenticated bypass of the *entire* dual-control mechanism affecting the four action types already shipped.
+- **Status:** Resolved 2026-09-15.
 
 ---
 
@@ -542,7 +564,8 @@ materially more work than the other headers.
 - **Implementation tasks:** *DB:* new column + migration. *Backend:* new cron route (`dispute-sla-sweep`, mirroring `auto-approve-sweep`'s structure exactly — locked wrapper, `scheduler_runs` logging). *Admin:* SLA countdown visible on the disputes queue.
 - **Owner:** Backend.
 - **Complexity:** Medium.
-- **Status:** Not started.
+- **Resolution (2026-09-15):** Implemented in `supabase/migrations/20260915091000_txn004_dispute_sla_deadlines.sql`: three new columns on `disputes` (`sla_deadline`, `escalated_at`, `overdue_notified_at`). Scope decision, documented in the migration's own header: a dispute arrives already carrying a structured reason+description, so it starts at L1's 48h timer rather than L0's; L2's automated-rules resolution and L3's "both parties accept a proposed split" step don't exist anywhere in this schema (`rpc_resolve_dispute` is a unilateral admin decision under dual control, not a two-party accept flow) and building either is a materially larger feature, deliberately out of scope here. What shipped: `rpc_open_dispute` now sets a real 48h `sla_deadline`; a new `rpc_escalate_overdue_disputes()` (wrapped in `rpc_escalate_overdue_disputes_locked()`, same advisory-lock overlap guard as the existing sweeps) moves `open` → `under_review` once that window lapses, extending the deadline by 72h (L1+L3's combined 120h = docs' own L4 "5 days" total) and notifying every admin; a dispute still unresolved past that second deadline is flagged (once — `overdue_notified_at` prevents re-notification on every subsequent run) as urgently overdue for adjudication. **Deliberately does not auto-resolve any financial outcome at any stage** — docs/06's own auto-resolution rules table (proration, scope disagreement, missing evidence) requires reading evidence no cron job can safely judge, and L4 is explicitly "trained ops decides on an evidence rubric," a human action; the sweep's job is to make an unresolved dispute impossible to lose track of, not to move money. New cron route `/api/cron/escalate-overdue-disputes`, added to `vercel.json` at `0 * * * *` (hourly, not daily like the other sweeps — SLA windows here are measured in hours, so a daily sweep could let a dispute sit up to 24h past its real deadline before being caught). `/admin/disputes` now shows the real state (open/mediation), a "respond by" / "escalated, respond by" / "overdue since — needs a decision today" line per dispute. Verified live via role simulation (rolled back): a fresh dispute gets a 48h deadline; backdating it and running the sweep correctly escalates to `under_review` with a fresh 72h deadline and one notification per admin; backdating again and re-running correctly sets `overdue_notified_at` and sends the urgent notification; a third sweep run does not duplicate either notification; the locked wrapper's overlap-guard shape is intact.
+- **Status:** Resolved 2026-09-15.
 
 ---
 

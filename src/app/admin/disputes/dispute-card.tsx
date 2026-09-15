@@ -16,6 +16,10 @@ interface Props {
     providerName: string;
     customerName: string;
     assignedTo: string | null;
+    state: string;
+    slaDeadline: string | null;
+    escalatedAt: string | null;
+    overdueNotifiedAt: string | null;
   };
   admins: { id: string; full_name: string | null }[];
 }
@@ -63,7 +67,9 @@ export function DisputeCard({ dispute, admins }: Props) {
             {dispute.customerName} vs {dispute.providerName} · {formatMoney(dispute.serviceAmountMinor, dispute.currency)}
           </p>
         </div>
-        <span className="badge-warn">open</span>
+        <span className={dispute.overdueNotifiedAt ? "badge-danger" : dispute.state === "under_review" ? "badge-warn" : "badge-info"}>
+          {dispute.state === "under_review" ? "mediation" : "open"}
+        </span>
       </div>
 
       <p className="text-sm mt-2 font-medium">{dispute.reason}</p>
@@ -71,6 +77,17 @@ export function DisputeCard({ dispute, admins }: Props) {
       <p className="text-xs text-[var(--muted-2)] mt-1">
         Opened {new Date(dispute.createdAt).toLocaleString("en-KE")}
       </p>
+      {dispute.overdueNotifiedAt ? (
+        <p className="text-xs text-[var(--danger)] font-medium mt-1">
+          Overdue for adjudication since {new Date(dispute.slaDeadline!).toLocaleString("en-KE")} — needs a decision today.
+        </p>
+      ) : dispute.slaDeadline ? (
+        <p className="text-xs text-[var(--muted-2)] mt-1">
+          {dispute.escalatedAt
+            ? `Escalated to mediation ${new Date(dispute.escalatedAt).toLocaleString("en-KE")} — respond by ${new Date(dispute.slaDeadline).toLocaleString("en-KE")}`
+            : `Respond by ${new Date(dispute.slaDeadline).toLocaleString("en-KE")}`}
+        </p>
+      ) : null}
 
       <div className="mt-3 flex items-center gap-2">
         <label className="text-xs font-medium" htmlFor={`assignee-${dispute.id}`}>
