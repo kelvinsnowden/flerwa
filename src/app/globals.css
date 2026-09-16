@@ -33,6 +33,19 @@
   --info: #1d5fa3;
   --info-tint: #e8f1fb;
 
+  /* Admin console shell — dark sidebar, light workspace. Distinct token
+     set from the customer/provider mobile UI above (kept separate on
+     purpose: the admin console is a desktop-first operations tool, not
+     an extension of the mobile trust language), but still drawing its
+     one accent color from --trust so "Trusted Services green" reads as
+     the same brand throughout. */
+  --admin-sidebar-bg: #0e1613;
+  --admin-sidebar-fg: #e9ede9;
+  --admin-sidebar-muted: #8a968e;
+  --admin-sidebar-hover: rgba(255, 255, 255, 0.06);
+  --admin-sidebar-border: rgba(255, 255, 255, 0.08);
+  --admin-sidebar-width: 15.5rem;
+
   --radius-sm: 0.5rem;
   --radius-md: 0.75rem;
   --radius-lg: 1rem;
@@ -298,5 +311,83 @@
     background: var(--foreground);
     color: var(--card);
     border-color: var(--foreground);
+  }
+
+  /* ---------------------------------------------------------------------
+   * Admin console: sidebar nav item, data table, and slide-over drawer.
+   * Reuses the badge, avatar, stat-tile and pill-tab classes above
+   * rather than duplicating them — these are the pieces the mobile UI
+   * has no equivalent for.
+   * --------------------------------------------------------------------- */
+  .admin-nav-item {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    padding: 0.55rem 0.75rem;
+    border-radius: var(--radius-sm);
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--admin-sidebar-muted);
+    transition: background-color 0.12s ease, color 0.12s ease;
+  }
+  .admin-nav-item:hover {
+    background: var(--admin-sidebar-hover);
+    color: var(--admin-sidebar-fg);
+  }
+  .admin-nav-item[data-active="true"] {
+    background: var(--trust);
+    color: white;
+  }
+
+  .admin-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+  }
+  .admin-table thead th {
+    text-align: left;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--muted);
+    padding: 0.6rem 0.9rem;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  .admin-table tbody td {
+    padding: 0.7rem 0.9rem;
+    border-bottom: 1px solid var(--border);
+    vertical-align: middle;
+  }
+  .admin-table tbody tr {
+    transition: background-color 0.1s ease;
+  }
+  .admin-table tbody tr:hover {
+    background: var(--surface);
+  }
+  .admin-table tbody tr[data-selected="true"] {
+    background: var(--trust-tint);
+  }
+  .admin-table tbody tr:last-child td {
+    border-bottom: none;
+  }
+
+  .admin-drawer-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 20, 18, 0.35);
+    z-index: 50;
+  }
+  .admin-drawer-panel {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 100%;
+    max-width: 30rem;
+    background: var(--card);
+    box-shadow: -8px 0 24px rgba(20, 24, 28, 0.12);
+    z-index: 51;
+    display: flex;
+    flex-direction: column;
   }
 }

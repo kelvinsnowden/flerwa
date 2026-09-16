@@ -36,7 +36,15 @@ export type IconName =
   | "x"
   | "external-link"
   | "instagram"
-  | "tiktok";
+  | "tiktok"
+  | "settings"
+  | "bar-chart"
+  | "list"
+  | "lock"
+  | "link"
+  | "menu"
+  | "download"
+  | "more-horizontal";
 
 const PATHS: Record<IconName, React.ReactNode> = {
   "shield-check": (
@@ -192,6 +200,51 @@ const PATHS: Record<IconName, React.ReactNode> = {
     <>
       <path d="M14 4v10.5a3.5 3.5 0 1 1-3.5-3.5" />
       <path d="M14 4c0 2.5 2 4.5 4.5 4.5" />
+    </>
+  ),
+  settings: (
+    <>
+      <circle cx="12" cy="12" r="3" />
+      <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z" />
+    </>
+  ),
+  "bar-chart": (
+    <>
+      <path d="M4 20V10M12 20V4M20 20v-7" />
+    </>
+  ),
+  list: (
+    <>
+      <path d="M8 6h13M8 12h13M8 18h13" />
+      <path d="M3 6h.01M3 12h.01M3 18h.01" />
+    </>
+  ),
+  lock: (
+    <>
+      <rect x="4" y="10" width="16" height="11" rx="2" />
+      <path d="M7 10V7a5 5 0 0 1 10 0v3" />
+    </>
+  ),
+  link: (
+    <>
+      <path d="M9 15 15 9" />
+      <path d="M10.5 6.5 12 5a4 4 0 1 1 5.7 5.7l-1.8 1.8" />
+      <path d="M13.5 17.5 12 19a4 4 0 1 1-5.7-5.7l1.8-1.8" />
+    </>
+  ),
+  menu: <path d="M4 7h16M4 12h16M4 17h16" />,
+  download: (
+    <>
+      <path d="M12 3v12" />
+      <path d="M6.5 10.5 12 16l5.5-5.5" />
+      <path d="M4 20h16" />
+    </>
+  ),
+  "more-horizontal": (
+    <>
+      <circle cx="5" cy="12" r="1.5" />
+      <circle cx="12" cy="12" r="1.5" />
+      <circle cx="19" cy="12" r="1.5" />
     </>
   ),
 };
