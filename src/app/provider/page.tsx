@@ -101,7 +101,7 @@ export default async function ProviderDashboardPage() {
       <div className="flex items-center gap-3">
         <PhotoUpload name={provider.display_name} initialPhotoUrl={provider.profiles?.avatar_url ?? null} />
         <div className="flex-1 min-w-0">
-          <div className="flex items-center justify-between gap-2 flex-wrap">
+          <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between sm:gap-2">
             <h1 className="text-xl font-bold truncate min-w-0">{provider.display_name}</h1>
             <div className="flex items-center gap-3 flex-shrink-0">
               <Link
