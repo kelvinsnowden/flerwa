@@ -500,7 +500,7 @@ export function Wizard({
           </div>
           <div>
             <p className="text-xs font-semibold text-[var(--muted)] mb-1">Services</p>
-            <p className="text-sm">{services.filter((s) => selectedServiceIds.includes(s.id)).map((s) => s.name).join(", ") || "None"}</p>
+            <p className="text-sm">{dynamicServices.filter((s) => selectedServiceIds.includes(s.id)).map((s) => s.name).join(", ") || "None"}</p>
           </div>
           <div>
             <p className="text-xs font-semibold text-[var(--muted)] mb-1">Base location</p>
