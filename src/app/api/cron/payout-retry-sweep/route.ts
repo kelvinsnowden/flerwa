@@ -18,9 +18,10 @@ import { attemptAllPendingPayouts } from "@/lib/payouts/initiate";
  * Same auth/logging shape as the other cron routes in this codebase
  * (src/app/api/cron/ledger-reconciliation, auto-approve-sweep): fails
  * closed without CRON_SECRET, constant-time bearer check, a
- * scheduler_runs row for observability. Runs hourly (vercel.json),
- * matching escalate-overdue-disputes' cadence — money owed to a
- * provider sitting unpaid is exactly that kind of time-sensitive.
+ * scheduler_runs row for observability. Runs daily (vercel.json) — was
+ * hourly until the Vercel Hobby plan's daily-cron-only limit forced a
+ * downgrade; a failed payout can now sit up to 24h before the next
+ * retry instead of 1h.
  */
 export async function GET(req: NextRequest) {
   const configuredSecret = process.env.CRON_SECRET;
@@ -61,7 +62,7 @@ export async function GET(req: NextRequest) {
     }
     await sendOpsAlert({
       subject: "[flerwa] Payout retry sweep FAILED TO RUN",
-      body: `The hourly payout retry sweep did not complete.\n\nError: ${message}\n\nPayouts owed to providers may be sitting unsent until this is resolved.`,
+      body: `The daily payout retry sweep did not complete.\n\nError: ${message}\n\nPayouts owed to providers may be sitting unsent until this is resolved.`,
     });
     return NextResponse.json({ error: "Payout retry sweep failed to run. See server logs." }, { status: 500 });
   }
