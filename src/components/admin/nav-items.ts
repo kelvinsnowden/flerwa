@@ -10,7 +10,9 @@ export interface AdminNavItem {
 
 export const ADMIN_NAV_ITEMS: AdminNavItem[] = [
   { href: "/admin", label: "Overview", icon: "home" },
+  { href: "/admin/analytics", label: "Analytics", icon: "bar-chart" },
   { href: "/admin/verifications", label: "Verifications", icon: "shield-check", badgeKey: "pendingVerifications" },
+  { href: "/admin/services", label: "Services", icon: "shopping-bag" },
   { href: "/admin/providers", label: "Providers", icon: "briefcase" },
   { href: "/admin/customers", label: "Customers", icon: "user" },
   { href: "/admin/transactions", label: "Bookings", icon: "calendar" },
@@ -21,6 +23,7 @@ export const ADMIN_NAV_ITEMS: AdminNavItem[] = [
   { href: "/admin/disputes", label: "Disputes", icon: "flag" },
   { href: "/admin/moderation", label: "Moderation", icon: "shield-check" },
   { href: "/admin/categories", label: "Categories", icon: "grid" },
+  { href: "/admin/messages", label: "Messages", icon: "message-circle" },
   { href: "/admin/support", label: "Support", icon: "help-circle" },
   { href: "/admin/deal-desk", label: "Deal Desk", icon: "briefcase" },
   { href: "/admin/demand", label: "Demand", icon: "bar-chart" },

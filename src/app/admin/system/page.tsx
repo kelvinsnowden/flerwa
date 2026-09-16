@@ -42,8 +42,8 @@ export default async function AdminSystemPage({
       <h1 className="text-xl font-bold mb-2">System health</h1>
       <p className="text-sm text-[var(--muted)] mb-6">Full run history for every scheduled background job.</p>
 
-      <form method="GET" className="flex flex-wrap gap-3 mb-6 text-sm">
-        <select name="job" defaultValue={params.job ?? ""} className="border rounded px-3 py-1.5">
+      <form method="GET" className="flex flex-wrap gap-2 mb-6 text-sm">
+        <select name="job" defaultValue={params.job ?? ""} className="!min-h-0 !py-2 text-sm">
           <option value="">All jobs</option>
           {jobNames.map((j) => (
             <option key={j} value={j}>
@@ -51,11 +51,11 @@ export default async function AdminSystemPage({
             </option>
           ))}
         </select>
-        <button type="submit" className="btn-primary px-4 py-1.5 rounded">
+        <button type="submit" className="btn-primary text-sm">
           Filter
         </button>
         {params.job && (
-          <a href="/admin/system" className="text-[var(--muted)] hover:underline self-center">
+          <a href="/admin/system" className="text-sm text-[var(--muted)] hover:text-[var(--foreground)] px-2 self-center">
             Clear
           </a>
         )}
@@ -63,45 +63,47 @@ export default async function AdminSystemPage({
 
       {error && <ErrorNotice message="We couldn't load scheduler history. Please refresh." />}
       {!error && !runs?.length && (
-        <p className="text-sm text-[var(--muted)]">
-          {params.job ? "No runs match this filter." : "No scheduled job has ever run — check that CRON_SECRET is set and the Vercel Cron jobs are registered."}
-        </p>
+        <div className="card p-8 text-center">
+          <p className="text-sm font-medium">
+            {params.job ? "No runs match this filter." : "No scheduled job has ever run — check that CRON_SECRET is set and the Vercel Cron jobs are registered."}
+          </p>
+        </div>
       )}
       {!error && !!runs?.length && (
         <>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+          <div className="card overflow-x-auto">
+            <table className="admin-table">
               <thead>
-                <tr className="text-left text-[var(--muted)] border-b">
-                  <th className="py-2 pr-4">Job</th>
-                  <th className="py-2 pr-4">Started</th>
-                  <th className="py-2 pr-4">Duration</th>
-                  <th className="py-2 pr-4">Result</th>
-                  <th className="py-2">Detail</th>
+                <tr>
+                  <th>Job</th>
+                  <th>Started</th>
+                  <th>Duration</th>
+                  <th>Result</th>
+                  <th>Detail</th>
                 </tr>
               </thead>
               <tbody>
                 {runs.map((r) => {
                   const durationMs = r.finished_at ? new Date(r.finished_at).getTime() - new Date(r.started_at).getTime() : null;
                   return (
-                    <tr key={r.id} className="border-b last:border-0 align-top">
-                      <td className="py-2 pr-4 font-mono text-xs">{r.job_name}</td>
-                      <td className="py-2 pr-4 text-xs text-[var(--muted)] whitespace-nowrap">
+                    <tr key={r.id}>
+                      <td className="font-mono text-xs">{r.job_name}</td>
+                      <td className="text-xs text-[var(--muted)] whitespace-nowrap">
                         {new Date(r.started_at).toLocaleString("en-KE")}
                       </td>
-                      <td className="py-2 pr-4 text-xs text-[var(--muted)]">
+                      <td className="text-xs text-[var(--muted)]">
                         {r.finished_at ? `${((durationMs ?? 0) / 1000).toFixed(1)}s` : "still running / never finished"}
                       </td>
-                      <td className="py-2 pr-4">
+                      <td>
                         {r.success === null ? (
-                          <span className="text-[var(--muted)]">pending</span>
+                          <span className="badge-muted">Pending</span>
                         ) : r.success ? (
-                          "succeeded"
+                          <span className="badge-trust">Succeeded</span>
                         ) : (
-                          <span className="text-[var(--danger)]">failed</span>
+                          <span className="badge-danger">Failed</span>
                         )}
                       </td>
-                      <td className="py-2 text-xs">
+                      <td className="text-xs">
                         {r.error && <span className="text-[var(--danger)]">{r.error}</span>}
                         {!r.error && r.result && Object.keys(r.result).length > 0 && (
                           <details>

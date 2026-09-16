@@ -41,6 +41,25 @@ export default async function AdminIntegrationsPage() {
   const emailChannels = notificationChannels?.filter((c) => c.kind === "email") ?? [];
   const smsChannels = notificationChannels?.filter((c) => c.kind === "sms") ?? [];
 
+  // payout_providers/payouts (migration_proposals/PROPOSED_automated_
+  // provider_payouts.sql) haven't been applied to production — see
+  // /admin/payouts's own audit note. Handled as its own honest "not live
+  // yet" state below instead of one blanket error banner that used to
+  // hide the working Payment/Verification provider sections underneath it
+  // whenever only the payout query failed.
+  const payoutProvidersMissing = !!poError;
+
+  const ENV_GROUPS: { label: string; vars: string[] }[] = [
+    { label: "Payments (collections)", vars: ["PESAPAL_CONSUMER_KEY", "PESAPAL_CONSUMER_SECRET", "PESAPAL_IPN_ID", "INTASEND_SECRET_KEY", "INTASEND_PUBLIC_KEY"] },
+    { label: "Payouts", vars: ["INTASEND_PAYOUT_SECRET_KEY"] },
+    { label: "Identity verification", vars: ["KORA_SECRET_KEY"] },
+    { label: "Email", vars: ["RESEND_API_KEY", "RESEND_WEBHOOK_SECRET", "SUPPORT_EMAIL_FROM"] },
+    { label: "Ops alerting", vars: ["ALERT_EMAIL_TO", "ALERT_EMAIL_FROM"] },
+    { label: "Core platform", vars: ["NEXT_PUBLIC_SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY", "CRON_SECRET"] },
+  ];
+  const envPresence: Record<string, boolean> = {};
+  for (const g of ENV_GROUPS) for (const v of g.vars) envPresence[v] = !!process.env[v];
+
   return (
     <div>
       <h1 className="text-xl font-bold mb-2">Integrations</h1>
@@ -52,9 +71,7 @@ export default async function AdminIntegrationsPage() {
         already-coded adapter is live. See <code>docs/16-payment-verification-integrations.md</code>.
       </p>
 
-      {(ppError || poError || vpError) && (
-        <ErrorNotice message="Couldn't load the provider registry. Please refresh." />
-      )}
+      {(ppError || vpError) && <ErrorNotice message="Couldn't load the provider registry. Please refresh." />}
 
       <section className="mb-8">
         <h2 className="text-sm font-semibold mb-2">Payment providers</h2>
@@ -82,12 +99,21 @@ export default async function AdminIntegrationsPage() {
           legal sign-off first, same gate as payment providers (rpc_confirm_payout_provider_legal_signoff
           — a deliberate no-UI, direct-SQL step; see the migration proposal for why).
         </p>
-        {payoutProviders && <ProviderToggleList kind="payout" rows={payoutProviders} />}
-        {payoutProviders?.find((p) => p.is_active) && (
-          <p className="text-xs text-[var(--muted)] mt-2">
-            Point the active payout vendor&apos;s webhook dashboard at{" "}
-            <code>/api/webhooks/payouts</code> on this domain.
+        {payoutProvidersMissing ? (
+          <p className="text-xs text-[var(--muted)] bg-[var(--warn-tint)] rounded-[var(--radius-sm)] p-2.5">
+            Not live in production yet — the wallet-model payout schema hasn&apos;t been applied. See{" "}
+            <Link href="/admin/payouts" className="underline">Payouts</Link>.
           </p>
+        ) : (
+          <>
+            {payoutProviders && <ProviderToggleList kind="payout" rows={payoutProviders} />}
+            {payoutProviders?.find((p) => p.is_active) && (
+              <p className="text-xs text-[var(--muted)] mt-2">
+                Point the active payout vendor&apos;s webhook dashboard at{" "}
+                <code>/api/webhooks/payouts</code> on this domain.
+              </p>
+            )}
+          </>
         )}
       </section>
 
@@ -138,6 +164,54 @@ export default async function AdminIntegrationsPage() {
             stays email-only until a vendor is chosen.
           </p>
         )}
+      </section>
+
+      <section className="mb-8">
+        <h2 className="text-sm font-semibold mb-2">Storage</h2>
+        <p className="text-xs text-[var(--muted)] mb-2">
+          Supabase Storage buckets this app actually reads/writes — a static list of real bucket
+          names referenced in code, not a live capacity/usage check (Storage usage isn&apos;t
+          exposed via this app&apos;s Supabase role).
+        </p>
+        <div className="flex flex-wrap gap-1.5">
+          {["provider-documents", "support-attachments", "avatars", "provider-portfolio"].map((b) => (
+            <span key={b} className="badge-muted font-mono">
+              {b}
+            </span>
+          ))}
+        </div>
+      </section>
+
+      <section className="mb-8">
+        <h2 className="text-sm font-semibold mb-2">Database / system status</h2>
+        <p className="text-xs text-[var(--muted)]">
+          Scheduled job run history (cron health) and the live ledger balance check live on{" "}
+          <Link href="/admin/system" className="underline">System</Link> and{" "}
+          <Link href="/admin/ledger" className="underline">Ledger</Link> — not duplicated here.
+        </p>
+      </section>
+
+      <section className="mb-8">
+        <h2 className="text-sm font-semibold mb-2">Environment configuration</h2>
+        <p className="text-xs text-[var(--muted)] mb-3">
+          Whether each credential is set on this deployment — presence only, never the value
+          itself. Read from real <code>process.env</code> at request time.
+        </p>
+        <div className="grid gap-3 sm:grid-cols-2">
+          {ENV_GROUPS.map((g) => (
+            <div key={g.label} className="card p-3">
+              <p className="text-xs font-semibold mb-1.5">{g.label}</p>
+              <div className="space-y-1">
+                {g.vars.map((v) => (
+                  <div key={v} className="flex items-center justify-between gap-2 text-xs font-mono">
+                    <span className="text-[var(--muted)] truncate">{v}</span>
+                    {envPresence[v] ? <span className="badge-trust flex-shrink-0">Set</span> : <span className="badge-danger flex-shrink-0">Missing</span>}
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
       </section>
 
       <section>
