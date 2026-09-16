@@ -17,9 +17,16 @@ export default async function AccountPage() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("full_name, phone, email, role, avatar_url")
+    .select("full_name, phone, email, role, avatar_url, username")
     .eq("id", user.id)
-    .single<{ full_name: string | null; phone: string | null; email: string | null; role: UserRole; avatar_url: string | null }>();
+    .single<{
+      full_name: string | null;
+      phone: string | null;
+      email: string | null;
+      role: UserRole;
+      avatar_url: string | null;
+      username: string | null;
+    }>();
 
   const { data: provider } = await supabase
     .from("providers")
@@ -129,7 +136,7 @@ export default async function AccountPage() {
       <div className="mt-8">
         <h2 className="font-semibold mb-3">Your details</h2>
         <div className="card p-4">
-          <ProfileForm fullName={profile?.full_name ?? null} phone={profile?.phone ?? null} />
+          <ProfileForm fullName={profile?.full_name ?? null} phone={profile?.phone ?? null} username={profile?.username ?? null} />
         </div>
       </div>
 

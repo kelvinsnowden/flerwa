@@ -21,13 +21,29 @@ export default async function ProviderApplyPage() {
         .maybeSingle(),
       supabase.from("profiles").select("avatar_url, full_name").eq("id", user.id).single(),
       supabase.from("categories").select("id, slug, name").eq("is_active", true).order("sort_order"),
-      supabase.from("services").select("id, category_id, name, base_price_minor, currency").eq("is_active", true),
+      // Shared catalog services (is_custom=false) plus this provider's own
+      // custom services — never another provider's is_custom row. The
+      // wizard's client-side eligibleServices filter has no way to enforce
+      // that itself, so it must not receive it in the first place.
+      supabase
+        .from("services")
+        .select("id, category_id, name, base_price_minor, currency, is_custom, created_by_provider_id")
+        .eq("is_active", true),
       supabase.from("locations").select("id, ward, town").order("ward"),
     ]);
 
   // Already verified/submitted sellers manage things from the dashboard —
   // the wizard is for first-time setup and edits while still pending.
   if (provider && provider.verification_status !== "pending") redirect("/provider");
+
+  // Custom (is_custom=true) services are provider-authored and must never
+  // show up as an "eligible" pick for a different provider — the RLS read
+  // policy is deliberately public (so a custom service's storefront/
+  // booking pages work for everyone), so this scoping has to happen here,
+  // not at the database layer.
+  const visibleServices = (services ?? []).filter(
+    (s) => !s.is_custom || s.created_by_provider_id === provider?.id
+  );
 
   return (
     <div className="mx-auto max-w-lg px-4 py-8 pb-4">
@@ -50,7 +66,7 @@ export default async function ProviderApplyPage() {
           provider={provider}
           profile={profile ?? null}
           categories={categories ?? []}
-          services={services ?? []}
+          services={visibleServices}
           locations={locations ?? []}
         />
       </div>

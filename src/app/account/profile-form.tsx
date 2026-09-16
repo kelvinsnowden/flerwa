@@ -6,9 +6,11 @@ import { updateProfile } from "./actions";
 export function ProfileForm({
   fullName,
   phone,
+  username,
 }: {
   fullName: string | null;
   phone: string | null;
+  username: string | null;
 }) {
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
@@ -34,6 +36,25 @@ export function ProfileForm({
       <label className="text-sm font-medium">
         Phone
         <input name="phone" type="tel" defaultValue={phone ?? ""} className="mt-1" placeholder="07XX XXX XXX" autoComplete="tel" />
+      </label>
+      <label className="text-sm font-medium">
+        Username
+        <div className="mt-1 flex items-center gap-1">
+          <span className="text-[var(--muted)]">@</span>
+          <input
+            name="username"
+            defaultValue={username ?? ""}
+            className="flex-1"
+            placeholder="e.g. kelvinkimathi"
+            pattern="[a-z][a-z0-9_]{2,29}"
+            title="3-30 characters, lowercase letters/numbers/underscores, must start with a letter"
+            autoCapitalize="none"
+            autoCorrect="off"
+          />
+        </div>
+        <span className="text-xs text-[var(--muted)] mt-1 block">
+          Your public handle. Used in your storefront link once set — leave blank to keep using your current link.
+        </span>
       </label>
       {error && <p className="text-sm text-[var(--danger)]">{error}</p>}
       {saved && !error && <p className="text-sm" style={{ color: "var(--trust)" }}>Saved.</p>}

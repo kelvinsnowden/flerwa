@@ -22,24 +22,34 @@ import { ServiceAreaVisual } from "./service-area-visual";
 import { PortfolioGallery } from "./portfolio-gallery";
 import { getOrCreateDemandSessionId, logDemandEvent } from "@/lib/demand-events";
 import { CopyStorefrontLink } from "../copy-storefront-link";
+import { providerHandle } from "@/lib/provider-handle";
 
 export default async function ProviderStorefrontPage({
   params,
 }: {
   params: Promise<{ slug: string }>;
 }) {
-  const { slug } = await params;
+  const { slug: handle } = await params;
   const supabase = await createClient();
+
+  // Prefer resolving by username (profiles.username, the real account
+  // handle) when the URL segment matches one; fall back to the legacy
+  // providers.slug lookup so every storefront URL generated before
+  // usernames existed keeps working unchanged — no redirect, no 404,
+  // no forced migration for providers who haven't set a username yet.
+  const { data: byUsername } = await supabase.from("profiles").select("id").eq("username", handle).maybeSingle();
+  const lookupColumn = byUsername ? "user_id" : "slug";
+  const lookupValue = byUsername ? byUsername.id : handle;
 
   const { data: provider, error: providerError } = await supabase
     .from("providers")
-    .select("*, reliability_scores(*), locations:base_location_id(ward, town), profiles:user_id(avatar_url)")
-    .eq("slug", slug)
+    .select("*, reliability_scores(*), locations:base_location_id(ward, town), profiles:user_id(avatar_url, username)")
+    .eq(lookupColumn, lookupValue)
     .single<
       Provider & {
         reliability_scores: ReliabilityScore[];
         locations: { ward: string | null; town: string } | null;
-        profiles: { avatar_url: string | null } | null;
+        profiles: { avatar_url: string | null; username: string | null } | null;
       }
     >();
 
@@ -210,7 +220,7 @@ export default async function ProviderStorefrontPage({
       {isOwner && (
         <div className="mx-4 mt-4 flex items-center gap-3 flex-wrap">
           {!isLive && <div className="badge-warn inline-flex">Preview only — not yet public</div>}
-          <CopyStorefrontLink slug={provider.slug} />
+          <CopyStorefrontLink slug={providerHandle(provider, provider.profiles?.username)} />
         </div>
       )}
 

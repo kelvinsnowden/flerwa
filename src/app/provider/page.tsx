@@ -9,6 +9,7 @@ import { BookingCard } from "@/components/ui/booking-card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Icon } from "@/components/ui/icon";
 import { CopyStorefrontLink } from "./copy-storefront-link";
+import { providerHandle } from "@/lib/provider-handle";
 
 const VERIFICATION_COPY: Record<string, { label: string; tone: "warn" | "trust" }> = {
   pending: { label: "Complete your profile to submit for verification", tone: "warn" },
@@ -51,13 +52,13 @@ export default async function ProviderDashboardPage() {
   const { data: provider } = await supabase
     .from("providers")
     .select(
-      "*, reliability_scores(*), profiles:user_id(avatar_url), provider_categories(is_cleared, categories(name))"
+      "*, reliability_scores(*), profiles:user_id(avatar_url, username), provider_categories(is_cleared, categories(name))"
     )
     .eq("user_id", user.id)
     .maybeSingle<
       Provider & {
         reliability_scores: ReliabilityScore[];
-        profiles: { avatar_url: string | null } | null;
+        profiles: { avatar_url: string | null; username: string | null } | null;
         provider_categories: { is_cleared: boolean; categories: { name: string } | null }[];
       }
     >();
@@ -103,10 +104,14 @@ export default async function ProviderDashboardPage() {
           <div className="flex items-center justify-between gap-2">
             <h1 className="text-xl font-bold truncate">{provider.display_name}</h1>
             <div className="flex items-center gap-3 flex-shrink-0">
-              <Link href={`/provider/${provider.slug}`} className="text-sm font-semibold whitespace-nowrap" style={{ color: "var(--trust)" }}>
+              <Link
+                href={`/provider/${providerHandle(provider, provider.profiles?.username)}`}
+                className="text-sm font-semibold whitespace-nowrap"
+                style={{ color: "var(--trust)" }}
+              >
                 View storefront →
               </Link>
-              <CopyStorefrontLink slug={provider.slug} />
+              <CopyStorefrontLink slug={providerHandle(provider, provider.profiles?.username)} />
             </div>
           </div>
           <span className={statusCopy.tone === "trust" ? "badge-trust mt-1 inline-flex" : "badge-warn mt-1 inline-flex"}>

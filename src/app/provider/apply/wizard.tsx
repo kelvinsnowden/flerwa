@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Icon } from "@/components/ui/icon";
 import { Combobox } from "@/components/ui/combobox";
 import { PhotoUpload } from "../photo-upload";
-import { saveAboutYou, saveCategories, saveServices, saveServiceArea, submitForVerification } from "./actions";
+import { saveAboutYou, saveCategories, saveServices, saveServiceArea, submitForVerification, createCustomService } from "./actions";
 
 interface ProviderRow {
   id: string;
@@ -36,7 +36,7 @@ export function Wizard({
   provider: ProviderRow | null;
   profile: { avatar_url: string | null; full_name: string | null } | null;
   categories: { id: string; slug: string; name: string }[];
-  services: { id: string; category_id: string; name: string; base_price_minor: number; currency: string }[];
+  services: { id: string; category_id: string; name: string; base_price_minor: number; currency: string; is_custom?: boolean }[];
   locations: { id: string; ward: string | null; town: string }[];
 }) {
   const [step, setStep] = useState(1);
@@ -71,6 +71,41 @@ export function Wizard({
   const [prices, setPrices] = useState<Record<string, string>>(
     Object.fromEntries((provider?.provider_services ?? []).map((s) => [s.service_id, s.price_minor ? String(s.price_minor / 100) : ""]))
   );
+  // Services created via the Custom/Other form this session are added
+  // here so they render exactly like a catalog pick immediately, without
+  // waiting on a full page reload — merged into eligibleServices below.
+  const [dynamicServices, setDynamicServices] = useState(services);
+  const [customName, setCustomName] = useState("");
+  const [customDescription, setCustomDescription] = useState("");
+  const [customPrice, setCustomPrice] = useState("");
+  const [customRequiresLocation, setCustomRequiresLocation] = useState(true);
+  const [customPending, setCustomPending] = useState(false);
+  const otherCategoryId = categories.find((c) => c.slug === "other")?.id;
+  const isOtherCategorySelected = !!otherCategoryId && selectedCategoryIds.includes(otherCategoryId);
+
+  async function addCustomService() {
+    setError(null);
+    setCustomPending(true);
+    const res = await createCustomService({
+      name: customName,
+      description: customDescription,
+      priceKes: Number(customPrice),
+      requiresLocation: customRequiresLocation,
+    });
+    setCustomPending(false);
+    if (!res.success || !res.service) {
+      setError(res.error ?? "Couldn't add that service. Please try again.");
+      return;
+    }
+    const service = res.service;
+    setDynamicServices((prev) => [...prev, service]);
+    setSelectedServiceIds((prev) => [...prev, service.id]);
+    setPrices((prev) => ({ ...prev, [service.id]: customPrice }));
+    setCustomName("");
+    setCustomDescription("");
+    setCustomPrice("");
+    setCustomRequiresLocation(true);
+  }
 
   // Step 4
   const [selectedAreaIds, setSelectedAreaIds] = useState<string[]>(
@@ -84,7 +119,7 @@ export function Wizard({
   const [nationalIdNumber, setNationalIdNumber] = useState(provider?.national_id_number ?? "");
   const [identityConsent, setIdentityConsent] = useState(provider?.identity_verification_consent ?? false);
 
-  const eligibleServices = services.filter((s) => selectedCategoryIds.includes(s.category_id));
+  const eligibleServices = dynamicServices.filter((s) => selectedCategoryIds.includes(s.category_id));
 
   function locationLabel(id: string) {
     const l = locations.find((loc) => loc.id === id);
@@ -303,6 +338,57 @@ export function Wizard({
               </div>
             );
           })}
+
+          {isOtherCategorySelected && (
+            <div className="rounded-[var(--radius-sm)] border border-[var(--border)] p-3 flex flex-col gap-2">
+              <p className="text-sm font-semibold flex items-center gap-1.5">
+                <Icon name="briefcase" size={15} className="text-[var(--trust)]" />
+                Add a custom service
+              </p>
+              <p className="text-xs text-[var(--muted)]">
+                Your specialty for Other / Custom. This behaves like any other service on your storefront
+                once added — set your own price below.
+              </p>
+              <input
+                type="text"
+                placeholder="Service name, e.g. Wedding cake design"
+                value={customName}
+                onChange={(e) => setCustomName(e.target.value)}
+                className="text-sm"
+              />
+              <textarea
+                placeholder="What do you provide? Scope, materials, what's included…"
+                value={customDescription}
+                onChange={(e) => setCustomDescription(e.target.value)}
+                rows={2}
+                className="text-sm"
+              />
+              <input
+                type="number"
+                min="1"
+                placeholder="Your price in KES"
+                value={customPrice}
+                onChange={(e) => setCustomPrice(e.target.value)}
+                className="text-sm"
+              />
+              <label className="flex items-center gap-2 text-xs">
+                <input
+                  type="checkbox"
+                  checked={customRequiresLocation}
+                  onChange={(e) => setCustomRequiresLocation(e.target.checked)}
+                />
+                I need to visit the customer&apos;s location for this
+              </label>
+              <button
+                type="button"
+                className="btn-secondary text-sm w-fit"
+                disabled={customPending || !customName.trim() || !customPrice}
+                onClick={addCustomService}
+              >
+                {customPending ? "Adding…" : "Add custom service"}
+              </button>
+            </div>
+          )}
 
           {/* Confirmed gap (MARKETPLACE_UX_AUDIT.md §12): the catalog above is
               fixed and admin-curated, so a real specialty (logo design,

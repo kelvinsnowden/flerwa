@@ -128,6 +128,66 @@ export async function saveServices(selections: { service_id: string; price_minor
   return { success: true as const };
 }
 
+// Custom/Other services (step 3 extension) — a provider whose specialty
+// doesn't fit the 5 fixed categories creates their own services row
+// instead of only being pointed at task-request quoting (superseded
+// scope decision, see the custom_provider_services migration). Reuses
+// the same services/provider_services tables and the same slugify()
+// pattern as saveAboutYou — a custom service is a normal service row
+// everywhere else in the app, including rpc_book_service, the moment
+// this returns.
+export async function createCustomService(input: {
+  name: string;
+  description: string;
+  priceKes: number;
+  requiresLocation: boolean;
+}) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Please log in first." };
+
+  const name = input.name.trim();
+  const description = input.description.trim();
+  if (!name) return { error: "Give your service a name." };
+  if (!Number.isFinite(input.priceKes) || input.priceKes <= 0) return { error: "Enter a real price." };
+
+  const { data: provider } = await supabase.from("providers").select("id").eq("user_id", user.id).maybeSingle();
+  if (!provider) return { error: "Finish step 1 first." };
+
+  const { data: otherCategory } = await supabase.from("categories").select("id").eq("slug", "other").single();
+  if (!otherCategory) return { error: "The Other/Custom category isn't available right now." };
+
+  const { data: service, error: serviceError } = await supabase
+    .from("services")
+    .insert({
+      category_id: otherCategory.id,
+      slug: slugify(name),
+      name,
+      summary: description.slice(0, 200) || name,
+      description: description || null,
+      fulfilment_mode: input.requiresLocation ? "on_site_customer_present" : "remote_digital",
+      requires_location: input.requiresLocation,
+      base_price_minor: Math.round(input.priceKes * 100),
+      is_custom: true,
+      created_by_provider_id: provider.id,
+    })
+    .select("id, category_id, name, base_price_minor, currency, is_custom, created_by_provider_id")
+    .single();
+  if (serviceError) return { error: serviceError.message };
+
+  const { error: linkError } = await supabase
+    .from("provider_services")
+    .upsert(
+      { provider_id: provider.id, service_id: service.id, price_minor: service.base_price_minor, is_active: true },
+      { onConflict: "provider_id,service_id" }
+    );
+  if (linkError) return { error: linkError.message };
+
+  return { success: true as const, service };
+}
+
 // Step 4 — service area & availability. Areas are replaced wholesale
 // (simplest correct semantics for "these are the areas I serve", same
 // as re-saving a multi-select) — RLS already scopes both the delete and
