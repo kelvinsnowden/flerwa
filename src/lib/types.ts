@@ -73,6 +73,17 @@ export const TXN_STATE_LABELS: Record<TxnState, string> = {
   refunded: "Refunded",
 };
 
+export type PaymentState = "unpaid" | "payment_pending" | "funded" | "released" | "refunded" | "failed";
+
+export const PAYMENT_STATE_LABELS: Record<PaymentState, string> = {
+  unpaid: "Unpaid",
+  payment_pending: "Payment pending",
+  funded: "Funded",
+  released: "Released to provider",
+  refunded: "Refunded",
+  failed: "Failed",
+};
+
 export interface Category {
   id: string;
   slug: string;
