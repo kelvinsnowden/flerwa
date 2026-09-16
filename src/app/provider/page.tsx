@@ -160,7 +160,7 @@ export default async function ProviderDashboardPage() {
       </div>
 
       <h2 className="mt-8 font-semibold">Your services</h2>
-      <div className="mt-3 grid gap-2 lg:grid-cols-2">
+      <div className="mt-3 grid grid-cols-1 gap-2 lg:grid-cols-2">
         {!myServices?.length && (
           <p className="text-sm text-[var(--muted)]">
             You haven&apos;t added any services yet.{" "}
@@ -195,7 +195,7 @@ export default async function ProviderDashboardPage() {
           </div>
 
           <h2 className="mt-8 font-semibold">Active jobs</h2>
-          <div className="mt-3 grid gap-2 lg:grid-cols-2">
+          <div className="mt-3 grid grid-cols-1 gap-2 lg:grid-cols-2">
             {activeJobs.length === 0 && (
               <EmptyState
                 illustration="/images/empty-states/empty-bookings.svg"
@@ -219,7 +219,7 @@ export default async function ProviderDashboardPage() {
           {pastJobs.length > 0 && (
             <>
               <h2 className="mt-8 font-semibold">Completed</h2>
-              <div className="mt-3 grid gap-2 lg:grid-cols-2">
+              <div className="mt-3 grid grid-cols-1 gap-2 lg:grid-cols-2">
                 {pastJobs.map((job) => (
                   <div key={job.id} className="card p-4 flex items-center justify-between opacity-80">
                     <p className="font-semibold text-sm">{job.services?.name}</p>

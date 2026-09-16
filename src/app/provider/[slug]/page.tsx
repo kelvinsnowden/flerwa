@@ -348,7 +348,7 @@ export default async function ProviderStorefrontPage({
         {services && services.length > 0 && (
           <div id="services" className="pt-8 scroll-mt-28">
             <h2 className="font-semibold mb-3">My Services</h2>
-            <div className="grid gap-2 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               {services.map((s) => (
                 <Link
                   key={s.services.id}

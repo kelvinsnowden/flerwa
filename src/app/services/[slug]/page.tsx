@@ -141,7 +141,7 @@ export default async function ServiceDetailPage({
       )}
 
       {(includedItems.length > 0 || excludedItems.length > 0) && (
-        <div className="mt-6 grid sm:grid-cols-2 gap-4">
+        <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
           {includedItems.length > 0 && (
             <div className="card p-4">
               <h2 className="font-semibold text-sm mb-2">What&apos;s included</h2>
