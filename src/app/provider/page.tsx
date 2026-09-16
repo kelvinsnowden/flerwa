@@ -101,8 +101,8 @@ export default async function ProviderDashboardPage() {
       <div className="flex items-center gap-3">
         <PhotoUpload name={provider.display_name} initialPhotoUrl={provider.profiles?.avatar_url ?? null} />
         <div className="flex-1 min-w-0">
-          <div className="flex items-center justify-between gap-2">
-            <h1 className="text-xl font-bold truncate">{provider.display_name}</h1>
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <h1 className="text-xl font-bold truncate min-w-0">{provider.display_name}</h1>
             <div className="flex items-center gap-3 flex-shrink-0">
               <Link
                 href={`/provider/${providerHandle(provider, provider.profiles?.username)}`}

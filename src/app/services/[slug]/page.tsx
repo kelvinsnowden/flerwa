@@ -126,7 +126,7 @@ export default async function ServiceDetailPage({
       <h1 className="text-2xl font-bold">{service.name}</h1>
       <p className="mt-1 text-[var(--muted)]">{service.summary}</p>
 
-      <div className="mt-4 flex items-baseline gap-3">
+      <div className="mt-4 flex items-baseline gap-3 flex-wrap">
         <span className="text-3xl font-bold" style={{ color: "var(--trust)" }}>
           {formatMoney(service.base_price_minor, service.currency)}
         </span>
