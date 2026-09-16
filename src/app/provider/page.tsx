@@ -103,7 +103,7 @@ export default async function ProviderDashboardPage() {
         <div className="flex-1 min-w-0">
           <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between sm:gap-2">
             <h1 className="text-xl font-bold truncate min-w-0">{provider.display_name}</h1>
-            <div className="flex items-center gap-3 flex-shrink-0">
+            <div className="flex items-center gap-3 flex-wrap">
               <Link
                 href={`/provider/${providerHandle(provider, provider.profiles?.username)}`}
                 className="text-sm font-semibold whitespace-nowrap"
