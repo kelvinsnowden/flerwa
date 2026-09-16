@@ -121,7 +121,8 @@ export default async function ServiceDetailPage({
   const preselectedProvider = providerParam ? providers?.find((p) => p.id === providerParam) : undefined;
 
   return (
-    <div className="mx-auto max-w-2xl px-4 py-8 sm:py-10">
+    <div className="mx-auto max-w-2xl lg:max-w-5xl px-4 py-8 sm:py-10 lg:grid lg:grid-cols-[1fr_380px] lg:items-start lg:gap-10">
+      <div>
       <h1 className="text-2xl font-bold">{service.name}</h1>
       <p className="mt-1 text-[var(--muted)]">{service.summary}</p>
 
@@ -193,23 +194,27 @@ export default async function ServiceDetailPage({
         </div>
       )}
 
-      <div id="book" className="mt-8 card p-5 scroll-mt-16">
-        <h2 className="font-semibold mb-4">Book this service</h2>
-        <BookingForm
-          service={service}
-          locations={locations ?? []}
-          providers={providers ?? []}
-          preselectedProviderId={preselectedProvider?.id}
-          preselectedProviderName={preselectedProvider?.display_name}
-          preselectedPhotoUrl={preselectedProvider?.profiles?.avatar_url}
-          preselectedProviderMaxAdvanceDays={preselectedProvider?.max_advance_days}
-        />
       </div>
 
-      <p className="mt-4 text-xs text-[var(--muted)] flex items-center gap-1.5">
-        <Icon name="shield-check" size={14} className="text-[var(--trust)]" />
-        Your payment is held and only released to the professional once you approve the completed work.
-      </p>
+      <div id="book" className="mt-8 lg:mt-0 lg:sticky lg:top-20">
+        <div className="card p-5 scroll-mt-16">
+          <h2 className="font-semibold mb-4">Book this service</h2>
+          <BookingForm
+            service={service}
+            locations={locations ?? []}
+            providers={providers ?? []}
+            preselectedProviderId={preselectedProvider?.id}
+            preselectedProviderName={preselectedProvider?.display_name}
+            preselectedPhotoUrl={preselectedProvider?.profiles?.avatar_url}
+            preselectedProviderMaxAdvanceDays={preselectedProvider?.max_advance_days}
+          />
+        </div>
+
+        <p className="mt-4 text-xs text-[var(--muted)] flex items-center gap-1.5">
+          <Icon name="shield-check" size={14} className="text-[var(--trust)]" />
+          Your payment is held and only released to the professional once you approve the completed work.
+        </p>
+      </div>
     </div>
   );
 }

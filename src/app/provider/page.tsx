@@ -96,7 +96,7 @@ export default async function ProviderDashboardPage() {
   const totalEarned = pastJobs.reduce((sum, j) => sum + (j.service_amount_minor - j.provider_fee_minor), 0);
 
   return (
-    <div className="mx-auto max-w-2xl px-4 py-8 pb-4">
+    <div className="mx-auto max-w-2xl lg:max-w-4xl px-4 py-8 pb-4">
       <div className="flex items-center gap-3">
         <PhotoUpload name={provider.display_name} initialPhotoUrl={provider.profiles?.avatar_url ?? null} />
         <div className="flex-1 min-w-0">
@@ -115,7 +115,7 @@ export default async function ProviderDashboardPage() {
         </div>
       </div>
 
-      <div className="mt-6 grid grid-cols-2 gap-2">
+      <div className="mt-6 grid grid-cols-2 lg:grid-cols-3 gap-2">
         <Link href="/provider/requests" className="card p-3 flex items-center gap-2 text-sm font-medium hover:border-[var(--trust)] transition-colors">
           <Icon name="file-text" size={16} className="text-[var(--trust)]" />
           Task requests
@@ -155,7 +155,7 @@ export default async function ProviderDashboardPage() {
       </div>
 
       <h2 className="mt-8 font-semibold">Your services</h2>
-      <div className="mt-3 flex flex-col gap-2">
+      <div className="mt-3 grid gap-2 lg:grid-cols-2">
         {!myServices?.length && (
           <p className="text-sm text-[var(--muted)]">
             You haven&apos;t added any services yet.{" "}
@@ -190,7 +190,7 @@ export default async function ProviderDashboardPage() {
           </div>
 
           <h2 className="mt-8 font-semibold">Active jobs</h2>
-          <div className="mt-3 flex flex-col gap-2">
+          <div className="mt-3 grid gap-2 lg:grid-cols-2">
             {activeJobs.length === 0 && (
               <EmptyState
                 illustration="/images/empty-states/empty-bookings.svg"
@@ -214,7 +214,7 @@ export default async function ProviderDashboardPage() {
           {pastJobs.length > 0 && (
             <>
               <h2 className="mt-8 font-semibold">Completed</h2>
-              <div className="mt-3 flex flex-col gap-2">
+              <div className="mt-3 grid gap-2 lg:grid-cols-2">
                 {pastJobs.map((job) => (
                   <div key={job.id} className="card p-4 flex items-center justify-between opacity-80">
                     <p className="font-semibold text-sm">{job.services?.name}</p>

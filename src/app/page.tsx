@@ -11,6 +11,7 @@ import { TrustSignal } from "@/components/ui/trust-signal";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Icon, type IconName } from "@/components/ui/icon";
 import { getOrCreateDemandSessionId, logDemandEvent } from "@/lib/demand-events";
+import { PageContainer } from "@/components/ui/page-container";
 
 // The 5 pilot services featured on the home page, in display order — real,
 // bookable catalogue entries (see supabase/migrations/20260911120000_
@@ -110,7 +111,7 @@ export default async function HomePage({
   }
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-6 sm:py-10">
+    <PageContainer size="wide" className="px-4 py-6 sm:py-10">
       <div className="flex items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight leading-tight">Services</h1>
@@ -202,7 +203,7 @@ export default async function HomePage({
           {!!recommendedError && <ErrorNotice message="We couldn't load recommended services right now. Please refresh." />}
 
           {!recommendedError && !!recommended?.length && (
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
               {recommended.map((service) => (
                 <RecommendedServiceCard
                   key={service.id}
@@ -245,7 +246,7 @@ export default async function HomePage({
           )}
 
           {!servicesError && !!services?.length && (
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {services.map((service) => (
                 <ServiceCard key={service.id} service={service} />
               ))}
@@ -254,20 +255,25 @@ export default async function HomePage({
         </section>
       )}
 
-      <section className="mt-10 card p-5 flex items-center gap-4" style={{ background: "var(--trust-tint)", borderColor: "var(--trust-tint-strong)" }}>
-        <span
-          className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
-          style={{ background: "var(--card)", color: "var(--trust)" }}
-        >
-          <Icon name="message-circle" size={18} />
-        </span>
-        <div className="flex-1">
-          <p className="font-semibold">Can&apos;t find the service you need?</p>
-          <p className="text-sm text-[var(--muted)] mt-0.5">
-            Tell us what you need and we&apos;ll help you find the right professional.
-          </p>
+      <section
+        className="mt-10 card p-5 flex flex-col sm:flex-row sm:items-center gap-4"
+        style={{ background: "var(--trust-tint)", borderColor: "var(--trust-tint-strong)" }}
+      >
+        <div className="flex items-center gap-4">
+          <span
+            className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
+            style={{ background: "var(--card)", color: "var(--trust)" }}
+          >
+            <Icon name="message-circle" size={18} />
+          </span>
+          <div className="flex-1 min-w-0">
+            <p className="font-semibold">Can&apos;t find the service you need?</p>
+            <p className="text-sm text-[var(--muted)] mt-0.5">
+              Tell us what you need and we&apos;ll help you find the right professional.
+            </p>
+          </div>
         </div>
-        <Link href="/tasks/new" className="btn-primary whitespace-nowrap flex items-center gap-1.5">
+        <Link href="/tasks/new" className="btn-primary whitespace-nowrap flex items-center justify-center gap-1.5 sm:flex-shrink-0">
           Request a Service
           <Icon name="chevron-right" size={14} />
         </Link>
@@ -294,7 +300,7 @@ export default async function HomePage({
           for protected payment and a verified record — 5% fee, nothing charged to you.
         </p>
       </section>
-    </div>
+    </PageContainer>
   );
 }
 
