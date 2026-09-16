@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { setActivePaymentProvider, setActiveVerificationProvider, setActiveNotificationChannel } from "./actions";
+import { setActivePaymentProvider, setActivePayoutProvider, setActiveVerificationProvider, setActiveNotificationChannel } from "./actions";
 
 interface Row {
   key: string;
@@ -10,10 +10,17 @@ interface Row {
   connected_at: string | null;
 }
 
-export function ProviderToggleList({ kind, rows }: { kind: "payment" | "verification" | "notification"; rows: Row[] }) {
+export function ProviderToggleList({ kind, rows }: { kind: "payment" | "payout" | "verification" | "notification"; rows: Row[] }) {
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
-  const action = kind === "payment" ? setActivePaymentProvider : kind === "verification" ? setActiveVerificationProvider : setActiveNotificationChannel;
+  const action =
+    kind === "payment"
+      ? setActivePaymentProvider
+      : kind === "payout"
+        ? setActivePayoutProvider
+        : kind === "verification"
+          ? setActiveVerificationProvider
+          : setActiveNotificationChannel;
 
   return (
     <div className="flex flex-col gap-2">

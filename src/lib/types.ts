@@ -387,3 +387,34 @@ export interface IdentityVerificationCheck {
   raw_result: Record<string, unknown>;
   created_at: string;
 }
+
+export interface PayoutProvider {
+  key: string;
+  display_name: string;
+  is_active: boolean;
+  config: Record<string, unknown>;
+  legal_signoff_confirmed_at: string | null;
+  legal_signoff_confirmed_by: string | null;
+  legal_signoff_note: string | null;
+  connected_by: string | null;
+  connected_at: string | null;
+  created_at: string;
+}
+
+export interface Payout {
+  id: string;
+  provider_id: string;
+  amount_minor: number;
+  currency: string;
+  destination_phone: string;
+  payout_provider_key: string | null;
+  state: "pending" | "processing" | "paid" | "failed";
+  external_reference: string | null;
+  failure_reason: string | null;
+  attempt_count: number;
+  requested_by: string;
+  initiated_at: string | null;
+  paid_at: string | null;
+  created_at: string;
+  updated_at: string;
+}

@@ -1,7 +1,8 @@
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { ProviderToggleList } from "./provider-toggle";
 import { ErrorNotice } from "@/components/error-notice";
-import type { PaymentProvider, VerificationProvider, PaymentProviderEvent } from "@/lib/types";
+import type { PaymentProvider, PayoutProvider, VerificationProvider, PaymentProviderEvent } from "@/lib/types";
 
 interface NotificationChannel {
   key: string;
@@ -16,12 +17,15 @@ export default async function AdminIntegrationsPage() {
 
   const [
     { data: paymentProviders, error: ppError },
+    { data: payoutProviders, error: poError },
     { data: verificationProviders, error: vpError },
     { data: recentEvents },
     { count: unprocessedCount },
+    { count: failedPayoutCount },
     { data: notificationChannels, error: ncError },
   ] = await Promise.all([
     supabase.from("payment_providers").select("*").order("created_at").returns<PaymentProvider[]>(),
+    supabase.from("payout_providers").select("*").order("created_at").returns<PayoutProvider[]>(),
     supabase.from("verification_providers").select("*").order("created_at").returns<VerificationProvider[]>(),
     supabase
       .from("payment_provider_events")
@@ -30,6 +34,7 @@ export default async function AdminIntegrationsPage() {
       .limit(10)
       .returns<PaymentProviderEvent[]>(),
     supabase.from("payment_provider_events").select("id", { count: "exact", head: true }).eq("processed", false),
+    supabase.from("payouts").select("id", { count: "exact", head: true }).eq("state", "failed"),
     supabase.from("notification_channels").select("*").order("created_at").returns<NotificationChannel[]>(),
   ]);
 
@@ -47,7 +52,7 @@ export default async function AdminIntegrationsPage() {
         already-coded adapter is live. See <code>docs/16-payment-verification-integrations.md</code>.
       </p>
 
-      {(ppError || vpError) && (
+      {(ppError || poError || vpError) && (
         <ErrorNotice message="Couldn't load the provider registry. Please refresh." />
       )}
 
@@ -58,6 +63,30 @@ export default async function AdminIntegrationsPage() {
           <p className="text-xs text-[var(--muted)] mt-2">
             Point the active aggregator&apos;s webhook dashboard at{" "}
             <code>/api/webhooks/payments</code> on this domain.
+          </p>
+        )}
+      </section>
+
+      <section className="mb-8">
+        <h2 className="text-sm font-semibold mb-2">
+          Payout providers
+          {!!failedPayoutCount && (
+            <span className="ml-2 text-xs text-[var(--danger)] font-normal">
+              {failedPayoutCount} failed — see <Link href="/admin/payouts" className="underline">Payouts</Link>
+            </span>
+          )}
+        </h2>
+        <p className="text-xs text-[var(--muted)] mb-3">
+          Separate from payment providers above — collections (customer → escrow) and payouts
+          (escrow → provider) are independent choices. Activating an aggregator here requires
+          legal sign-off first, same gate as payment providers (rpc_confirm_payout_provider_legal_signoff
+          — a deliberate no-UI, direct-SQL step; see the migration proposal for why).
+        </p>
+        {payoutProviders && <ProviderToggleList kind="payout" rows={payoutProviders} />}
+        {payoutProviders?.find((p) => p.is_active) && (
+          <p className="text-xs text-[var(--muted)] mt-2">
+            Point the active payout vendor&apos;s webhook dashboard at{" "}
+            <code>/api/webhooks/payouts</code> on this domain.
           </p>
         )}
       </section>

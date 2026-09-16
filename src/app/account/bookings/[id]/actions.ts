@@ -6,6 +6,11 @@ import { revalidatePath } from "next/cache";
 import { createIntasendCollection } from "@/lib/payments/adapters/intasend";
 import { createPesapalOrder } from "@/lib/payments/adapters/pesapal";
 
+// Note: approval releases funds into the provider's wallet balance
+// (ledger provider_payable) only — it does not trigger a payout. The
+// provider withdraws separately, whenever they choose, via
+// /provider/payouts (rpc_request_payout). See migration_proposals/
+// PROPOSED_automated_provider_payouts.sql.
 export async function approveBooking(transactionId: string) {
   const supabase = await createClient();
   const { error } = await supabase.rpc("rpc_approve_and_release", {

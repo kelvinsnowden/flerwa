@@ -109,6 +109,10 @@ export default async function ProviderDashboardPage() {
           <Icon name="file-text" size={16} className="text-[var(--trust)]" />
           FAQ
         </Link>
+        <Link href="/provider/payouts" className="card p-3 flex items-center gap-2 text-sm font-medium hover:border-[var(--trust)] transition-colors">
+          <Icon name="wallet" size={16} className="text-[var(--trust)]" />
+          Payouts
+        </Link>
       </div>
 
       <h2 className="mt-8 font-semibold">Your services</h2>
