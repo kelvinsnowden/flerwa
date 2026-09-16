@@ -106,7 +106,15 @@ export default async function BookingDetailPage({
       // plain customer session (admin-only SELECT), and whether an
       // automated "Pay with M-Pesa" button can even be offered isn't
       // sensitive information worth adding a public policy for.
-      createAdminClient().from("payment_providers").select("key").eq("is_active", true).eq("kind", "aggregator").maybeSingle(),
+      // Caught rather than awaited directly: createAdminClient() throws
+      // synchronously if SUPABASE_SERVICE_ROLE_KEY isn't configured on
+      // this deployment, and an unhandled rejection here would fail the
+      // whole page for a purely cosmetic "Pay now" button — the existing
+      // "we'll be in touch to confirm payment" copy is already the
+      // correct fallback when no automated provider is available.
+      Promise.resolve()
+        .then(() => createAdminClient().from("payment_providers").select("key").eq("is_active", true).eq("kind", "aggregator").maybeSingle())
+        .catch(() => ({ data: null as { key: string } | null })),
     ]);
 
   const canApproveOrRevise = booking.state === "evidence_submitted";
