@@ -1,9 +1,28 @@
 "use server";
 
+import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { safeNext } from "@/lib/safe-redirect";
 import { checkRateLimit } from "@/lib/rate-limit";
+
+// Supabase's dashboard-configured Site URL currently points at a stale
+// Vercel project (flerwa-kelvins-projects-85e09e17.vercel.app, which no
+// longer resolves to a real deployment) — confirmed live during the
+// production-parity audit: a real confirmation link 404s instead of
+// returning to the app. Passing emailRedirectTo explicitly overrides that
+// default for this call, using the actual request's host so it's correct
+// on whichever domain the signup happened on (production or a preview).
+// This alone is NOT sufficient — Supabase only honors emailRedirectTo
+// values that are also present in the project's Auth → URL Configuration
+// → Redirect URLs allow-list, which still needs updating in the
+// dashboard (see VERIFICATION_MODEL_AUDIT.md / this commit's message).
+async function currentOrigin() {
+  const h = await headers();
+  const host = h.get("x-forwarded-host") ?? h.get("host");
+  const proto = h.get("x-forwarded-proto") ?? "https";
+  return host ? `${proto}://${host}` : undefined;
+}
 
 export async function login(formData: FormData) {
   const email = String(formData.get("email") ?? "");
@@ -28,10 +47,14 @@ export async function signup(formData: FormData) {
   if (!allowed) return { error: "Too many signups from this connection recently — please try again later." };
 
   const supabase = await createClient();
+  const origin = await currentOrigin();
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
-    options: { data: { full_name: fullName } },
+    options: {
+      data: { full_name: fullName },
+      ...(origin ? { emailRedirectTo: `${origin}/login/email` } : {}),
+    },
   });
   if (error) return { error: error.message };
 

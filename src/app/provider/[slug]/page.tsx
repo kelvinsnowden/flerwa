@@ -21,6 +21,7 @@ import { AvailabilityCalendar } from "./availability-calendar";
 import { ServiceAreaVisual } from "./service-area-visual";
 import { PortfolioGallery } from "./portfolio-gallery";
 import { getOrCreateDemandSessionId, logDemandEvent } from "@/lib/demand-events";
+import { CopyStorefrontLink } from "../copy-storefront-link";
 
 export default async function ProviderStorefrontPage({
   params,
@@ -206,8 +207,11 @@ export default async function ProviderStorefrontPage({
 
   return (
     <div className={`mx-auto max-w-2xl sm:pb-10 ${isOwner ? "pb-8" : "pb-28"}`}>
-      {isOwner && !isLive && (
-        <div className="mx-4 mt-4 badge-warn inline-flex">Preview only — not yet public</div>
+      {isOwner && (
+        <div className="mx-4 mt-4 flex items-center gap-3 flex-wrap">
+          {!isLive && <div className="badge-warn inline-flex">Preview only — not yet public</div>}
+          <CopyStorefrontLink slug={provider.slug} />
+        </div>
       )}
 
       <HeroGallery photoUrls={portfolioPhotoUrls} alt={provider.display_name} />

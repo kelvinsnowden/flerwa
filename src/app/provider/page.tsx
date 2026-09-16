@@ -8,6 +8,7 @@ import { PhotoUpload } from "./photo-upload";
 import { BookingCard } from "@/components/ui/booking-card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Icon } from "@/components/ui/icon";
+import { CopyStorefrontLink } from "./copy-storefront-link";
 
 const VERIFICATION_COPY: Record<string, { label: string; tone: "warn" | "trust" }> = {
   pending: { label: "Complete your profile to submit for verification", tone: "warn" },
@@ -18,6 +19,28 @@ const VERIFICATION_COPY: Record<string, { label: string; tone: "warn" | "trust" 
   expired: { label: "Verification expired — please resubmit", tone: "warn" },
 };
 
+/**
+ * Verification alone doesn't make a storefront public — is_published and
+ * per-category clearance are two further, separately admin-controlled
+ * steps (see VERIFICATION_MODEL_AUDIT.md's "publishing has no self-service
+ * path" finding). Before this, a verified provider whose storefront still
+ * wasn't live had no way to know why — this makes every remaining step
+ * explicit instead of just repeating "Verified".
+ */
+function goLiveStatus(provider: {
+  verification_status: string;
+  is_published: boolean;
+}, clearedCategoryNames: string[]): { label: string; tone: "warn" | "trust" } {
+  if (provider.verification_status !== "verified") return VERIFICATION_COPY[provider.verification_status];
+  if (!provider.is_published) {
+    return { label: "Verified — awaiting publish approval from our team", tone: "warn" };
+  }
+  if (clearedCategoryNames.length === 0) {
+    return { label: "Published, but not yet cleared to appear in any category", tone: "warn" };
+  }
+  return { label: `Live in ${clearedCategoryNames.join(", ")}`, tone: "trust" };
+}
+
 export default async function ProviderDashboardPage() {
   const supabase = await createClient();
   const {
@@ -27,11 +50,24 @@ export default async function ProviderDashboardPage() {
 
   const { data: provider } = await supabase
     .from("providers")
-    .select("*, reliability_scores(*), profiles:user_id(avatar_url)")
+    .select(
+      "*, reliability_scores(*), profiles:user_id(avatar_url), provider_categories(is_cleared, categories(name))"
+    )
     .eq("user_id", user.id)
-    .maybeSingle<Provider & { reliability_scores: ReliabilityScore[]; profiles: { avatar_url: string | null } | null }>();
+    .maybeSingle<
+      Provider & {
+        reliability_scores: ReliabilityScore[];
+        profiles: { avatar_url: string | null } | null;
+        provider_categories: { is_cleared: boolean; categories: { name: string } | null }[];
+      }
+    >();
 
   if (!provider) redirect("/provider/apply");
+
+  const clearedCategoryNames = provider.provider_categories
+    .filter((c) => c.is_cleared)
+    .map((c) => c.categories?.name)
+    .filter((name): name is string => !!name);
 
   const [{ data: jobs, error: jobsError }, { data: myServices }] = await Promise.all([
     supabase
@@ -50,7 +86,7 @@ export default async function ProviderDashboardPage() {
   ]);
 
   const reliability = provider.reliability_scores?.[0];
-  const verificationCopy = VERIFICATION_COPY[provider.verification_status];
+  const statusCopy = goLiveStatus(provider, clearedCategoryNames);
 
   const activeJobs = jobs?.filter((j) => !["settled", "reviewed", "closed", "cancelled_by_customer", "cancelled_by_provider", "expired", "refunded"].includes(j.state)) ?? [];
   const pastJobs = jobs?.filter((j) => ["settled", "reviewed", "closed"].includes(j.state)) ?? [];
@@ -64,14 +100,17 @@ export default async function ProviderDashboardPage() {
       <div className="flex items-center gap-3">
         <PhotoUpload name={provider.display_name} initialPhotoUrl={provider.profiles?.avatar_url ?? null} />
         <div className="flex-1 min-w-0">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-2">
             <h1 className="text-xl font-bold truncate">{provider.display_name}</h1>
-            <Link href={`/provider/${provider.slug}`} className="text-sm font-semibold whitespace-nowrap" style={{ color: "var(--trust)" }}>
-              View storefront →
-            </Link>
+            <div className="flex items-center gap-3 flex-shrink-0">
+              <Link href={`/provider/${provider.slug}`} className="text-sm font-semibold whitespace-nowrap" style={{ color: "var(--trust)" }}>
+                View storefront →
+              </Link>
+              <CopyStorefrontLink slug={provider.slug} />
+            </div>
           </div>
-          <span className={verificationCopy.tone === "trust" ? "badge-trust mt-1 inline-flex" : "badge-warn mt-1 inline-flex"}>
-            {verificationCopy.label}
+          <span className={statusCopy.tone === "trust" ? "badge-trust mt-1 inline-flex" : "badge-warn mt-1 inline-flex"}>
+            {statusCopy.label}
           </span>
         </div>
       </div>
