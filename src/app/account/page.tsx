@@ -42,6 +42,7 @@ export default async function AccountPage() {
         <Avatar name={displayName} photoUrl={profile?.avatar_url} size="lg" />
         <div>
           <h1 className="text-xl font-bold">{displayName}</h1>
+          {profile?.username && <p className="text-sm font-medium" style={{ color: "var(--trust)" }}>@{profile.username}</p>}
           <p className="text-sm text-[var(--muted)]">{profile?.email}</p>
         </div>
       </div>

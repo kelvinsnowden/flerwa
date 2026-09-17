@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { Icon } from "@/components/ui/icon";
+import { UsernameField } from "@/components/ui/username-field";
 
 type ActionResult = { error?: string } | undefined;
 
@@ -9,12 +10,14 @@ export function AuthForm({
   action,
   submitLabel,
   showName = false,
+  showUsername = false,
   next,
   className = "",
 }: {
   action: (formData: FormData) => Promise<ActionResult>;
   submitLabel: string;
   showName?: boolean;
+  showUsername?: boolean;
   next?: string;
   className?: string;
 }) {
@@ -39,6 +42,7 @@ export function AuthForm({
           <input name="full_name" required className="mt-1" autoComplete="name" placeholder="e.g. James Mwangi" />
         </label>
       )}
+      {showUsername && <UsernameField helpText="Your public handle — used in your storefront link. You can also set this later." />}
       <label className="text-sm font-medium">
         Email
         <input name="email" type="email" required className="mt-1" autoComplete="email" placeholder="you@email.com" />

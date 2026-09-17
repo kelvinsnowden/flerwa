@@ -23,7 +23,7 @@ export default async function SignupPage({
           Log in
         </Link>
       </p>
-      <AuthForm action={signup} submitLabel="Create account" showName next={next} className="mt-6" />
+      <AuthForm action={signup} submitLabel="Create account" showName showUsername next={next} className="mt-6" />
     </div>
   );
 }

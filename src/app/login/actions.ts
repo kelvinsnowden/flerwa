@@ -36,12 +36,20 @@ export async function login(formData: FormData) {
   redirect(safeNext(formData.get("next")));
 }
 
+const USERNAME_FORMAT = /^[a-z][a-z0-9_]{2,29}$/;
+
 export async function signup(formData: FormData) {
   const email = String(formData.get("email") ?? "");
   const password = String(formData.get("password") ?? "");
   const fullName = String(formData.get("full_name") ?? "");
+  const usernameRaw = String(formData.get("username") ?? "").trim().toLowerCase();
   if (!email || !password) return { error: "Email and password are required." };
   if (password.length < 8) return { error: "Password must be at least 8 characters." };
+  if (usernameRaw && !USERNAME_FORMAT.test(usernameRaw)) {
+    return {
+      error: "Username must be 3-30 characters, start with a letter, and contain only lowercase letters, numbers, and underscores.",
+    };
+  }
 
   const { allowed } = await checkRateLimit("signup", { max: 5, windowSeconds: 3600 });
   if (!allowed) return { error: "Too many signups from this connection recently — please try again later." };
@@ -52,7 +60,12 @@ export async function signup(formData: FormData) {
     email,
     password,
     options: {
-      data: { full_name: fullName },
+      // trg_handle_new_user reads username out of this same metadata and
+      // sets it on the new profiles row — a same-instant collision there
+      // falls back to leaving it null rather than failing signup outright
+      // (see that trigger's own comment); this form's live availability
+      // check (UsernameField) is what actually prevents that in practice.
+      data: { full_name: fullName, ...(usernameRaw ? { username: usernameRaw } : {}) },
       ...(origin ? { emailRedirectTo: `${origin}/login/email` } : {}),
     },
   });
