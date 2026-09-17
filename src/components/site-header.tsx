@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { SignOutButton } from "@/components/sign-out-button";
+import { CategoryMegaMenu, type NavCategory } from "@/components/category-mega-menu";
 import type { UserRole } from "@/lib/types";
 
 /**
@@ -9,23 +10,36 @@ import type { UserRole } from "@/lib/types";
  * destinations as a desktop-only inline nav so the product doesn't lose
  * navigation entirely above the `sm` breakpoint where the tab bar is hidden.
  */
-export function SiteHeader({ role, isSeller }: { role: UserRole | "anonymous"; isSeller?: boolean }) {
+export function SiteHeader({
+  role,
+  isSeller,
+  categories,
+}: {
+  role: UserRole | "anonymous";
+  isSeller?: boolean;
+  categories: NavCategory[];
+}) {
   const signedIn = role !== "anonymous";
   return (
     <header className="sticky top-0 z-40 border-b bg-[var(--card)]/95 backdrop-blur">
-      <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-4">
-        <Link href="/" className="flex items-center gap-2 font-bold text-lg tracking-tight">
-          <span
-            className="w-7 h-7 rounded-lg flex items-center justify-center text-white text-xs"
-            style={{ background: "var(--trust)" }}
-          >
-            ✓
-          </span>
-          Trusted<span style={{ color: "var(--trust)" }}>Services</span>
-        </Link>
+      <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-4 gap-4">
+        <div className="flex items-center gap-6 min-w-0">
+          <Link href="/" className="flex items-center gap-2 font-bold text-lg tracking-tight flex-shrink-0">
+            <span
+              className="w-7 h-7 rounded-lg flex items-center justify-center text-white text-xs"
+              style={{ background: "var(--trust)" }}
+            >
+              ✓
+            </span>
+            Trusted<span style={{ color: "var(--trust)" }}>Services</span>
+          </Link>
+          <div className="hidden sm:block text-sm">
+            <CategoryMegaMenu categories={categories} />
+          </div>
+        </div>
 
         {!signedIn && (
-          <nav className="flex items-center gap-3 text-sm">
+          <nav className="flex items-center gap-3 text-sm flex-shrink-0">
             <Link href="/login" className="text-[var(--muted)] hover:text-[var(--foreground)]">
               Log in
             </Link>
@@ -36,7 +50,7 @@ export function SiteHeader({ role, isSeller }: { role: UserRole | "anonymous"; i
         )}
 
         {signedIn && (
-          <nav className="hidden sm:flex items-center gap-4 text-sm">
+          <nav className="hidden sm:flex items-center gap-4 text-sm flex-shrink-0">
             <Link href="/" className="text-[var(--muted)] hover:text-[var(--foreground)]">
               Home
             </Link>

@@ -52,6 +52,28 @@ export const getActiveCategories = unstable_cache(
   { revalidate: CATALOG_REVALIDATE_SECONDS, tags: ["catalog:categories"] }
 );
 
+/**
+ * Lightweight nav-menu projection (id/slug/name/category_id only) — used by
+ * the header's category mega-menu, which renders on every single page via
+ * the root layout. Deliberately not reusing getRecommendedServices (that's
+ * a specific 5-slug home-page lineup) or a raw per-request query (this runs
+ * unconditionally on every request otherwise) — same cache/anon-client
+ * rationale as getActiveCategories above.
+ */
+export const getActiveServicesForNav = unstable_cache(
+  async (): Promise<{ data: Pick<Service, "id" | "slug" | "name" | "category_id">[] | null; error: string | null }> => {
+    const { data, error } = await catalogAnonClient()
+      .from("services")
+      .select("id, slug, name, category_id")
+      .eq("is_active", true)
+      .order("name")
+      .returns<Pick<Service, "id" | "slug" | "name" | "category_id">[]>();
+    return { data, error: error?.message ?? null };
+  },
+  ["catalog-active-services-for-nav"],
+  { revalidate: CATALOG_REVALIDATE_SECONDS, tags: ["catalog:services"] }
+);
+
 export const getRecommendedServices = unstable_cache(
   async (slugs: readonly string[]): Promise<{ data: Service[] | null; error: string | null }> => {
     const { data, error } = await catalogAnonClient()

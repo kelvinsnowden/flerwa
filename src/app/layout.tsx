@@ -6,6 +6,8 @@ import "./globals.css";
 import { SiteHeader } from "@/components/site-header";
 import { BottomNav } from "@/components/ui/bottom-nav";
 import { createClient } from "@/lib/supabase/server";
+import { getActiveCategories, getActiveServicesForNav } from "@/lib/cache/catalog";
+import type { NavCategory } from "@/components/category-mega-menu";
 import type { UserRole } from "@/lib/types";
 
 // Full-bleed screens that render their own AuthHeader per the reference
@@ -25,6 +27,24 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const requestHeaders = await headers();
   const pathname = requestHeaders.get("x-pathname") ?? "";
   const showChrome = !NO_CHROME_PREFIXES.some((p) => pathname.startsWith(p));
+
+  // Both cached (see src/lib/cache/catalog.ts) — cheap even though this
+  // runs on every request that shows chrome, i.e. nearly every page.
+  let navCategories: NavCategory[] = [];
+  if (showChrome) {
+    const [{ data: categories }, { data: services }] = await Promise.all([
+      getActiveCategories(),
+      getActiveServicesForNav(),
+    ]);
+    navCategories = (categories ?? []).map((c) => ({
+      slug: c.slug,
+      name: c.name,
+      icon: c.icon,
+      services: (services ?? [])
+        .filter((s) => s.category_id === c.id)
+        .map((s) => ({ slug: s.slug, name: s.name })),
+    }));
+  }
 
   const supabase = await createClient();
   const {
@@ -66,7 +86,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <div className="flex min-h-dvh flex-col">
-          {showChrome && <SiteHeader role={role} isSeller={isSeller} />}
+          {showChrome && <SiteHeader role={role} isSeller={isSeller} categories={navCategories} />}
           <main
             className={`flex-1 ${
               showChrome && role !== "anonymous" ? "pb-[calc(var(--nav-height)+var(--safe-bottom))] sm:pb-0" : ""
