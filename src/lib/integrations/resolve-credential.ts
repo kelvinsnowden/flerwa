@@ -25,23 +25,29 @@ const CREDENTIAL_ROW_ENVIRONMENT = "production" as const;
 // risking a stale read across requests (a Node module-level cache would).
 const fetchStoredCredential = cache(
   async (capability: IntegrationCapability, providerKey: string): Promise<Record<string, string> | null> => {
-    const admin = createAdminClient();
-    const { data, error } = await admin
-      .from("integration_credentials")
-      .select("ciphertext")
-      .eq("capability", capability)
-      .eq("provider_key", providerKey)
-      .eq("environment", CREDENTIAL_ROW_ENVIRONMENT)
-      .eq("enabled", true)
-      .maybeSingle();
-    if (error || !data) return null;
+    // Wrapped end-to-end, not just around decrypt: createAdminClient()
+    // itself throws when SUPABASE_SERVICE_ROLE_KEY isn't set (unit tests,
+    // certain scripts/tooling contexts), and a Supabase client can throw
+    // before its query even runs. Any of that failing closed to the
+    // env-var fallback below is the whole point of this function — a
+    // config/environment problem reading the database must never turn
+    // into a thrown exception inside a webhook route, checkout action, or
+    // outbound send that only ever expected { ok: false, error } shapes.
     try {
+      const admin = createAdminClient();
+      const { data, error } = await admin
+        .from("integration_credentials")
+        .select("ciphertext")
+        .eq("capability", capability)
+        .eq("provider_key", providerKey)
+        .eq("environment", CREDENTIAL_ROW_ENVIRONMENT)
+        .eq("enabled", true)
+        .maybeSingle();
+      if (error || !data) return null;
       return decryptCredentialPayload(data.ciphertext);
     } catch {
-      // Corrupt/tampered ciphertext or a rotated master key — fail closed
-      // to the env-var fallback below rather than throwing into whatever
-      // caller triggered this (a webhook route, a checkout action, an
-      // outbound send), which would turn a config problem into an outage.
+      // Covers: no service-role key configured, DB unreachable, or a
+      // corrupt/tampered ciphertext (or a rotated master key).
       return null;
     }
   }
