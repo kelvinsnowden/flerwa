@@ -1,5 +1,6 @@
 import crypto from "crypto";
 import type { PaymentProviderAdapter, ParsedPaymentEvent } from "../provider";
+import { resolveCredentials } from "@/lib/integrations/resolve-credential";
 
 /**
  * IntaSend collection adapter — webhook verification, event parsing, and
@@ -27,9 +28,20 @@ import type { PaymentProviderAdapter, ParsedPaymentEvent } from "../provider";
  * and none of this was tested against a live IntaSend account.
  */
 
-function intasendBaseUrl(): string {
-  const env = process.env.INTASEND_ENV ?? "sandbox";
+function intasendBaseUrl(env: string | undefined): string {
   return env === "production" ? "https://payment.intasend.com" : "https://sandbox.intasend.com";
+}
+
+/**
+ * Admin-managed if saved via /admin/integrations, else falls back to this
+ * deployment's own INTASEND_SECRET_KEY/INTASEND_PUBLIC_KEY/INTASEND_ENV
+ * env vars — see src/lib/integrations/resolve-credential.ts. Not used by
+ * verifyWebhookSignature/parseWebhookEvent below, which need no
+ * credential at all (IntaSend's webhook auth is INTASEND_WEBHOOK_CHALLENGE,
+ * a deliberately separate, deployment-managed-only secret).
+ */
+async function getIntasendCredentials() {
+  return resolveCredentials("payment", "intasend");
 }
 
 function timingSafeStringEqual(a: string, b: string): boolean {
@@ -104,12 +116,12 @@ export const intasendAdapter: PaymentProviderAdapter = {
   // caveat as every other endpoint in this file — confirm before relying
   // on it in production.
   async testConnection() {
-    const secretKey = process.env.INTASEND_SECRET_KEY;
+    const { INTASEND_SECRET_KEY: secretKey, INTASEND_ENV } = await getIntasendCredentials();
     if (!secretKey) {
       return { ok: false, error: "INTASEND_SECRET_KEY is not configured." };
     }
     try {
-      const res = await fetch(`${intasendBaseUrl()}/api/v1/wallets/`, {
+      const res = await fetch(`${intasendBaseUrl(INTASEND_ENV)}/api/v1/wallets/`, {
         headers: { Authorization: `Bearer ${secretKey}` },
       });
       if (!res.ok) {
@@ -143,20 +155,20 @@ export async function createIntasendCollection(
   currency: string,
   phoneNumber: string
 ): Promise<CreateCollectionResult> {
-  const secretKey = process.env.INTASEND_SECRET_KEY;
+  const { INTASEND_SECRET_KEY: secretKey, INTASEND_PUBLIC_KEY, INTASEND_ENV } = await getIntasendCredentials();
   if (!secretKey) {
     return { ok: false, error: "INTASEND_SECRET_KEY is not configured — no real IntaSend account is connected yet." };
   }
 
   try {
-    const res = await fetch(`${intasendBaseUrl()}/api/v1/payment/mpesa-stk-push/`, {
+    const res = await fetch(`${intasendBaseUrl(INTASEND_ENV)}/api/v1/payment/mpesa-stk-push/`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${secretKey}`,
       },
       body: JSON.stringify({
-        public_key: process.env.INTASEND_PUBLIC_KEY,
+        public_key: INTASEND_PUBLIC_KEY,
         amount: amountMinor / 100,
         phone_number: phoneNumber,
         currency,

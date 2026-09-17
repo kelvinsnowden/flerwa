@@ -1,4 +1,5 @@
 import type { PaymentProviderAdapter, ParsedPaymentEvent } from "../provider";
+import { resolveCredentials } from "@/lib/integrations/resolve-credential";
 
 /**
  * Pesapal adapter — grounded in Pesapal's published API v3 docs
@@ -40,9 +41,16 @@ import type { PaymentProviderAdapter, ParsedPaymentEvent } from "../provider";
  *   merchant_reference, confirmation_code, payment_method }.
  */
 
-function pesapalBaseUrl(): string {
-  const env = process.env.PESAPAL_ENV ?? "sandbox";
+function pesapalBaseUrl(env: string | undefined): string {
   return env === "production" ? "https://pay.pesapal.com/v3" : "https://cybqa.pesapal.com/pesapalv3";
+}
+
+/** Admin-managed if saved via /admin/integrations, else falls back to this
+ * deployment's own PESAPAL_* env vars — see resolve-credential.ts. Every
+ * caller in this file is already async, so there's no sync/webhook-path
+ * constraint like Kora's or the email adapters' inbound signature checks. */
+async function getPesapalCredentials() {
+  return resolveCredentials("payment", "pesapal");
 }
 
 type PesapalStatus = {
@@ -58,14 +66,13 @@ type PesapalStatus = {
 let cachedToken: { token: string; expiresAt: number } | null = null;
 
 async function getPesapalToken(): Promise<string | null> {
-  const consumerKey = process.env.PESAPAL_CONSUMER_KEY;
-  const consumerSecret = process.env.PESAPAL_CONSUMER_SECRET;
+  const { PESAPAL_CONSUMER_KEY: consumerKey, PESAPAL_CONSUMER_SECRET: consumerSecret, PESAPAL_ENV } = await getPesapalCredentials();
   if (!consumerKey || !consumerSecret) return null;
 
   if (cachedToken && cachedToken.expiresAt > Date.now()) return cachedToken.token;
 
   try {
-    const res = await fetch(`${pesapalBaseUrl()}/api/Auth/RequestToken`, {
+    const res = await fetch(`${pesapalBaseUrl(PESAPAL_ENV)}/api/Auth/RequestToken`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Accept: "application/json" },
       body: JSON.stringify({ consumer_key: consumerKey, consumer_secret: consumerSecret }),
@@ -94,9 +101,11 @@ async function getPesapalTransactionStatus(orderTrackingId: string): Promise<Pes
   const token = await getPesapalToken();
   if (!token) return null;
 
+  const { PESAPAL_ENV } = await getPesapalCredentials();
+
   try {
     const res = await fetch(
-      `${pesapalBaseUrl()}/api/Transactions/GetTransactionStatus?orderTrackingId=${encodeURIComponent(orderTrackingId)}`,
+      `${pesapalBaseUrl(PESAPAL_ENV)}/api/Transactions/GetTransactionStatus?orderTrackingId=${encodeURIComponent(orderTrackingId)}`,
       { headers: { Authorization: `Bearer ${token}`, Accept: "application/json" } }
     );
     const data = (await res.json().catch(() => null)) as PesapalStatus | null;
@@ -172,7 +181,8 @@ export const pesapalAdapter: PaymentProviderAdapter = {
   // are valid and Pesapal's auth endpoint is reachable, which is the
   // entire trust chain this adapter's webhook verification rests on.
   async testConnection() {
-    if (!process.env.PESAPAL_CONSUMER_KEY || !process.env.PESAPAL_CONSUMER_SECRET) {
+    const { PESAPAL_CONSUMER_KEY, PESAPAL_CONSUMER_SECRET } = await getPesapalCredentials();
+    if (!PESAPAL_CONSUMER_KEY || !PESAPAL_CONSUMER_SECRET) {
       return { ok: false, error: "PESAPAL_CONSUMER_KEY / PESAPAL_CONSUMER_SECRET are not configured." };
     }
     cachedToken = null; // force a real round-trip rather than reusing a cached token
@@ -209,8 +219,7 @@ export async function createPesapalOrder(
   email: string | null,
   phoneNumber: string
 ): Promise<CreatePesapalOrderResult> {
-  const ipnId = process.env.PESAPAL_IPN_ID;
-  const callbackUrl = process.env.PESAPAL_CALLBACK_URL;
+  const { PESAPAL_IPN_ID: ipnId, PESAPAL_CALLBACK_URL: callbackUrl } = await getPesapalCredentials();
   if (!ipnId || !callbackUrl) {
     return { ok: false, error: "PESAPAL_IPN_ID / PESAPAL_CALLBACK_URL are not configured — no real Pesapal account is connected yet." };
   }
@@ -219,9 +228,10 @@ export async function createPesapalOrder(
   if (!token) {
     return { ok: false, error: "Could not authenticate with Pesapal — PESAPAL_CONSUMER_KEY/SECRET missing or rejected." };
   }
+  const { PESAPAL_ENV } = await getPesapalCredentials();
 
   try {
-    const res = await fetch(`${pesapalBaseUrl()}/api/Transactions/SubmitOrderRequest`, {
+    const res = await fetch(`${pesapalBaseUrl(PESAPAL_ENV)}/api/Transactions/SubmitOrderRequest`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Accept: "application/json", Authorization: `Bearer ${token}` },
       body: JSON.stringify({

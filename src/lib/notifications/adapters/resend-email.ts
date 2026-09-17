@@ -1,5 +1,6 @@
 import crypto from "crypto";
 import type { EmailProviderAdapter, InboundAttachment, InboundWebhookBody, OutboundEmail, ParsedInboundEmail } from "../email-provider";
+import { resolveCredentials } from "@/lib/integrations/resolve-credential";
 
 /**
  * Resend adapter — the first (not the only) EmailProviderAdapter
@@ -42,6 +43,14 @@ import type { EmailProviderAdapter, InboundAttachment, InboundWebhookBody, Outbo
 
 const RESEND_API_BASE = "https://api.resend.com";
 
+/** Admin-managed if saved via /admin/integrations, else falls back to
+ * this deployment's own RESEND_API_KEY. Not used by verifyInboundWebhook
+ * below (RESEND_WEBHOOK_SECRET), a deliberately separate, deployment-
+ * managed-only, synchronously-checked secret. */
+async function getResendCredentials() {
+  return resolveCredentials("email", "resend");
+}
+
 function timingSafeStringEqual(a: string, b: string): boolean {
   const bufA = Buffer.from(a);
   const bufB = Buffer.from(b);
@@ -56,7 +65,7 @@ export const resendEmailAdapter: EmailProviderAdapter = {
   key: "resend",
 
   async sendEmail(msg: OutboundEmail) {
-    const apiKey = process.env.RESEND_API_KEY;
+    const { RESEND_API_KEY: apiKey } = await getResendCredentials();
     if (!apiKey) {
       return { ok: false, error: "RESEND_API_KEY is not configured." };
     }
@@ -171,7 +180,7 @@ export const resendEmailAdapter: EmailProviderAdapter = {
   // Same "grounded in docs, not independently tested against a live
   // account" caveat as this file's other endpoints.
   async testConnection() {
-    const apiKey = process.env.RESEND_API_KEY;
+    const { RESEND_API_KEY: apiKey } = await getResendCredentials();
     if (!apiKey) {
       return { ok: false, error: "RESEND_API_KEY is not configured." };
     }
@@ -206,7 +215,7 @@ async function fetchResendInboundBody(emailId: string): Promise<{
   references: string[];
   attachments: InboundAttachment[];
 } | null> {
-  const apiKey = process.env.RESEND_API_KEY;
+  const { RESEND_API_KEY: apiKey } = await getResendCredentials();
   if (!apiKey) return null;
 
   try {
@@ -241,7 +250,7 @@ async function fetchResendInboundBody(emailId: string): Promise<{
  * long-term — it expires and we'd lose the file).
  */
 async function fetchResendInboundAttachments(emailId: string): Promise<InboundAttachment[]> {
-  const apiKey = process.env.RESEND_API_KEY;
+  const { RESEND_API_KEY: apiKey } = await getResendCredentials();
   if (!apiKey) return [];
 
   try {

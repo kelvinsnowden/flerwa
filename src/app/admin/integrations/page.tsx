@@ -1,10 +1,11 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { IntegrationCardList, type IntegrationCardRow } from "./integration-card";
+import { IntegrationCardList, type IntegrationCardRow, type CredentialFieldMeta } from "./integration-card";
 import { ErrorNotice } from "@/components/error-notice";
 import { paymentAdapters } from "@/lib/payments/registry";
 import { verificationAdapters } from "@/lib/verification/registry";
 import { emailAdapters, smsAdapters } from "@/lib/notifications/registry";
+import { getProviderDefinition, getProviderDefinitions, type IntegrationCapability } from "@/lib/integrations/provider-schemas";
 import type { PaymentProvider, PayoutProvider, VerificationProvider, PaymentProviderEvent } from "@/lib/types";
 
 interface NotificationChannel {
@@ -18,27 +19,69 @@ interface NotificationChannel {
   last_test_error: string | null;
 }
 
-/**
- * The minimal env vars each real adapter needs for its own testConnection()
- * call to even attempt a request — NOT the full operational requirement
- * (e.g. Resend also needs SUPPORT_EMAIL_FROM to actually send a support
- * reply; that's covered in the "Environment configuration" appendix
- * below, not here). Used only to compute "Not configured" vs "Configured".
- */
-const PAYMENT_ENV_VARS: Record<string, string[]> = {
-  intasend: ["INTASEND_SECRET_KEY"],
-  pesapal: ["PESAPAL_CONSUMER_KEY", "PESAPAL_CONSUMER_SECRET"],
-};
-const VERIFICATION_ENV_VARS: Record<string, string[]> = {
-  kora: ["KORA_SECRET_KEY"],
-};
-const EMAIL_ENV_VARS: Record<string, string[]> = {
-  resend: ["RESEND_API_KEY"],
-  mailgun: ["MAILGUN_API_KEY", "MAILGUN_DOMAIN"],
-};
+interface IntegrationCredentialRow {
+  id: string;
+  capability: IntegrationCapability;
+  provider_key: string;
+  enabled: boolean;
+  metadata: { fields?: Record<string, CredentialFieldMeta> } | null;
+}
 
 function envConfigured(vars: string[]): boolean {
   return vars.length > 0 && vars.every((v) => !!process.env[v]);
+}
+
+/** Builds one IntegrationCardRow per known provider (from PROVIDER_DEFINITIONS)
+ * for a capability, joined against whatever DB row(s) already exist for
+ * activation status and saved credentials — so every provider this
+ * codebase actually has an adapter for shows a Configure card, even one
+ * nobody has touched yet, not just whatever happens to have a
+ * payment_providers/verification_providers/notification_channels row. */
+function buildRows<T extends { key: string; display_name: string; is_active: boolean; connected_at: string | null; last_tested_at: string | null; last_test_ok: boolean | null; last_test_error: string | null }>(
+  capability: IntegrationCapability,
+  dbRows: T[],
+  adapters: Record<string, { testConnection?: unknown }>,
+  credentialsByKey: Map<string, IntegrationCredentialRow>
+): IntegrationCardRow[] {
+  return dbRows.map((dbRow) => {
+    const definition = getProviderDefinition(capability, dbRow.key) ?? null;
+    const isManual = dbRow.key === "manual";
+    const credential = credentialsByKey.get(dbRow.key);
+    const credentialFields = credential?.metadata?.fields ?? {};
+
+    const requiredVars = (definition?.configurationSchema ?? []).filter((f) => f.required).map((f) => f.key);
+    const envFallbackConfigured = isManual ? true : envConfigured(requiredVars);
+
+    const envPresence: Record<string, boolean> = {};
+    const envFallbackValues: Record<string, string> = {};
+    for (const field of definition?.configurationSchema ?? []) {
+      envPresence[field.key] = !!process.env[field.key];
+      if (!field.secret && process.env[field.key]) envFallbackValues[field.key] = process.env[field.key]!;
+    }
+    for (const f of definition?.deploymentManagedFields ?? []) {
+      envPresence[f.key] = !!process.env[f.key];
+    }
+
+    return {
+      key: dbRow.key,
+      display_name: dbRow.display_name,
+      is_active: dbRow.is_active,
+      connected_at: dbRow.connected_at,
+      isManual,
+      hasTestConnection: !isManual && !!adapters[dbRow.key]?.testConnection,
+      lastTestedAt: dbRow.last_tested_at,
+      lastTestOk: dbRow.last_test_ok,
+      lastTestError: dbRow.last_test_error,
+      capability,
+      definition,
+      credentialId: credential?.id ?? null,
+      credentialEnabled: credential ? credential.enabled : null,
+      credentialFields,
+      envFallbackConfigured,
+      envPresence,
+      envFallbackValues,
+    } satisfies IntegrationCardRow;
+  });
 }
 
 export default async function AdminIntegrationsPage() {
@@ -52,6 +95,11 @@ export default async function AdminIntegrationsPage() {
     { count: unprocessedCount },
     { count: failedPayoutCount },
     { data: notificationChannels, error: ncError },
+    // Deliberately selects everything EXCEPT ciphertext — the encrypted
+    // secret blob never needs to reach this Server Component, let alone
+    // any client component it renders. RLS ("admin can read integration
+    // credentials") gates this to admins regardless.
+    { data: integrationCredentials, error: icError },
   ] = await Promise.all([
     supabase.from("payment_providers").select("*").order("created_at").returns<PaymentProvider[]>(),
     supabase.from("payout_providers").select("*").order("created_at").returns<PayoutProvider[]>(),
@@ -65,98 +113,58 @@ export default async function AdminIntegrationsPage() {
     supabase.from("payment_provider_events").select("id", { count: "exact", head: true }).eq("processed", false),
     supabase.from("payouts").select("id", { count: "exact", head: true }).eq("state", "failed"),
     supabase.from("notification_channels").select("*").order("created_at").returns<NotificationChannel[]>(),
+    supabase
+      .from("integration_credentials")
+      .select("id, capability, provider_key, enabled, metadata")
+      .returns<IntegrationCredentialRow[]>(),
   ]);
 
   const emailChannels = notificationChannels?.filter((c) => c.kind === "email") ?? [];
   const smsChannels = notificationChannels?.filter((c) => c.kind === "sms") ?? [];
+
+  const credentialsByCapability: Record<IntegrationCapability, Map<string, IntegrationCredentialRow>> = {
+    payment: new Map(),
+    verification: new Map(),
+    email: new Map(),
+    sms: new Map(),
+  };
+  for (const row of integrationCredentials ?? []) {
+    credentialsByCapability[row.capability]?.set(row.provider_key, row);
+  }
 
   // payout_providers/payouts (migration_proposals/PROPOSED_automated_
   // provider_payouts.sql) haven't been applied to production — see
   // /admin/payouts's own audit note. Handled as its own honest "not live
   // yet" state below instead of one blanket error banner that used to
   // hide the working Payment/Verification provider sections underneath it
-  // whenever only the payout query failed.
+  // whenever only the payout query failed. Payout credentials are out of
+  // scope for this pass for the same reason — nothing to configure yet.
   const payoutProvidersMissing = !!poError;
 
-  const paymentRows: IntegrationCardRow[] = (paymentProviders ?? []).map((p) => {
-    const isManual = p.kind === "manual";
-    const vars = PAYMENT_ENV_VARS[p.key] ?? [];
-    return {
-      key: p.key,
-      display_name: p.display_name,
-      is_active: p.is_active,
-      connected_at: p.connected_at,
-      isManual,
-      envConfigured: isManual ? true : envConfigured(vars),
-      hasTestConnection: !isManual && !!paymentAdapters[p.key]?.testConnection,
-      lastTestedAt: p.last_tested_at,
-      lastTestOk: p.last_test_ok,
-      lastTestError: p.last_test_error,
-    };
-  });
+  const paymentRows = buildRows("payment", paymentProviders ?? [], paymentAdapters, credentialsByCapability.payment);
+  const verificationRows = buildRows("verification", verificationProviders ?? [], verificationAdapters, credentialsByCapability.verification);
+  const emailRows = buildRows("email", emailChannels, emailAdapters, credentialsByCapability.email);
+  const smsRows = buildRows("sms", smsChannels, smsAdapters, credentialsByCapability.sms);
+  const smsDefinitions = getProviderDefinitions("sms");
 
-  const verificationRows: IntegrationCardRow[] = (verificationProviders ?? []).map((p) => {
-    const isManual = p.key === "manual";
-    const vars = VERIFICATION_ENV_VARS[p.key] ?? [];
-    return {
-      key: p.key,
-      display_name: p.display_name,
-      is_active: p.is_active,
-      connected_at: p.connected_at,
-      isManual,
-      envConfigured: isManual ? true : envConfigured(vars),
-      hasTestConnection: !isManual && !!verificationAdapters[p.key]?.testConnection,
-      lastTestedAt: p.last_tested_at,
-      lastTestOk: p.last_test_ok,
-      lastTestError: p.last_test_error,
-    };
-  });
-
-  const emailRows: IntegrationCardRow[] = emailChannels.map((c) => {
-    const vars = EMAIL_ENV_VARS[c.key] ?? [];
-    return {
-      key: c.key,
-      display_name: c.display_name,
-      is_active: c.is_active,
-      connected_at: c.connected_at,
-      isManual: false,
-      envConfigured: envConfigured(vars),
-      hasTestConnection: !!emailAdapters[c.key]?.testConnection,
-      lastTestedAt: c.last_tested_at,
-      lastTestOk: c.last_test_ok,
-      lastTestError: c.last_test_error,
-    };
-  });
-
-  const smsRows: IntegrationCardRow[] = smsChannels.map((c) => ({
-    key: c.key,
-    display_name: c.display_name,
-    is_active: c.is_active,
-    connected_at: c.connected_at,
-    isManual: false,
-    envConfigured: false,
-    hasTestConnection: !!smsAdapters[c.key]?.testConnection,
-    lastTestedAt: c.last_tested_at,
-    lastTestOk: c.last_test_ok,
-    lastTestError: c.last_test_error,
-  }));
-
-  // Payout schema isn't live yet (see payoutProvidersMissing above) — this
-  // only ever renders once that migration is applied. No test-connection
-  // capability yet: there's no rpc_record_payout_provider_test and no
-  // last_test_* columns on this table, deliberately not added alongside
-  // this pass since the table itself isn't in production.
   const payoutRows: IntegrationCardRow[] = (payoutProviders ?? []).map((p) => ({
     key: p.key,
     display_name: p.display_name,
     is_active: p.is_active,
     connected_at: p.connected_at,
     isManual: false,
-    envConfigured: !!process.env.INTASEND_PAYOUT_SECRET_KEY || !!process.env.INTASEND_SECRET_KEY,
     hasTestConnection: false,
     lastTestedAt: null,
     lastTestOk: null,
     lastTestError: null,
+    capability: "payment",
+    definition: null,
+    credentialId: null,
+    credentialEnabled: null,
+    credentialFields: {},
+    envFallbackConfigured: !!process.env.INTASEND_PAYOUT_SECRET_KEY || !!process.env.INTASEND_SECRET_KEY,
+    envPresence: {},
+    envFallbackValues: {},
   }));
 
   const ENV_GROUPS: { label: string; vars: string[] }[] = [
@@ -165,7 +173,7 @@ export default async function AdminIntegrationsPage() {
     { label: "Identity verification", vars: ["KORA_SECRET_KEY"] },
     { label: "Email", vars: ["RESEND_API_KEY", "RESEND_WEBHOOK_SECRET", "SUPPORT_EMAIL_FROM"] },
     { label: "Ops alerting", vars: ["ALERT_EMAIL_TO", "ALERT_EMAIL_FROM"] },
-    { label: "Core platform", vars: ["NEXT_PUBLIC_SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY", "CRON_SECRET"] },
+    { label: "Core platform", vars: ["NEXT_PUBLIC_SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY", "CRON_SECRET", "INTEGRATION_CREDENTIALS_ENCRYPTION_KEY"] },
   ];
   const envPresence: Record<string, boolean> = {};
   for (const g of ENV_GROUPS) for (const v of g.vars) envPresence[v] = !!process.env[v];
@@ -175,15 +183,16 @@ export default async function AdminIntegrationsPage() {
       <h1 className="text-xl font-bold mb-2">Integrations</h1>
       <p className="text-sm text-[var(--muted)] mb-6">
         What Trusted Service connects to, what&apos;s actually working, and what each one is used
-        for. Credentials live in this deployment&apos;s environment variables, never in this
-        database — this page controls which already-coded adapter is authoritative and lets you
-        prove it&apos;s reachable; it can&apos;t write a secret into Vercel for you. Adding a
-        brand-new vendor still means writing one adapter file first (see{" "}
+        for. Click <strong>Configure</strong> on any provider to enter its credentials — they&apos;re
+        encrypted before they&apos;re stored and never shown again in full. Configuring a provider
+        doesn&apos;t make it live: use <strong>Test connection</strong> to prove the saved credentials
+        work, then <strong>Make active</strong> when you&apos;re ready to route real traffic to it.
+        Adding a brand-new vendor still means writing one adapter file first (see{" "}
         <code>src/lib/payments/registry.ts</code> and <code>src/lib/verification/registry.ts</code>
         ). See <code>docs/16-payment-verification-integrations.md</code>.
       </p>
 
-      {(ppError || vpError) && <ErrorNotice message="Couldn't load the provider registry. Please refresh." />}
+      {(ppError || vpError || icError) && <ErrorNotice message="Couldn't load the provider registry. Please refresh." />}
 
       <section className="mb-8">
         <h2 className="text-sm font-semibold mb-1">Payments</h2>
@@ -220,7 +229,8 @@ export default async function AdminIntegrationsPage() {
         {payoutProvidersMissing ? (
           <p className="text-xs text-[var(--muted)] bg-[var(--warn-tint)] rounded-[var(--radius-sm)] p-2.5">
             Not live in production yet — the wallet-model payout schema hasn&apos;t been applied. See{" "}
-            <Link href="/admin/payouts" className="underline">Payouts</Link>.
+            <Link href="/admin/payouts" className="underline">Payouts</Link>. Credential configuration for
+            payouts is out of scope until that schema exists.
           </p>
         ) : (
           <>
@@ -276,9 +286,9 @@ export default async function AdminIntegrationsPage() {
         )}
         {emailChannels.find((c) => c.is_active) && (
           <p className="text-xs text-[var(--muted)] mt-2">
-            Requires a verified sending domain with the active provider and{" "}
-            <code>SUPPORT_EMAIL_FROM</code>/<code>RESEND_WEBHOOK_SECRET</code> set (see{" "}
-            <code>.env.example</code>). Point the provider&apos;s inbound webhook at{" "}
+            Requires a verified sending domain with the active provider and its inbound webhook
+            secret / support from-address set (see the Deployment-managed section of that
+            provider&apos;s Configure panel). Point the provider&apos;s inbound webhook at{" "}
             <code>/api/webhooks/support-inbound</code> on this domain.
           </p>
         )}
@@ -286,7 +296,7 @@ export default async function AdminIntegrationsPage() {
 
       <section className="mb-8">
         <h2 className="text-sm font-semibold mb-1">SMS</h2>
-        {smsRows.length > 0 ? (
+        {smsDefinitions.length > 0 && smsRows.length > 0 ? (
           <>
             <p className="text-xs text-[var(--muted)] mb-3">
               Used by: customer support alerts, once a vendor is connected.
@@ -295,12 +305,16 @@ export default async function AdminIntegrationsPage() {
           </>
         ) : (
           <div className="card p-3">
-            <span className="badge-muted">Not implemented</span>
+            <span className="badge-muted">No SMS provider configured</span>
             <p className="text-xs text-[var(--muted)] mt-2">
               No SMS vendor is connected — <code>smsAdapters</code> in{" "}
-              <code>src/lib/notifications/registry.ts</code> ships empty by design. Nothing in the
-              app currently sends an SMS through this registry; support stays email-only until a
-              vendor (Africa&apos;s Talking, Twilio, etc.) is added as a real adapter here.
+              <code>src/lib/notifications/registry.ts</code> ships empty by design, and this page
+              won&apos;t fabricate a provider that doesn&apos;t exist. Nothing in the app currently
+              sends an SMS through this registry; support stays email-only until a vendor
+              (Africa&apos;s Talking, Twilio, etc.) is added as a real adapter — see{" "}
+              <code>docs/16-payment-verification-integrations.md</code> for how to add one, then
+              register it in <code>src/lib/integrations/provider-schemas.ts</code> so this page can
+              render a Configure form for it.
             </p>
             <p className="text-xs text-[var(--muted)] mt-2">
               This is separate from phone/OTP login, which already works today via{" "}
@@ -338,12 +352,12 @@ export default async function AdminIntegrationsPage() {
       </section>
 
       <section className="mb-8">
-        <h2 className="text-sm font-semibold mb-2">Environment configuration</h2>
+        <h2 className="text-sm font-semibold mb-2">Environment variables — still required</h2>
         <p className="text-xs text-[var(--muted)] mb-3">
-          Whether each credential is set on this deployment — presence only, never the value
-          itself. Read from real <code>process.env</code> at request time. This is the full
-          operational requirement per vendor (webhooks, from-addresses, etc.) — the status badge on
-          each card above checks only the minimum needed to attempt a connection test.
+          Whether each Deployment-managed credential is set — presence only, never the value
+          itself. These stay Vercel environment variables even after every provider above is fully
+          configured from this page (see each provider&apos;s Configure panel → Deployment-managed
+          for why). Read from real <code>process.env</code> at request time.
         </p>
         <div className="grid gap-3 sm:grid-cols-2">
           {ENV_GROUPS.map((g) => (

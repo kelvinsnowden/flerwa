@@ -1,5 +1,6 @@
 import crypto from "crypto";
 import type { VerificationProviderAdapter, ParsedIdentityCheckResult } from "../provider";
+import { resolveCredentials } from "@/lib/integrations/resolve-credential";
 
 /**
  * Kora Identity adapter — webhook verification (for whichever of Kora's
@@ -26,6 +27,18 @@ import type { VerificationProviderAdapter, ParsedIdentityCheckResult } from "../
 export const koraAdapter: VerificationProviderAdapter = {
   key: "kora",
 
+  // Stays synchronous and reads process.env directly rather than going
+  // through resolveCredentials(): VerificationProviderAdapter.verifyWebhookSignature
+  // is typed as a plain `boolean` (not `Promise<boolean>`), and widening it
+  // to async here — the one place in this codebase's webhook-verification
+  // interfaces where that hasn't already been done for Pesapal — would risk
+  // a caller doing `if (!adapter.verifyWebhookSignature(...))` without an
+  // await, where a pending Promise is truthy and the check would silently
+  // always pass. verifyKenyaNationalId below (the realistic integration
+  // point per this file's header comment — this webhook path is
+  // speculative) is what's actually admin-managed via resolveCredentials();
+  // if KORA_SECRET_KEY is only saved in the database and not also set as an
+  // env var, this webhook check keeps failing closed rather than passing.
   verifyWebhookSignature(rawBody: string, headers: Headers): boolean {
     const secretKey = process.env.KORA_SECRET_KEY;
     if (!secretKey) return false; // not configured yet — fail closed, don't guess
@@ -103,7 +116,7 @@ export interface KenyaNationalIdResult {
  * fabricate a result.
  */
 export async function verifyKenyaNationalId(idNumber: string): Promise<KenyaNationalIdResult> {
-  const secretKey = process.env.KORA_SECRET_KEY;
+  const { KORA_SECRET_KEY: secretKey } = await resolveCredentials("verification", "kora");
   if (!secretKey) {
     return { ok: false, error: "KORA_SECRET_KEY is not configured — no real Kora account is connected yet." };
   }
