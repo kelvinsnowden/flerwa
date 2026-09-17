@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import { updateAvatar } from "./actions";
 import { Avatar } from "@/components/ui/avatar";
 import { Icon } from "@/components/ui/icon";
+import { compressImageFile, extensionForMimeType } from "@/lib/client-image-compression";
 
 const MAX_BYTES = 5 * 1024 * 1024;
 
@@ -39,7 +40,12 @@ export function PhotoUpload({ name, initialPhotoUrl }: { name: string; initialPh
         return;
       }
 
-      const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
+      // Avatars only ever render up to 64px in this app (see Avatar's
+      // SIZES) but are stored once and viewed repeatedly by every visitor
+      // to a storefront — resizing at upload time, not display time,
+      // keeps every one of those repeat views cheap.
+      const compressed = await compressImageFile(file, { maxDimension: 1024, quality: 0.85 });
+      const ext = extensionForMimeType(compressed.type || file.type);
       const path = `${user.id}/avatar.${ext}`;
 
       // RLS ("avatars owner write/update") is what actually enforces that
@@ -48,7 +54,7 @@ export function PhotoUpload({ name, initialPhotoUrl }: { name: string; initialPh
       // UI, if that ever stopped matching.
       const { error: uploadError } = await supabase.storage
         .from("avatars")
-        .upload(path, file, { upsert: true, cacheControl: "3600" });
+        .upload(path, compressed, { upsert: true, cacheControl: "3600", contentType: compressed.type || file.type });
       if (uploadError) {
         setError(uploadError.message);
         return;

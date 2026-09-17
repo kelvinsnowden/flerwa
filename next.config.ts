@@ -25,6 +25,17 @@ const nextConfig: NextConfig = {
         hostname: "famdxoardiibonghxepl.supabase.co",
         pathname: "/storage/v1/object/public/provider-portfolio/**",
       },
+      // transaction-evidence is a private bucket — every URL is a
+      // short-lived signed URL (see evidence-gallery.tsx), not a public
+      // object path. Still worth optimizing: next/image resizes to the
+      // requested display size on every fetch even without cross-request
+      // caching, so a full-resolution evidence photo is never sent to
+      // shrink into a 112px-tall card.
+      {
+        protocol: "https",
+        hostname: "famdxoardiibonghxepl.supabase.co",
+        pathname: "/storage/v1/object/sign/transaction-evidence/**",
+      },
     ],
   },
 };

@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { Icon } from "@/components/ui/icon";
 import type { PortfolioItem } from "@/lib/types";
 import { addPortfolioItem, removePortfolioItem, updatePortfolioItem, type PortfolioItemFields } from "./actions";
+import { compressImageFile, extensionForMimeType, scaleToFit } from "@/lib/client-image-compression";
 
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
 const MAX_VIDEO_BYTES = 50 * 1024 * 1024;
@@ -32,9 +33,13 @@ function extractVideoThumbnail(file: File): Promise<Blob> {
       video.currentTime = Math.min(0.5, video.duration / 2 || 0);
     };
     video.onseeked = () => {
+      // Capped to the same maxDimension as a real portfolio photo — a
+      // thumbnail generated from a 4K video source has no reason to be
+      // any larger than a directly-uploaded photo would be.
+      const { width, height } = scaleToFit(video.videoWidth || 640, video.videoHeight || 360, 1600);
       const canvas = document.createElement("canvas");
-      canvas.width = video.videoWidth || 640;
-      canvas.height = video.videoHeight || 360;
+      canvas.width = width;
+      canvas.height = height;
       const ctx = canvas.getContext("2d");
       if (!ctx) {
         cleanup();
@@ -162,12 +167,13 @@ export function PortfolioManager({ initialItems }: { initialItems: PortfolioItem
             },
           ]);
         } else {
-          const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
+          const compressed = await compressImageFile(file, { maxDimension: 1600, quality: 0.82 });
+          const ext = extensionForMimeType(compressed.type || file.type);
           const path = `${user.id}/${Date.now()}.${ext}`;
 
           const { error: uploadError } = await supabase.storage
             .from("provider-portfolio")
-            .upload(path, file, { cacheControl: "3600" });
+            .upload(path, compressed, { cacheControl: "3600", contentType: compressed.type || file.type });
           if (uploadError) {
             setError(uploadError.message);
             return;

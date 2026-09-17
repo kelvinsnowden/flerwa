@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { createClient } from "@/lib/supabase/server";
 import { ErrorNotice } from "@/components/error-notice";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -53,8 +54,13 @@ export async function EvidenceGallery({ transactionId }: { transactionId: string
       {withUrls.map((item) => (
         <div key={item.id} className="card card-shadow overflow-hidden">
           {item.url && item.type === "photo" && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={item.url} alt={item.description ?? "Evidence"} className="w-full h-28 object-cover" />
+            // Resized at render time even though the signed URL itself
+            // isn't cacheable across requests (it expires and rotates) —
+            // still means every viewer downloads an image sized for this
+            // 112px-tall card instead of the full original.
+            <div className="relative w-full h-28">
+              <Image src={item.url} alt={item.description ?? "Evidence"} fill sizes="200px" className="object-cover" />
+            </div>
           )}
           {item.url && item.type === "video" && (
             <video src={item.url} controls className="w-full h-28 object-cover" />

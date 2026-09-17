@@ -320,7 +320,7 @@ export default async function AdminIntegrationsPage() {
           exposed via this app&apos;s Supabase role).
         </p>
         <div className="flex flex-wrap gap-1.5">
-          {["provider-documents", "support-attachments", "avatars", "provider-portfolio"].map((b) => (
+          {["provider-documents", "support-attachments", "avatars", "provider-portfolio", "transaction-evidence"].map((b) => (
             <span key={b} className="badge-muted font-mono">
               {b}
             </span>

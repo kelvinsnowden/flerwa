@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Icon } from "@/components/ui/icon";
+import { compressImageFile, scaleToFit } from "@/lib/client-image-compression";
 
 export type CaptureMethod = "camera_stream" | "file_fallback";
 
@@ -64,9 +65,13 @@ export function CameraCapture({
   function capture() {
     const video = videoRef.current;
     if (!video) return;
+    // Modern phone cameras stream well above what evidence review needs
+    // (often 4K+) — capped here, at the point of capture, rather than
+    // uploading the full stream frame and paying for it on every review.
+    const { width, height } = scaleToFit(video.videoWidth, video.videoHeight, 1600);
     const canvas = document.createElement("canvas");
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
+    canvas.width = width;
+    canvas.height = height;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
@@ -77,7 +82,7 @@ export function CameraCapture({
         setMode("idle");
       },
       "image/jpeg",
-      0.85
+      0.82
     );
   }
 
@@ -123,10 +128,12 @@ export function CameraCapture({
             accept="image/*"
             capture="environment"
             className="hidden"
-            onChange={(e) => {
+            onChange={async (e) => {
               const file = e.target.files?.[0];
-              if (file) onCapture(file, "file_fallback");
               e.target.value = "";
+              if (!file) return;
+              const compressed = await compressImageFile(file, { maxDimension: 1600, quality: 0.82 });
+              onCapture(compressed, "file_fallback");
             }}
           />
           <button type="button" className="btn-secondary text-xs mt-1" onClick={() => fileRef.current?.click()}>
