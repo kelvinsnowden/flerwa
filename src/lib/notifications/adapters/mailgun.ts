@@ -1,5 +1,6 @@
 import crypto from "crypto";
 import type { EmailProviderAdapter, InboundAttachment, InboundWebhookBody, OutboundEmail, ParsedInboundEmail } from "../email-provider";
+import { resolveCredentials } from "@/lib/integrations/resolve-credential";
 
 /**
  * Mailgun adapter — the second EmailProviderAdapter implementation,
@@ -46,8 +47,17 @@ import type { EmailProviderAdapter, InboundAttachment, InboundWebhookBody, Outbo
  * Mailgun account.
  */
 
-function mailgunBaseUrl(): string {
-  return process.env.MAILGUN_REGION === "eu" ? "https://api.eu.mailgun.net" : "https://api.mailgun.net";
+function mailgunBaseUrl(region: string | undefined): string {
+  return region === "eu" ? "https://api.eu.mailgun.net" : "https://api.mailgun.net";
+}
+
+/** Admin-managed if saved via /admin/integrations, else falls back to
+ * this deployment's own MAILGUN_API_KEY/MAILGUN_DOMAIN/MAILGUN_REGION.
+ * Not used by verifyInboundWebhook below (MAILGUN_WEBHOOK_SIGNING_KEY), a
+ * deliberately separate, deployment-managed-only, synchronously-checked
+ * secret — same boundary as the Resend adapter. */
+async function getMailgunCredentials() {
+  return resolveCredentials("email", "mailgun");
 }
 
 function timingSafeStringEqual(a: string, b: string): boolean {
@@ -64,8 +74,7 @@ export const mailgunAdapter: EmailProviderAdapter = {
   key: "mailgun",
 
   async sendEmail(msg: OutboundEmail) {
-    const apiKey = process.env.MAILGUN_API_KEY;
-    const domain = process.env.MAILGUN_DOMAIN;
+    const { MAILGUN_API_KEY: apiKey, MAILGUN_DOMAIN: domain, MAILGUN_REGION } = await getMailgunCredentials();
     if (!apiKey || !domain) {
       return { ok: false, error: "MAILGUN_API_KEY / MAILGUN_DOMAIN is not configured." };
     }
@@ -80,7 +89,7 @@ export const mailgunAdapter: EmailProviderAdapter = {
     if (msg.references?.length) form.set("h:References", msg.references.join(" "));
 
     try {
-      const res = await fetch(`${mailgunBaseUrl()}/v3/${domain}/messages`, {
+      const res = await fetch(`${mailgunBaseUrl(MAILGUN_REGION)}/v3/${domain}/messages`, {
         method: "POST",
         headers: {
           Authorization: `Basic ${Buffer.from(`api:${apiKey}`).toString("base64")}`,
@@ -165,12 +174,12 @@ export const mailgunAdapter: EmailProviderAdapter = {
   // list rather than a single-domain lookup so it still proves the key
   // works even if MAILGUN_DOMAIN itself is misconfigured.
   async testConnection() {
-    const apiKey = process.env.MAILGUN_API_KEY;
+    const { MAILGUN_API_KEY: apiKey, MAILGUN_REGION } = await getMailgunCredentials();
     if (!apiKey) {
       return { ok: false, error: "MAILGUN_API_KEY is not configured." };
     }
     try {
-      const res = await fetch(`${mailgunBaseUrl()}/v3/domains`, {
+      const res = await fetch(`${mailgunBaseUrl(MAILGUN_REGION)}/v3/domains`, {
         headers: { Authorization: `Basic ${Buffer.from(`api:${apiKey}`).toString("base64")}` },
       });
       if (!res.ok) {
