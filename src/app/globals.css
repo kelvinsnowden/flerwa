@@ -246,9 +246,19 @@
     font-size: 0.875rem;
   }
 
-  /* Bottom tab navigation shell for the authenticated mobile experience. */
+  /* Bottom tab navigation shell for the authenticated mobile experience.
+     Deliberately `fixed`, not `sticky`: `position: sticky; bottom: 0` only
+     re-pins once its own flex/scroll container recomputes, and on mobile
+     Safari/Chrome that recomputation lags the dynamic viewport resize
+     that happens as the address bar collapses during a scroll — the bar
+     visibly disappears mid-scroll and only snaps back once scrolling
+     stops. `fixed` is pinned to the viewport unconditionally, with no
+     dependency on scroll-container geometry. See layout.tsx's matching
+     bottom padding on <main> so fixed content doesn't sit underneath it. */
   .bottom-nav {
-    position: sticky;
+    position: fixed;
+    left: 0;
+    right: 0;
     bottom: 0;
     z-index: 40;
     background: var(--card);

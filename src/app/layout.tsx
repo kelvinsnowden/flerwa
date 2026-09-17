@@ -67,7 +67,13 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <div className="flex min-h-dvh flex-col">
           {showChrome && <SiteHeader role={role} isSeller={isSeller} />}
-          <main className="flex-1">{children}</main>
+          <main
+            className={`flex-1 ${
+              showChrome && role !== "anonymous" ? "pb-[calc(var(--nav-height)+var(--safe-bottom))] sm:pb-0" : ""
+            }`}
+          >
+            {children}
+          </main>
           {showChrome && role !== "anonymous" && (
             <div className="sm:hidden">
               <BottomNav role={role} isSeller={isSeller} unreadCount={unreadCount} />
