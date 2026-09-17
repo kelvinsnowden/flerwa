@@ -165,6 +165,22 @@ export const pesapalAdapter: PaymentProviderAdapter = {
       currency: status.currency ?? null,
     };
   },
+
+  // Reuses the exact same RequestToken call getPesapalTransactionStatus
+  // already depends on — no new endpoint, no side effects, nothing
+  // billable. A successful token fetch proves PESAPAL_CONSUMER_KEY/SECRET
+  // are valid and Pesapal's auth endpoint is reachable, which is the
+  // entire trust chain this adapter's webhook verification rests on.
+  async testConnection() {
+    if (!process.env.PESAPAL_CONSUMER_KEY || !process.env.PESAPAL_CONSUMER_SECRET) {
+      return { ok: false, error: "PESAPAL_CONSUMER_KEY / PESAPAL_CONSUMER_SECRET are not configured." };
+    }
+    cachedToken = null; // force a real round-trip rather than reusing a cached token
+    const token = await getPesapalToken();
+    return token
+      ? { ok: true }
+      : { ok: false, error: "Could not authenticate with Pesapal — credentials were rejected or the API is unreachable." };
+  },
 };
 
 export interface CreatePesapalOrderResult {

@@ -1,7 +1,10 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { ProviderToggleList } from "./provider-toggle";
+import { IntegrationCardList, type IntegrationCardRow } from "./integration-card";
 import { ErrorNotice } from "@/components/error-notice";
+import { paymentAdapters } from "@/lib/payments/registry";
+import { verificationAdapters } from "@/lib/verification/registry";
+import { emailAdapters, smsAdapters } from "@/lib/notifications/registry";
 import type { PaymentProvider, PayoutProvider, VerificationProvider, PaymentProviderEvent } from "@/lib/types";
 
 interface NotificationChannel {
@@ -10,6 +13,32 @@ interface NotificationChannel {
   display_name: string;
   is_active: boolean;
   connected_at: string | null;
+  last_tested_at: string | null;
+  last_test_ok: boolean | null;
+  last_test_error: string | null;
+}
+
+/**
+ * The minimal env vars each real adapter needs for its own testConnection()
+ * call to even attempt a request — NOT the full operational requirement
+ * (e.g. Resend also needs SUPPORT_EMAIL_FROM to actually send a support
+ * reply; that's covered in the "Environment configuration" appendix
+ * below, not here). Used only to compute "Not configured" vs "Configured".
+ */
+const PAYMENT_ENV_VARS: Record<string, string[]> = {
+  intasend: ["INTASEND_SECRET_KEY"],
+  pesapal: ["PESAPAL_CONSUMER_KEY", "PESAPAL_CONSUMER_SECRET"],
+};
+const VERIFICATION_ENV_VARS: Record<string, string[]> = {
+  kora: ["KORA_SECRET_KEY"],
+};
+const EMAIL_ENV_VARS: Record<string, string[]> = {
+  resend: ["RESEND_API_KEY"],
+  mailgun: ["MAILGUN_API_KEY", "MAILGUN_DOMAIN"],
+};
+
+function envConfigured(vars: string[]): boolean {
+  return vars.length > 0 && vars.every((v) => !!process.env[v]);
 }
 
 export default async function AdminIntegrationsPage() {
@@ -49,6 +78,87 @@ export default async function AdminIntegrationsPage() {
   // whenever only the payout query failed.
   const payoutProvidersMissing = !!poError;
 
+  const paymentRows: IntegrationCardRow[] = (paymentProviders ?? []).map((p) => {
+    const isManual = p.kind === "manual";
+    const vars = PAYMENT_ENV_VARS[p.key] ?? [];
+    return {
+      key: p.key,
+      display_name: p.display_name,
+      is_active: p.is_active,
+      connected_at: p.connected_at,
+      isManual,
+      envConfigured: isManual ? true : envConfigured(vars),
+      hasTestConnection: !isManual && !!paymentAdapters[p.key]?.testConnection,
+      lastTestedAt: p.last_tested_at,
+      lastTestOk: p.last_test_ok,
+      lastTestError: p.last_test_error,
+    };
+  });
+
+  const verificationRows: IntegrationCardRow[] = (verificationProviders ?? []).map((p) => {
+    const isManual = p.key === "manual";
+    const vars = VERIFICATION_ENV_VARS[p.key] ?? [];
+    return {
+      key: p.key,
+      display_name: p.display_name,
+      is_active: p.is_active,
+      connected_at: p.connected_at,
+      isManual,
+      envConfigured: isManual ? true : envConfigured(vars),
+      hasTestConnection: !isManual && !!verificationAdapters[p.key]?.testConnection,
+      lastTestedAt: p.last_tested_at,
+      lastTestOk: p.last_test_ok,
+      lastTestError: p.last_test_error,
+    };
+  });
+
+  const emailRows: IntegrationCardRow[] = emailChannels.map((c) => {
+    const vars = EMAIL_ENV_VARS[c.key] ?? [];
+    return {
+      key: c.key,
+      display_name: c.display_name,
+      is_active: c.is_active,
+      connected_at: c.connected_at,
+      isManual: false,
+      envConfigured: envConfigured(vars),
+      hasTestConnection: !!emailAdapters[c.key]?.testConnection,
+      lastTestedAt: c.last_tested_at,
+      lastTestOk: c.last_test_ok,
+      lastTestError: c.last_test_error,
+    };
+  });
+
+  const smsRows: IntegrationCardRow[] = smsChannels.map((c) => ({
+    key: c.key,
+    display_name: c.display_name,
+    is_active: c.is_active,
+    connected_at: c.connected_at,
+    isManual: false,
+    envConfigured: false,
+    hasTestConnection: !!smsAdapters[c.key]?.testConnection,
+    lastTestedAt: c.last_tested_at,
+    lastTestOk: c.last_test_ok,
+    lastTestError: c.last_test_error,
+  }));
+
+  // Payout schema isn't live yet (see payoutProvidersMissing above) — this
+  // only ever renders once that migration is applied. No test-connection
+  // capability yet: there's no rpc_record_payout_provider_test and no
+  // last_test_* columns on this table, deliberately not added alongside
+  // this pass since the table itself isn't in production.
+  const payoutRows: IntegrationCardRow[] = (payoutProviders ?? []).map((p) => ({
+    key: p.key,
+    display_name: p.display_name,
+    is_active: p.is_active,
+    connected_at: p.connected_at,
+    isManual: false,
+    envConfigured: !!process.env.INTASEND_PAYOUT_SECRET_KEY || !!process.env.INTASEND_SECRET_KEY,
+    hasTestConnection: false,
+    lastTestedAt: null,
+    lastTestOk: null,
+    lastTestError: null,
+  }));
+
   const ENV_GROUPS: { label: string; vars: string[] }[] = [
     { label: "Payments (collections)", vars: ["PESAPAL_CONSUMER_KEY", "PESAPAL_CONSUMER_SECRET", "PESAPAL_IPN_ID", "INTASEND_SECRET_KEY", "INTASEND_PUBLIC_KEY"] },
     { label: "Payouts", vars: ["INTASEND_PAYOUT_SECRET_KEY"] },
@@ -64,18 +174,25 @@ export default async function AdminIntegrationsPage() {
     <div>
       <h1 className="text-xl font-bold mb-2">Integrations</h1>
       <p className="text-sm text-[var(--muted)] mb-6">
-        Which payment aggregator and identity/KYC vendor are authoritative right now — a
-        registry flip here, not a code deploy. Adding a brand-new vendor still means writing
-        one adapter file first (see <code>src/lib/payments/registry.ts</code> and{" "}
-        <code>src/lib/verification/registry.ts</code>); this page only controls which
-        already-coded adapter is live. See <code>docs/16-payment-verification-integrations.md</code>.
+        What Trusted Service connects to, what&apos;s actually working, and what each one is used
+        for. Credentials live in this deployment&apos;s environment variables, never in this
+        database — this page controls which already-coded adapter is authoritative and lets you
+        prove it&apos;s reachable; it can&apos;t write a secret into Vercel for you. Adding a
+        brand-new vendor still means writing one adapter file first (see{" "}
+        <code>src/lib/payments/registry.ts</code> and <code>src/lib/verification/registry.ts</code>
+        ). See <code>docs/16-payment-verification-integrations.md</code>.
       </p>
 
       {(ppError || vpError) && <ErrorNotice message="Couldn't load the provider registry. Please refresh." />}
 
       <section className="mb-8">
-        <h2 className="text-sm font-semibold mb-2">Payment providers</h2>
-        {paymentProviders && <ProviderToggleList kind="payment" rows={paymentProviders} />}
+        <h2 className="text-sm font-semibold mb-1">Payments</h2>
+        <p className="text-xs text-[var(--muted)] mb-3">
+          Used by: <strong>customer checkout</strong> — collecting payment when a customer funds a
+          booking (<code>/account/bookings/[id]</code>). Disconnecting the active aggregator falls
+          back to manual M-Pesa Till/Paybill confirmation, not a broken checkout.
+        </p>
+        {paymentRows.length > 0 && <IntegrationCardList kind="payment" rows={paymentRows} />}
         {paymentProviders?.find((p) => p.is_active)?.key !== "manual" && (
           <p className="text-xs text-[var(--muted)] mt-2">
             Point the active aggregator&apos;s webhook dashboard at{" "}
@@ -85,8 +202,8 @@ export default async function AdminIntegrationsPage() {
       </section>
 
       <section className="mb-8">
-        <h2 className="text-sm font-semibold mb-2">
-          Payout providers
+        <h2 className="text-sm font-semibold mb-1">
+          Payouts
           {!!failedPayoutCount && (
             <span className="ml-2 text-xs text-[var(--danger)] font-normal">
               {failedPayoutCount} failed — see <Link href="/admin/payouts" className="underline">Payouts</Link>
@@ -94,9 +211,10 @@ export default async function AdminIntegrationsPage() {
           )}
         </h2>
         <p className="text-xs text-[var(--muted)] mb-3">
-          Separate from payment providers above — collections (customer → escrow) and payouts
-          (escrow → provider) are independent choices. Activating an aggregator here requires
-          legal sign-off first, same gate as payment providers (rpc_confirm_payout_provider_legal_signoff
+          Used by: <strong>paying providers out</strong> of escrow after a job settles. Separate
+          from payment providers above — collections (customer → escrow) and payouts (escrow →
+          provider) are independent choices. Activating an aggregator here requires legal sign-off
+          first, same gate as payment providers (<code>rpc_confirm_payout_provider_legal_signoff</code>
           — a deliberate no-UI, direct-SQL step; see the migration proposal for why).
         </p>
         {payoutProvidersMissing ? (
@@ -106,7 +224,7 @@ export default async function AdminIntegrationsPage() {
           </p>
         ) : (
           <>
-            {payoutProviders && <ProviderToggleList kind="payout" rows={payoutProviders} />}
+            {payoutRows.length > 0 && <IntegrationCardList kind="payout" rows={payoutRows} />}
             {payoutProviders?.find((p) => p.is_active) && (
               <p className="text-xs text-[var(--muted)] mt-2">
                 Point the active payout vendor&apos;s webhook dashboard at{" "}
@@ -118,8 +236,16 @@ export default async function AdminIntegrationsPage() {
       </section>
 
       <section className="mb-8">
-        <h2 className="text-sm font-semibold mb-2">Verification providers</h2>
-        {verificationProviders && <ProviderToggleList kind="verification" rows={verificationProviders} />}
+        <h2 className="text-sm font-semibold mb-1">Identity verification</h2>
+        <p className="text-xs text-[var(--muted)] mb-3">
+          Used by: <strong>provider onboarding</strong> — a National ID check surfaced to the admin
+          verification queue during <code>/provider/apply</code>. A vendor result never flips a
+          provider&apos;s <code>verification_status</code> by itself; an admin still makes that call
+          at <Link href="/admin/verifications" className="underline">Verifications</Link> (see{" "}
+          <code>docs/06-trust-architecture.md</code>) — this is a decision aid, not an
+          auto-approval path.
+        </p>
+        {verificationRows.length > 0 && <IntegrationCardList kind="verification" rows={verificationRows} />}
         {verificationProviders?.find((p) => p.is_active)?.key !== "manual" && (
           <p className="text-xs text-[var(--muted)] mt-2">
             Point the active vendor&apos;s webhook dashboard (if it has one — see{" "}
@@ -130,18 +256,21 @@ export default async function AdminIntegrationsPage() {
       </section>
 
       <section className="mb-8">
-        <h2 className="text-sm font-semibold mb-2">Support channels</h2>
+        <h2 className="text-sm font-semibold mb-1">Email</h2>
         <p className="text-xs text-[var(--muted)] mb-3">
-          Provider-agnostic by design (MARKETPLACE_SUPPORT_SYSTEM_PLAN.md §4) — the support
-          system never calls a vendor directly, only whichever channel is active here. Adding
-          a new vendor means one adapter file in <code>src/lib/notifications/adapters/</code>{" "}
-          plus one registry line, never touching a route, RPC, or UI.
+          Used by: <strong>customer support</strong> only — the automatic acknowledgement sent when
+          someone opens a support request, and agent replies sent by email
+          (<code>src/lib/notifications/send-support-email.ts</code>). It is <strong>not</strong> used
+          for account confirmation, password reset, or login emails — those are sent by Supabase
+          Auth&apos;s own email settings (Supabase Dashboard → Authentication → Emails / SMTP
+          provider), a completely separate system this page doesn&apos;t control. Ops alerts
+          (<code>src/lib/alerts.ts</code>) also send via Resend directly through{" "}
+          <code>RESEND_API_KEY</code>, bypassing this registry — a hardcoded safety valve, not
+          switchable here.
         </p>
         {ncError && <ErrorNotice message="Couldn't load notification channels. Please refresh." />}
-
-        <p className="text-xs font-semibold text-[var(--muted)] mb-1">Email</p>
-        {emailChannels.length > 0 ? (
-          <ProviderToggleList kind="notification" rows={emailChannels} />
+        {emailRows.length > 0 ? (
+          <IntegrationCardList kind="notification" notificationKind="email" rows={emailRows} />
         ) : (
           <p className="text-xs text-[var(--muted)]">No email channel registered.</p>
         )}
@@ -153,16 +282,33 @@ export default async function AdminIntegrationsPage() {
             <code>/api/webhooks/support-inbound</code> on this domain.
           </p>
         )}
+      </section>
 
-        <p className="text-xs font-semibold text-[var(--muted)] mt-4 mb-1">SMS</p>
-        {smsChannels.length > 0 ? (
-          <ProviderToggleList kind="notification" rows={smsChannels} />
+      <section className="mb-8">
+        <h2 className="text-sm font-semibold mb-1">SMS</h2>
+        {smsRows.length > 0 ? (
+          <>
+            <p className="text-xs text-[var(--muted)] mb-3">
+              Used by: customer support alerts, once a vendor is connected.
+            </p>
+            <IntegrationCardList kind="notification" notificationKind="sms" rows={smsRows} />
+          </>
         ) : (
-          <p className="text-xs text-[var(--muted)]">
-            No SMS vendor connected — <code>SmsProviderAdapter</code> ships with zero adapters
-            registered by design (see <code>src/lib/notifications/registry.ts</code>). Support
-            stays email-only until a vendor is chosen.
-          </p>
+          <div className="card p-3">
+            <span className="badge-muted">Not implemented</span>
+            <p className="text-xs text-[var(--muted)] mt-2">
+              No SMS vendor is connected — <code>smsAdapters</code> in{" "}
+              <code>src/lib/notifications/registry.ts</code> ships empty by design. Nothing in the
+              app currently sends an SMS through this registry; support stays email-only until a
+              vendor (Africa&apos;s Talking, Twilio, etc.) is added as a real adapter here.
+            </p>
+            <p className="text-xs text-[var(--muted)] mt-2">
+              This is separate from phone/OTP login, which already works today via{" "}
+              <strong>Supabase Auth&apos;s own SMS provider</strong> (Supabase Dashboard →
+              Authentication → Sign In / Providers → Phone) — a different system this page
+              doesn&apos;t control, same distinction as email above.
+            </p>
+          </div>
         )}
       </section>
 
@@ -195,7 +341,9 @@ export default async function AdminIntegrationsPage() {
         <h2 className="text-sm font-semibold mb-2">Environment configuration</h2>
         <p className="text-xs text-[var(--muted)] mb-3">
           Whether each credential is set on this deployment — presence only, never the value
-          itself. Read from real <code>process.env</code> at request time.
+          itself. Read from real <code>process.env</code> at request time. This is the full
+          operational requirement per vendor (webhooks, from-addresses, etc.) — the status badge on
+          each card above checks only the minimum needed to attempt a connection test.
         </p>
         <div className="grid gap-3 sm:grid-cols-2">
           {ENV_GROUPS.map((g) => (
@@ -224,7 +372,7 @@ export default async function AdminIntegrationsPage() {
           )}
         </h2>
         {!recentEvents?.length && <p className="text-xs text-[var(--muted)]">No webhook events received yet.</p>}
-        <div className="flex flex-col gap-2">
+        <div className="grid grid-cols-1 gap-2 lg:grid-cols-2">
           {recentEvents?.map((event) => (
             <div key={event.id} className="card p-3 text-xs">
               <div className="flex items-center justify-between">

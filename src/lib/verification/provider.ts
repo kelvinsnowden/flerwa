@@ -29,4 +29,15 @@ export interface VerificationProviderAdapter {
    * results via webhook. */
   verifyWebhookSignature(rawBody: string, headers: Headers): boolean;
   parseWebhookEvent(rawBody: string): ParsedIdentityCheckResult & { providerId: string };
+
+  /**
+   * Optional connectivity check. KYC vendors generally have no free/safe
+   * "ping" endpoint — the only real check (a National ID lookup) is
+   * billable and must never fire just to test connectivity (see
+   * IDENTITY VERIFICATION §6 of the integrations audit). Where a vendor
+   * truly offers no side-effect-free check, omit this rather than firing
+   * a real billable/identity-affecting call — presence of the credential
+   * is then the only thing the admin UI can honestly show.
+   */
+  testConnection?(): Promise<{ ok: boolean; error?: string }>;
 }

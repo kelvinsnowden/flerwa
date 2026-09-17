@@ -15,4 +15,6 @@ export interface OutboundSms {
 export interface SmsProviderAdapter {
   key: string;
   sendSms(msg: OutboundSms): Promise<{ ok: boolean; providerMessageId?: string; error?: string }>;
+  /** Optional: same contract as EmailProviderAdapter.testConnection. */
+  testConnection?(): Promise<{ ok: boolean; error?: string }>;
 }

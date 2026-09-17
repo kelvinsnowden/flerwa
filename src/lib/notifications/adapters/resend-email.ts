@@ -164,6 +164,30 @@ export const resendEmailAdapter: EmailProviderAdapter = {
   },
 
   fetchInboundBody: fetchResendInboundBody,
+
+  // GET /domains — a read-only, side-effect-free authenticated call
+  // (https://resend.com/docs/api-reference/domains/list-domains),
+  // confirming RESEND_API_KEY is valid without sending a real email.
+  // Same "grounded in docs, not independently tested against a live
+  // account" caveat as this file's other endpoints.
+  async testConnection() {
+    const apiKey = process.env.RESEND_API_KEY;
+    if (!apiKey) {
+      return { ok: false, error: "RESEND_API_KEY is not configured." };
+    }
+    try {
+      const res = await fetch(`${RESEND_API_BASE}/domains`, {
+        headers: { Authorization: `Bearer ${apiKey}` },
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        return { ok: false, error: typeof data?.message === "string" ? data.message : `Resend returned HTTP ${res.status}.` };
+      }
+      return { ok: true };
+    } catch (err) {
+      return { ok: false, error: err instanceof Error ? err.message : "Could not reach Resend." };
+    }
+  },
 };
 
 /**

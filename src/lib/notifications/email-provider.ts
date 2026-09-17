@@ -104,4 +104,10 @@ export interface EmailProviderAdapter {
     references: string[];
     attachments: InboundAttachment[];
   } | null>;
+
+  /** Optional: a real, side-effect-free authenticated call (e.g. listing
+   * verified domains) proving the configured API key actually works —
+   * never sends a real message. See PaymentProviderAdapter.testConnection
+   * for the same contract. */
+  testConnection?(): Promise<{ ok: boolean; error?: string }>;
 }

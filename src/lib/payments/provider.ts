@@ -55,4 +55,13 @@ export interface PaymentProviderAdapter {
    * immediately either way.
    */
   parseWebhookEvent(rawBody: string, headers: Headers): ParsedPaymentEvent | Promise<ParsedPaymentEvent>;
+
+  /**
+   * Optional: a real, side-effect-free authenticated call to the vendor's
+   * API proving the configured credentials actually work — not a presence
+   * check. Absent entirely if a vendor has no safe way to do this without
+   * creating a real collection/order. Must never throw; return
+   * { ok: false, error } exactly like every other adapter method here.
+   */
+  testConnection?(): Promise<{ ok: boolean; error?: string }>;
 }

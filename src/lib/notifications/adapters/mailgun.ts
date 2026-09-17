@@ -156,6 +156,32 @@ export const mailgunAdapter: EmailProviderAdapter = {
 
   // No fetchInboundBody — see this file's header comment: Mailgun's route
   // webhook already delivers the full body and attachment bytes inline.
+
+  // GET /v3/domains — a read-only, side-effect-free authenticated call
+  // (https://documentation.mailgun.com/docs/mailgun/api-reference/openapi-final/tag/Domains/),
+  // confirming MAILGUN_API_KEY is valid without sending a real email. Same
+  // "grounded in docs, not independently tested against a live account"
+  // caveat as this file's other endpoints. Uses the account-level domains
+  // list rather than a single-domain lookup so it still proves the key
+  // works even if MAILGUN_DOMAIN itself is misconfigured.
+  async testConnection() {
+    const apiKey = process.env.MAILGUN_API_KEY;
+    if (!apiKey) {
+      return { ok: false, error: "MAILGUN_API_KEY is not configured." };
+    }
+    try {
+      const res = await fetch(`${mailgunBaseUrl()}/v3/domains`, {
+        headers: { Authorization: `Basic ${Buffer.from(`api:${apiKey}`).toString("base64")}` },
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        return { ok: false, error: typeof data?.message === "string" ? data.message : `Mailgun returned HTTP ${res.status}.` };
+      }
+      return { ok: true };
+    } catch (err) {
+      return { ok: false, error: err instanceof Error ? err.message : "Could not reach Mailgun." };
+    }
+  },
 };
 
 function parseEmailAddress(raw: string): string {

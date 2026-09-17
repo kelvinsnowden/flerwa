@@ -74,6 +74,16 @@ export const koraAdapter: VerificationProviderAdapter = {
       providerId: body.metadata?.provider_id ?? "",
     };
   },
+
+  // No testConnection: Kora's identity product has no documented
+  // free/non-billable endpoint in this codebase's grounded references —
+  // the only confirmed identity endpoint (verifyKenyaNationalId below)
+  // performs a real, billable lookup, and the integrations audit
+  // explicitly rules that out for a "test connection" click. Rather than
+  // fabricate a fake pass/fail, this is left unimplemented — the admin UI
+  // falls back to showing whether KORA_SECRET_KEY is merely present, and
+  // says plainly that live connectivity can't be confirmed without an
+  // actual billable lookup.
 };
 
 export interface KenyaNationalIdResult {

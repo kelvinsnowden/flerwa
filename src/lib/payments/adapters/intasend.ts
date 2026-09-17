@@ -95,6 +95,32 @@ export const intasendAdapter: PaymentProviderAdapter = {
       currency: body.currency ?? null,
     };
   },
+
+  // Wallets list (https://developers.intasend.com/docs/wallets) is a
+  // read-only, non-billable, authenticated GET — the safest available
+  // proof that INTASEND_SECRET_KEY is valid and IntaSend's API is
+  // reachable, without creating a real collection request. Same
+  // "grounded in docs, not independently tested against a live account"
+  // caveat as every other endpoint in this file — confirm before relying
+  // on it in production.
+  async testConnection() {
+    const secretKey = process.env.INTASEND_SECRET_KEY;
+    if (!secretKey) {
+      return { ok: false, error: "INTASEND_SECRET_KEY is not configured." };
+    }
+    try {
+      const res = await fetch(`${intasendBaseUrl()}/api/v1/wallets/`, {
+        headers: { Authorization: `Bearer ${secretKey}` },
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        return { ok: false, error: typeof data?.detail === "string" ? data.detail : `IntaSend returned HTTP ${res.status}.` };
+      }
+      return { ok: true };
+    } catch (err) {
+      return { ok: false, error: err instanceof Error ? err.message : "Could not reach IntaSend." };
+    }
+  },
 };
 
 export interface CreateCollectionResult {

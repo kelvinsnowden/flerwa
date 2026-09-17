@@ -361,6 +361,9 @@ export interface PaymentProvider {
   connected_by: string | null;
   connected_at: string | null;
   created_at: string;
+  last_tested_at: string | null;
+  last_test_ok: boolean | null;
+  last_test_error: string | null;
 }
 
 export interface VerificationProvider {
@@ -371,6 +374,9 @@ export interface VerificationProvider {
   connected_by: string | null;
   connected_at: string | null;
   created_at: string;
+  last_tested_at: string | null;
+  last_test_ok: boolean | null;
+  last_test_error: string | null;
 }
 
 export interface PaymentProviderEvent {
